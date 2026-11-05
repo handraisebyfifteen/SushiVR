@@ -4,8 +4,8 @@ A sushi-restaurant simulator for WebXR, built for the Meta VR Start Developer
 Competition 2026. It runs in the browser of a VR headset such as Meta Quest with
 no installation: open the URL and start making sushi.
 
-> Work in progress. The project currently contains an empty room; the sushi
-> counter and hand-tracked nigiri-making come next.
+> Work in progress. The first playable slice is in: a seated sushi counter
+> where you make and serve one nigiri at a time using hand tracking only.
 
 Read this in Japanese: [README.ja.md](README.ja.md)
 
@@ -30,6 +30,23 @@ npm run typecheck   # TypeScript type check
 npm run build       # production build into dist/
 npm run preview     # serve the production build locally
 ```
+
+## How to play (hand tracking)
+
+Sit at the counter. Everything is within arm's reach; no controllers are used.
+A glowing ring marks the station where your hand can act next.
+
+1. **Grab rice**: make a fist inside the rice tub. A rice ball appears in your palm.
+2. **Shape it**: open and close your fist three times. The ball flattens into a nigiri shape.
+3. **Place it**: open your hand over the cutting board.
+4. **Add tuna**: pinch (thumb and index finger) a slice from the tray and release it over the rice.
+5. **Serve**: pinch the finished nigiri, release it on the serving stand (geta),
+   then hold a fist over the stand for one second to confirm. The sushi slides
+   away to the customer. Serving cannot be undone, which is why it needs a long press.
+
+Gesture rules: **pinch** picks up small items and confirms. **Fist** squeezes rice,
+and a **long fist** confirms irreversible actions. There is no cursor; where your
+hand is decides what it can do.
 
 ## Project layout
 

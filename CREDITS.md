@@ -19,6 +19,12 @@ Column meanings:
 | File | Asset name | Source (URL) | Author | License | Commercial use | Attribution required | Date added |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `src/scene-assets/room.scene-asset.ts` | `room-floor` (procedural floor plane) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `counter` (procedural counter body) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `cutting-board` (procedural tsukedai) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `geta` (procedural serving stand) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `rice-tub` (procedural ohitsu with rice mound) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `neta-tray` (procedural tray with tuna slices) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/nigiri-system.ts` | Runtime meshes: rice ball, tuna slice, highlight rings, serve progress bar (primitives) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 
 ## Removed assets
 

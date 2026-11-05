@@ -1,4 +1,11 @@
 import { defineAssets } from '@iwsdk/core';
+import {
+  createCounter,
+  createCuttingBoard,
+  createGeta,
+  createNetaTray,
+  createRiceTub,
+} from './scene-assets/counter.scene-asset.js';
 import { createRoomFloor } from './scene-assets/room.scene-asset.js';
 
 /**
@@ -9,4 +16,9 @@ import { createRoomFloor } from './scene-assets/room.scene-asset.js';
  */
 export default defineAssets({
   'room-floor': createRoomFloor(),
+  counter: createCounter(),
+  'cutting-board': createCuttingBoard(),
+  geta: createGeta(),
+  'rice-tub': createRiceTub(),
+  'neta-tray': createNetaTray(),
 });

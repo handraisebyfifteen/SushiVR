@@ -3,17 +3,47 @@
   "units": "meters",
   "components": {
     "com.iwsdk.components.DomeGradient": {
-      "sky": [0.843, 0.796, 0.882, 1],
-      "equator": [0.808, 0.855, 0.91, 1],
-      "ground": [0.902, 0.855, 0.82, 1],
+      "sky": [
+        0.843,
+        0.796,
+        0.882,
+        1
+      ],
+      "equator": [
+        0.808,
+        0.855,
+        0.91,
+        1
+      ],
+      "ground": [
+        0.902,
+        0.855,
+        0.82,
+        1
+      ],
       "elevationDeg": 24,
       "azimuthDeg": -31,
       "dither": true
     },
     "com.iwsdk.components.IBLGradient": {
-      "sky": [0.72, 0.7, 0.8, 1],
-      "equator": [0.78, 0.78, 0.84, 1],
-      "ground": [0.5, 0.52, 0.58, 1],
+      "sky": [
+        0.72,
+        0.7,
+        0.8,
+        1
+      ],
+      "equator": [
+        0.78,
+        0.78,
+        0.84,
+        1
+      ],
+      "ground": [
+        0.5,
+        0.52,
+        0.58,
+        1
+      ],
       "intensity": 0.2025
     }
   },
@@ -43,15 +73,141 @@
       }
     },
     {
+      "id": "counter",
+      "name": "Counter",
+      "content": {
+        "type": "asset",
+        "asset": "counter",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          -0.45
+        ]
+      }
+    },
+    {
+      "id": "cutting-board",
+      "name": "Cutting Board",
+      "content": {
+        "type": "asset",
+        "asset": "cutting-board",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0.75,
+          -0.38
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "CuttingBoard",
+          "radius": 0.13,
+          "height": 0.02
+        }
+      }
+    },
+    {
+      "id": "rice-tub",
+      "name": "Rice Tub",
+      "content": {
+        "type": "asset",
+        "asset": "rice-tub",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.3,
+          0.75,
+          -0.4
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "RiceTub",
+          "radius": 0.13,
+          "height": 0.14
+        }
+      }
+    },
+    {
+      "id": "neta-tray",
+      "name": "Neta Tray",
+      "content": {
+        "type": "asset",
+        "asset": "neta-tray",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.3,
+          0.75,
+          -0.4
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "NetaTray",
+          "radius": 0.12,
+          "height": 0.02
+        }
+      }
+    },
+    {
+      "id": "geta",
+      "name": "Geta",
+      "content": {
+        "type": "asset",
+        "asset": "geta",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0.75,
+          -0.6
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Geta",
+          "radius": 0.13,
+          "height": 0.05
+        }
+      }
+    },
+    {
       "id": "key-light",
       "name": "Key Light",
       "transform": {
-        "position": [-2.3541, 11.2763, 1.762],
-        "rotationDeg": [-73.3982, -11.3134, 0]
+        "position": [
+          -2.3541,
+          11.2763,
+          1.762
+        ],
+        "rotationDeg": [
+          -73.3982,
+          -11.3134,
+          0
+        ]
       },
       "components": {
         "DirectionalLight": {
-          "color": [1, 0.945, 0.87, 1],
+          "color": [
+            1,
+            0.945,
+            0.87,
+            1
+          ],
           "intensity": 2.3,
           "castShadow": true,
           "shadowMapSize": "2048",
@@ -69,11 +225,41 @@
       "name": "Fill Light",
       "components": {
         "HemisphereLight": {
-          "skyColor": [0.78, 0.83, 0.96, 1],
-          "groundColor": [0.592, 0.608, 0.651, 1],
+          "skyColor": [
+            0.78,
+            0.83,
+            0.96,
+            1
+          ],
+          "groundColor": [
+            0.592,
+            0.608,
+            0.651,
+            1
+          ],
           "intensity": 1.15
         }
       }
     }
-  ]
+  ],
+  "authoring": {
+    "views": [
+      {
+        "id": "hero",
+        "role": "hero",
+        "projection": "perspective",
+        "position": [
+          0,
+          1.35,
+          0.15
+        ],
+        "target": [
+          0,
+          0.8,
+          -0.45
+        ],
+        "fov": 60
+      }
+    ]
+  }
 }
