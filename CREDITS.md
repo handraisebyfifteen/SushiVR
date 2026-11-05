@@ -19,16 +19,22 @@ Column meanings:
 | File | Asset name | Source (URL) | Author | License | Commercial use | Attribution required | Date added |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `src/scene-assets/room.scene-asset.ts` | `room-floor` (procedural floor plane) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `counter` (procedural counter body) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `cutting-board` (procedural tsukedai) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `counter` (procedural chef counter) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `customer-counter` (procedural customer counter) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `cutting-board` (procedural 1 m manaita) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `geta` (procedural serving stand) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `rice-tub` (procedural ohitsu with rice mound) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `neta-tray` (procedural tray with tuna slices) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `basin` (procedural hand-washing tub with water surface) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `towel` (procedural folded hand towel) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `neta-case` (procedural glass showcase) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `saku-tuna`, `saku-white`, `saku-silver` (procedural fish blocks) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `knife` (procedural yanagiba) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `wet-cloth` (procedural fukin) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `tezu-bowl` (procedural vinegar-water bowl) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `wasabi-dish` (procedural dish with wasabi mound) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/nigiri-system.ts` | Runtime meshes: rice ball, tuna slice, wasabi dab, neta box lid, highlight rings, hand-cleanliness rings, progress bar (primitives) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/wash-station.scene-asset.ts` | `back-counter` (procedural back counter) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/wash-station.scene-asset.ts` | `basin` (procedural hand-washing tub with water surface) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/wash-station.scene-asset.ts` | `soap` (procedural soap pump bottle) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/wash-station.scene-asset.ts` | `towel` (procedural folded hand towel) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/turn-system.ts` | Runtime mesh: blink sphere for the turn-around transition (primitive) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/debug-hud-system.ts` | Debug-only labels and status panel drawn on canvas with the browser default font (no font file) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 
 ## Removed assets
 
@@ -39,6 +45,9 @@ longer part of the project (they remain in git history before that date):
 - `public/ui/welcome.uikitml`, `label-grab.uikitml`, `label-select.uikitml`, `label-spin.uikitml` (starter UI panels)
 - `src/scene-assets/studio.scene-asset.ts`, `decor.scene-asset.ts` (starter floor, stage, plinths, graphite pieces, furniture)
 - Remote glTF `robot` loaded from `@iwsdk/example-assets` on jsDelivr (starter robot)
+
+The Part 2/3 rice tub, neta tray and neta-box lid meshes were replaced on
+2026-11-05 by the sushi-bar layout above (`src/nigiri-system.ts` removed).
 
 ## Framework
 

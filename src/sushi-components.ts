@@ -1,82 +1,56 @@
 import { createComponent, Types } from '@iwsdk/core';
 
-/** Which counter station a scene node is. Authored in scene JSON. */
+/**
+ * Component declarations shared by the app runtime and the editor.
+ * Keep this module free of systems, DOM and renderer imports.
+ */
+
+/** Places a hand can act on. Each kind appears once in the scene. */
 export const StationKind = {
-  RiceTub: 'RiceTub',
   CuttingBoard: 'CuttingBoard',
-  NetaTray: 'NetaTray',
+  NetaCase: 'NetaCase',
   Geta: 'Geta',
-  Basin: 'Basin',
-  Towel: 'Towel',
+  Knife: 'Knife',
+  WetCloth: 'WetCloth',
   Tezu: 'Tezu',
   Wasabi: 'Wasabi',
+  /** The rice tub, kept low on the chef's right, out of view. */
+  RiceTub: 'RiceTub',
+  Basin: 'Basin',
+  Soap: 'Soap',
+  Towel: 'Towel',
 } as const;
 
+/**
+ * A station is a zone above a surface. `radius` makes a round zone; when
+ * `width` is set, the zone is a `width` x `depth` box instead. `height` is
+ * the surface height above the node origin (where a hand must be above).
+ */
 export const Station = createComponent('Station', {
-  kind: {
-    type: Types.Enum,
-    default: StationKind.RiceTub,
-    enum: StationKind,
-    help: 'Role of this station in the nigiri workflow.',
-  },
-  radius: {
-    type: Types.Float32,
-    default: 0.14,
-    min: 0.05,
-    max: 0.5,
-    help: 'Horizontal reach (m) around the station where a hand counts as "over" it.',
-  },
-  height: {
-    type: Types.Float32,
-    default: 0.0,
-    help: 'Height (m) of the working surface above the station origin.',
-  },
+  kind: { type: Types.Enum, enum: StationKind, default: StationKind.CuttingBoard },
+  radius: { type: Types.Float32, default: 0.12, min: 0.03, max: 0.6, step: 0.01 },
+  width: { type: Types.Float32, default: 0, min: 0, max: 2, step: 0.01 },
+  depth: { type: Types.Float32, default: 0, min: 0, max: 2, step: 0.01 },
+  height: { type: Types.Float32, default: 0, min: 0, max: 0.5, step: 0.005 },
+  /** True for props the player may pinch and move (position is remembered). */
+  movable: { type: Types.Boolean, default: false },
 });
 
-/** Steps of the nigiri workflow, in order. */
-export const NigiriStep = {
-  /** Nothing held. Rice hand takes rice from the tub (needs a wet hand). */
-  Idle: 'Idle',
-  /** Rice ball in the rice hand; the other hand takes neta from the tray. */
-  HoldRice: 'HoldRice',
-  /** Rice in one hand, neta on the other palm; wasabi, then join the hands. */
-  HoldBoth: 'HoldBoth',
-  /** Rice sits on the neta in the neta hand; squeeze to press and flip. */
-  Shaping: 'Shaping',
-  /** Shaped nigiri rests in the neta hand; pinch it with the other hand. */
-  NigiriInHand: 'NigiriInHand',
-  /** Nigiri pinched; release it on the geta. */
-  HoldNigiri: 'HoldNigiri',
-  /** On the geta; hold a fist there to serve. */
-  OnGeta: 'OnGeta',
-  Serving: 'Serving',
+export const Fish = {
+  Tuna: 'Tuna',
+  White: 'White',
+  Silver: 'Silver',
 } as const;
 
-/** Cleanliness of one hand. Shown as a small ring under the palm. */
-export const HandState = {
-  /** Needs the basin: start of service, or rice grains after several pieces. */
-  Unwashed: 'Unwashed',
-  /** Needs the towel: just washed, or touched something other than food. */
-  NeedsWipe: 'NeedsWipe',
-  Clean: 'Clean',
-  /** Dipped in tezu (vinegar water); rice will not stick. */
-  Wet: 'Wet',
-} as const;
+/** A fish block in the neta case; slices are cut from it to order. */
+export const Saku = createComponent('Saku', {
+  fish: { type: Types.Enum, enum: Fish, default: Fish.Tuna },
+});
 
-export const Hand = { None: 'None', Left: 'Left', Right: 'Right' } as const;
-
-export const WasabiState = { None: 'None', OnFinger: 'OnFinger', OnNeta: 'OnNeta' } as const;
-
-/** Runtime game state. One entity carries it so tools can inspect it. */
-export const NigiriGame = createComponent('NigiriGame', {
-  step: { type: Types.Enum, default: NigiriStep.Idle, enum: NigiriStep },
-  riceHand: { type: Types.Enum, default: Hand.None, enum: Hand },
-  leftHand: { type: Types.Enum, default: HandState.Unwashed, enum: HandState },
-  rightHand: { type: Types.Enum, default: HandState.Unwashed, enum: HandState },
-  lidOpen: { type: Types.Boolean, default: false },
-  wasabi: { type: Types.Enum, default: WasabiState.None, enum: WasabiState },
-  squeezes: { type: Types.Int32, default: 0 },
-  shaped: { type: Types.Boolean, default: false },
-  served: { type: Types.Int32, default: 0 },
-  holdProgress: { type: Types.Float32, default: 0 },
+/** Bar-wide state, on one runtime entity named `Bar`. */
+export const Bar = createComponent('Bar', {
+  /** True while the chef has turned around to the washing station. */
+  facingBack: { type: Types.Boolean, default: false },
+  /** How many times the chef has turned around. */
+  turns: { type: Types.Int32, default: 0 },
 });

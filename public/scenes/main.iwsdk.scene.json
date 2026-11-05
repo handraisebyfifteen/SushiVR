@@ -62,10 +62,10 @@
       "content": {
         "type": "asset",
         "asset": "room-floor",
+        "castShadow": true,
         "receiveShadow": true
       },
       "components": {
-        "LocomotionEnvironment": {},
         "DomeFade": {
           "start": 3,
           "end": 6
@@ -74,7 +74,7 @@
     },
     {
       "id": "counter",
-      "name": "Counter",
+      "name": "Chef Counter",
       "content": {
         "type": "asset",
         "asset": "counter",
@@ -85,7 +85,7 @@
         "position": [
           0,
           0,
-          -0.45
+          -0.33
         ]
       }
     },
@@ -102,63 +102,234 @@
         "position": [
           0,
           0.75,
-          -0.42
+          -0.28
         ]
       },
       "components": {
         "Station": {
           "kind": "CuttingBoard",
-          "radius": 0.13,
+          "width": 1.0,
+          "depth": 0.3,
           "height": 0.02
         }
       }
     },
     {
-      "id": "rice-tub",
-      "name": "Rice Tub",
+      "id": "wasabi-dish",
+      "name": "Wasabi Dish",
       "content": {
         "type": "asset",
-        "asset": "rice-tub",
+        "asset": "wasabi-dish",
         "castShadow": true,
         "receiveShadow": true
       },
       "transform": {
         "position": [
           -0.3,
-          0.75,
-          -0.42
+          0.77,
+          -0.38
         ]
       },
       "components": {
         "Station": {
-          "kind": "RiceTub",
-          "radius": 0.13,
-          "height": 0.14
+          "kind": "Wasabi",
+          "radius": 0.06,
+          "height": 0.02,
+          "movable": true
+        },
+        "OneHandGrabbable": {
+          "rotate": false
         }
       }
     },
     {
-      "id": "neta-tray",
-      "name": "Neta Tray",
+      "id": "tezu-bowl",
+      "name": "Tezu Bowl",
       "content": {
         "type": "asset",
-        "asset": "neta-tray",
+        "asset": "tezu-bowl",
         "castShadow": true,
         "receiveShadow": true
       },
       "transform": {
         "position": [
           0.3,
-          0.75,
-          -0.42
+          0.77,
+          -0.38
         ]
       },
       "components": {
         "Station": {
-          "kind": "NetaTray",
-          "radius": 0.12,
+          "kind": "Tezu",
+          "radius": 0.07,
+          "height": 0.05,
+          "movable": true
+        },
+        "OneHandGrabbable": {
+          "rotate": false
+        }
+      }
+    },
+    {
+      "id": "knife",
+      "name": "Knife (yanagiba)",
+      "content": {
+        "type": "asset",
+        "asset": "knife",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.6,
+          0.75,
+          -0.28
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Knife",
+          "width": 0.08,
+          "depth": 0.36,
           "height": 0.02
         }
+      }
+    },
+    {
+      "id": "wet-cloth",
+      "name": "Wet Cloth",
+      "content": {
+        "type": "asset",
+        "asset": "wet-cloth",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.74,
+          0.75,
+          -0.28
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "WetCloth",
+          "radius": 0.08,
+          "height": 0.02
+        }
+      }
+    },
+    {
+      "id": "neta-case",
+      "name": "Neta Case",
+      "content": {
+        "type": "asset",
+        "asset": "neta-case",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0.75,
+          -0.5
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "NetaCase",
+          "width": 0.9,
+          "depth": 0.14,
+          "height": 0.02
+        }
+      }
+    },
+    {
+      "id": "saku-tuna",
+      "name": "Saku: Tuna",
+      "content": {
+        "type": "asset",
+        "asset": "saku-tuna",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.28,
+          0.77,
+          -0.5
+        ]
+      },
+      "components": {
+        "Saku": {
+          "fish": "Tuna"
+        }
+      }
+    },
+    {
+      "id": "saku-white",
+      "name": "Saku: White fish",
+      "content": {
+        "type": "asset",
+        "asset": "saku-white",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0.77,
+          -0.5
+        ]
+      },
+      "components": {
+        "Saku": {
+          "fish": "White"
+        }
+      }
+    },
+    {
+      "id": "saku-silver",
+      "name": "Saku: Silver-skinned fish",
+      "content": {
+        "type": "asset",
+        "asset": "saku-silver",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.28,
+          0.77,
+          -0.5
+        ]
+      },
+      "components": {
+        "Saku": {
+          "fish": "Silver"
+        }
+      }
+    },
+    {
+      "id": "customer-counter",
+      "name": "Customer Counter",
+      "content": {
+        "type": "asset",
+        "asset": "customer-counter",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          -0.79
+        ]
       }
     },
     {
@@ -186,6 +357,41 @@
       }
     },
     {
+      "id": "rice-tub",
+      "name": "Rice Tub (ohitsu, unseen)",
+      "transform": {
+        "position": [
+          0.45,
+          0.5,
+          0.1
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "RiceTub",
+          "radius": 0.2,
+          "height": 0
+        }
+      }
+    },
+    {
+      "id": "back-counter",
+      "name": "Back Counter",
+      "content": {
+        "type": "asset",
+        "asset": "back-counter",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0.5
+        ]
+      }
+    },
+    {
       "id": "basin",
       "name": "Basin",
       "content": {
@@ -196,22 +402,46 @@
       },
       "transform": {
         "position": [
-          -0.5,
+          0,
           0.75,
-          -0.24
+          0.5
         ]
       },
       "components": {
         "Station": {
           "kind": "Basin",
-          "radius": 0.12,
-          "height": 0.08
+          "radius": 0.13,
+          "height": 0.09
+        }
+      }
+    },
+    {
+      "id": "soap",
+      "name": "Hand Soap",
+      "content": {
+        "type": "asset",
+        "asset": "soap",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.3,
+          0.75,
+          0.5
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Soap",
+          "radius": 0.06,
+          "height": 0.17
         }
       }
     },
     {
       "id": "towel",
-      "name": "Towel",
+      "name": "Hand Towel",
       "content": {
         "type": "asset",
         "asset": "towel",
@@ -220,63 +450,15 @@
       },
       "transform": {
         "position": [
-          0.5,
+          0.3,
           0.75,
-          -0.24
+          0.5
         ]
       },
       "components": {
         "Station": {
           "kind": "Towel",
-          "radius": 0.1,
-          "height": 0.02
-        }
-      }
-    },
-    {
-      "id": "tezu-bowl",
-      "name": "Tezu Bowl",
-      "content": {
-        "type": "asset",
-        "asset": "tezu-bowl",
-        "castShadow": true,
-        "receiveShadow": true
-      },
-      "transform": {
-        "position": [
-          -0.16,
-          0.75,
-          -0.24
-        ]
-      },
-      "components": {
-        "Station": {
-          "kind": "Tezu",
-          "radius": 0.07,
-          "height": 0.05
-        }
-      }
-    },
-    {
-      "id": "wasabi-dish",
-      "name": "Wasabi Dish",
-      "content": {
-        "type": "asset",
-        "asset": "wasabi-dish",
-        "castShadow": true,
-        "receiveShadow": true
-      },
-      "transform": {
-        "position": [
-          0.16,
-          0.75,
-          -0.24
-        ]
-      },
-      "components": {
-        "Station": {
-          "kind": "Wasabi",
-          "radius": 0.06,
+          "radius": 0.11,
           "height": 0.02
         }
       }
@@ -346,15 +528,47 @@
         "projection": "perspective",
         "position": [
           0,
-          1.35,
-          0.15
+          1.25,
+          0.1
         ],
         "target": [
           0,
           0.8,
-          -0.45
+          -0.5
         ],
-        "fov": 60
+        "fov": 70
+      },
+      {
+        "id": "back",
+        "projection": "perspective",
+        "position": [
+          0,
+          1.25,
+          0.1
+        ],
+        "target": [
+          0,
+          0.8,
+          0.5
+        ],
+        "fov": 70,
+        "role": "diagnostic"
+      },
+      {
+        "id": "top",
+        "projection": "perspective",
+        "position": [
+          0,
+          2.6,
+          -0.2
+        ],
+        "target": [
+          0,
+          0.75,
+          -0.2
+        ],
+        "fov": 60,
+        "role": "diagnostic"
       }
     ]
   }

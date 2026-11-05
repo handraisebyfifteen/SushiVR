@@ -8,29 +8,42 @@ import {
 } from '@iwsdk/core';
 
 /**
- * Sushi counter stations, built from primitives only (no external models).
- * All sizes are meters. Each factory returns a parentless Object3D whose
- * origin is its floor/contact point, so the scene can place it on a surface.
+ * Sushi bar front: the chef's counter and everything on it, built from
+ * primitives only (no external models). All sizes are meters. Each factory
+ * returns a parentless Object3D whose origin is its contact point, so the
+ * scene can place it on a surface.
  *
- * Shared materials: reusing one material per look keeps draw-call state
- * changes low on Quest.
+ * Layout (chef seated at the origin, facing -Z; distances are set in
+ * public/scenes/main.iwsdk.scene.json):
+ *   cutting board (1 m wide) -> neta case (glass) -> customer counter + geta
+ *
+ * Shared materials: one material per look keeps draw-call state changes low.
  */
 
 const darkWood = new MeshStandardMaterial({ color: '#4A3526', roughness: 0.8 });
 const lightWood = new MeshStandardMaterial({ color: '#D9B98A', roughness: 0.7 });
 const paleWood = new MeshStandardMaterial({ color: '#EADBB8', roughness: 0.65 });
 const lacquer = new MeshStandardMaterial({ color: '#1E1A1A', roughness: 0.35 });
-const rice = new MeshStandardMaterial({ color: '#F6F2EA', roughness: 0.9 });
-const tuna = new MeshStandardMaterial({ color: '#C8333A', roughness: 0.5 });
+const steel = new MeshStandardMaterial({ color: '#C9CDD2', roughness: 0.25, metalness: 0.8 });
+const glass = new MeshStandardMaterial({
+  color: '#BFE3F2',
+  roughness: 0.05,
+  transparent: true,
+  opacity: 0.22,
+});
 const water = new MeshStandardMaterial({
   color: '#9CCBE0',
   roughness: 0.15,
   transparent: true,
   opacity: 0.85,
 });
-const cloth = new MeshStandardMaterial({ color: '#F1EFE6', roughness: 1.0 });
+const wetCloth = new MeshStandardMaterial({ color: '#CFD8DC', roughness: 1.0 });
 const ceramic = new MeshStandardMaterial({ color: '#E8E4DA', roughness: 0.4 });
 const wasabi = new MeshStandardMaterial({ color: '#6B9E3A', roughness: 0.8 });
+const tunaFlesh = new MeshStandardMaterial({ color: '#C8333A', roughness: 0.5 });
+const whiteFlesh = new MeshStandardMaterial({ color: '#F3DDD6', roughness: 0.55 });
+const silverFlesh = new MeshStandardMaterial({ color: '#8FA3B8', roughness: 0.35, metalness: 0.2 });
+const silverSkin = new MeshStandardMaterial({ color: '#4F5F73', roughness: 0.4, metalness: 0.3 });
 
 function box(
   w: number,
@@ -44,25 +57,37 @@ function box(
   return mesh;
 }
 
-/** Counter body in front of the seated player: top slab plus front panel. */
+/** Chef's work counter: a slab with a leg at each end (knees go under it). */
 export function createCounter(): Group {
   const root = new Group();
   root.name = 'Counter';
-  const top = box(1.6, 0.04, 0.6, darkWood, 'CounterTop');
+  const top = box(1.8, 0.04, 0.5, darkWood, 'CounterTop');
   top.position.set(0, 0.73, 0);
-  const panel = box(1.6, 0.71, 0.04, darkWood, 'CounterFront');
-  panel.position.set(0, 0.355, -0.28);
-  const shelf = box(1.6, 0.02, 0.6, darkWood, 'CounterShelf');
-  shelf.position.set(0, 0.01, 0);
-  root.add(top, panel, shelf);
+  const legL = box(0.06, 0.71, 0.46, darkWood, 'LegL');
+  legL.position.set(-0.87, 0.355, 0);
+  const legR = box(0.06, 0.71, 0.46, darkWood, 'LegR');
+  legR.position.set(0.87, 0.355, 0);
+  root.add(top, legL, legR);
   return root;
 }
 
-/** Cutting board (tsukedai) where the rice is shaped and topped. */
+/** Customer side of the bar: a solid counter block with a lighter top. */
+export function createCustomerCounter(): Group {
+  const root = new Group();
+  root.name = 'CustomerCounter';
+  const body = box(1.8, 0.71, 0.42, darkWood, 'Body');
+  body.position.set(0, 0.355, 0);
+  const top = box(1.8, 0.04, 0.42, lightWood, 'Top');
+  top.position.set(0, 0.73, 0);
+  root.add(body, top);
+  return root;
+}
+
+/** Cutting board (manaita): 1 m wide, every cut and every nigiri happens here. */
 export function createCuttingBoard(): Group {
   const root = new Group();
   root.name = 'CuttingBoard';
-  const board = box(0.3, 0.02, 0.2, paleWood, 'Board');
+  const board = box(1.0, 0.02, 0.3, paleWood, 'Board');
   board.position.y = 0.01;
   root.add(board);
   return root;
@@ -82,58 +107,80 @@ export function createGeta(): Group {
   return root;
 }
 
-/** Rice tub (ohitsu) with a mound of vinegared rice inside. */
-export function createRiceTub(): Group {
+/**
+ * Neta case: a refrigerated glass showcase between chef and customer.
+ * Glass on the customer side, the top and both ends; open on the chef side
+ * so a hand can reach in. Fish blocks (saku) are separate assets placed inside.
+ */
+export function createNetaCase(): Group {
   const root = new Group();
-  root.name = 'RiceTub';
-  const tub = new Mesh(new CylinderGeometry(0.12, 0.11, 0.12, 24, 1), lightWood);
-  tub.name = 'Tub';
-  tub.position.y = 0.06;
-  const mound = new Mesh(new SphereGeometry(0.1, 20, 12), rice);
-  mound.name = 'Rice';
-  mound.scale.set(1, 0.45, 1);
-  mound.position.y = 0.1;
-  root.add(tub, mound);
+  root.name = 'NetaCase';
+  const base = box(0.9, 0.02, 0.14, lacquer, 'Base');
+  base.position.y = 0.01;
+  const front = box(0.9, 0.12, 0.006, glass, 'GlassFront');
+  front.position.set(0, 0.08, -0.067);
+  const top = box(0.9, 0.006, 0.14, glass, 'GlassTop');
+  top.position.set(0, 0.137, 0);
+  const endL = box(0.006, 0.12, 0.14, glass, 'GlassL');
+  endL.position.set(-0.447, 0.08, 0);
+  const endR = box(0.006, 0.12, 0.14, glass, 'GlassR');
+  endR.position.set(0.447, 0.08, 0);
+  const rail = box(0.9, 0.012, 0.012, steel, 'Rail');
+  rail.position.set(0, 0.134, -0.067);
+  root.add(base, front, top, endL, endR, rail);
   return root;
 }
 
-/** Topping tray (neta) holding slices of lean tuna. */
-export function createNetaTray(): Group {
+export type SakuKind = 'tuna' | 'white' | 'silver';
+
+/**
+ * Saku: a block of fish from which slices are cut to order. The block runs
+ * along X. The silver-skinned fish shows its skin pattern on the top face only,
+ * so a slice has a visible skin side.
+ */
+export function createSaku(kind: SakuKind): Group {
   const root = new Group();
-  root.name = 'NetaTray';
-  const tray = box(0.2, 0.015, 0.14, lacquer, 'Tray');
-  tray.position.y = 0.0075;
-  root.add(tray);
-  for (let i = 0; i < 3; i++) {
-    const slice = box(0.07, 0.01, 0.035, tuna, `Slice${i}`);
-    slice.position.set(0, 0.02, -0.045 + i * 0.045);
-    root.add(slice);
+  root.name = `Saku_${kind}`;
+  const material = kind === 'tuna' ? tunaFlesh : kind === 'white' ? whiteFlesh : silverFlesh;
+  const block = box(0.22, 0.035, 0.08, material, 'Block');
+  block.position.y = 0.0175;
+  root.add(block);
+  if (kind === 'silver') {
+    for (let i = 0; i < 6; i++) {
+      const stripe = box(0.012, 0.003, 0.08, silverSkin, `Skin${i}`);
+      stripe.position.set(-0.09 + i * 0.036, 0.036, 0);
+      root.add(stripe);
+    }
   }
   return root;
 }
 
-/** Hand-washing basin: a wooden tub with a water surface. */
-export function createBasin(): Group {
+/** Yanagiba: a long single-edged slicing knife. Blade runs along +X. */
+export function createKnife(): Group {
   const root = new Group();
-  root.name = 'Basin';
-  const tub = new Mesh(new CylinderGeometry(0.11, 0.1, 0.08, 24, 1), lightWood);
-  tub.name = 'Tub';
-  tub.position.y = 0.04;
-  const surface = new Mesh(new CylinderGeometry(0.1, 0.1, 0.004, 24, 1), water);
-  surface.name = 'Water';
-  surface.position.y = 0.07;
-  root.add(tub, surface);
+  root.name = 'Knife';
+  const blade = box(0.27, 0.004, 0.032, steel, 'Blade');
+  blade.position.set(0.075, 0.016, 0);
+  const handle = new Mesh(new CylinderGeometry(0.011, 0.013, 0.13, 10, 1), lightWood);
+  handle.name = 'Handle';
+  handle.rotation.z = Math.PI / 2;
+  handle.position.set(-0.125, 0.014, 0);
+  const bolster = new Mesh(new CylinderGeometry(0.012, 0.012, 0.012, 10, 1), lacquer);
+  bolster.name = 'Bolster';
+  bolster.rotation.z = Math.PI / 2;
+  bolster.position.set(-0.062, 0.014, 0);
+  root.add(blade, handle, bolster);
   return root;
 }
 
-/** Folded hand towel (fukin). */
-export function createTowel(): Group {
+/** Wet cloth (fukin) kept beside the knife to wipe the blade and the board. */
+export function createWetCloth(): Group {
   const root = new Group();
-  root.name = 'Towel';
-  const fold = box(0.16, 0.02, 0.12, cloth, 'Fold');
-  fold.position.y = 0.01;
-  const edge = box(0.16, 0.006, 0.04, cloth, 'Edge');
-  edge.position.set(0, 0.023, 0.03);
+  root.name = 'WetCloth';
+  const fold = box(0.14, 0.016, 0.1, wetCloth, 'Fold');
+  fold.position.y = 0.008;
+  const edge = box(0.14, 0.005, 0.035, wetCloth, 'Edge');
+  edge.position.set(0, 0.0185, 0.025);
   root.add(fold, edge);
   return root;
 }

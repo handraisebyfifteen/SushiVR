@@ -33,40 +33,26 @@ npm run preview     # serve the production build locally
 
 ## How to play (hand tracking)
 
-Sit at the counter. Everything is within arm's reach; no controllers are used.
-A glowing ring marks the station where your hand can act next. A small ring under
-a palm shows that hand's state: grey needs washing, yellow needs the towel, blue
-is wet from the tezu bowl. No ring means the hand is clean and dry.
+The full sushi-bar flow (orders, cutting to order, nigiri with rhythm timing,
+serving etiquette and scoring) is being rebuilt in parts. This build contains
+the bar layout and the two things that work everywhere in it:
 
-The steps follow the order a sushi chef actually works:
+- **Layout** (seated, no controllers): the 1 m cutting board in front of you with
+  the wasabi dish (left) and tezu bowl (right) at its back edge, the knife and
+  wet cloth to the right, the glass neta case with three fish blocks beyond the
+  board, and the customer counter with the serving stand (geta) behind that.
+  The rice tub is low on your right, out of view. The washing station (basin,
+  soap, hand towel) is behind you.
+- **Turn around**: look far to the left and hold for half a second. The view
+  blinks and the bar turns 180 degrees, so the washing station is in front of
+  you. Do the same to turn back. You never leave the stool.
+- **Move the small dishes**: pinch the wasabi dish or the tezu bowl to move it
+  along the board. It settles on the board where you let go and is remembered
+  for next time.
 
-1. **Wash**: put both hands in the basin (far left) and squeeze a fist three times.
-2. **Dry**: squeeze a fist twice on the towel (far right) with each hand.
-3. **Tezu**: dip an open hand in the small bowl of vinegar water. Rice will not
-   stick to a wet hand. Taking rice with a dry hand flashes amber and nothing happens.
-4. **Rice**: make a fist inside the rice tub with the wet hand. A rice ball sits in
-   your palm; squeezing rounds it.
-5. **Open the neta box**: pinch the lid with the other hand. You touched something
-   that is not food, so that hand now needs the towel before it touches the fish.
-6. **Neta**: pinch a tuna slice from the tray. It rests on that palm.
-7. **Wasabi**: touch the wasabi dish with the index finger of the rice hand, then
-   touch the neta with it.
-8. **Join**: bring the palms together with the rice hand open. The rice settles
-   onto the neta.
-9. **Shape**: squeeze a fist three times with either hand while the hands are
-   together. The piece turns over on the second squeeze so the neta is on top.
-10. **Serve**: pinch the finished nigiri off the palm, release it on the serving
-    stand (geta), then hold a fist over the stand for one second to confirm. The
-    sushi slides away to the customer. Serving cannot be undone, which is why it
-    needs a long press.
-
-Each piece needs tezu again, and the neta box closes between pieces. After every
-three pieces, rice grains have built up on your hands and both need washing again.
-
-Gesture rules: **pinch** picks up small items and confirms. **Fist** squeezes and
-rubs, and a **long fist** confirms irreversible actions. There is no cursor; where
-your hand is decides what it can do. Mistakes flash amber on the station involved
-and light up the station that fixes them.
+Debug overlay: add `?debug=1` to the URL to show station names and a status
+panel (facing, hand gestures). During `npm run dev` the D key toggles it too.
+Neither appears in production builds without the flag.
 
 ## Project layout
 
