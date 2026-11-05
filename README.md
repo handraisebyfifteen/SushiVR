@@ -92,8 +92,9 @@ wasabi is wanted):
     while carrying to set its heading.
 13. Hold a fist over the geta for a second to serve.
 
-**The master**: an older chef stands at your left and helps with the basic
-process, without text walls. If you stop making progress on a step, he says
+**The master**: an older chef in white Japanese-style work clothes and a
+navy apron stands at your left and helps with the basic process, without
+text walls. If you stop making progress on a step, he says
 what comes next in two or three words above the place to act (with a wooden
 clack) and points at it. If you stay stuck, see-through blue hands show the
 motion in a loop until you start it yourself. A mistake gets a word right

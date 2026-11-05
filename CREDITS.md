@@ -44,7 +44,7 @@ Column meanings:
 | `src/customer-system.ts` | Runtime meshes: customer figure (sphere, boxes), order card and result icons drawn on canvas |
 | `src/cutting-system.ts` | Runtime mesh: cut guide line (primitive) |
 | `src/feedback.ts` | Runtime meshes: station highlight rings and frames (primitives) |
-| `src/master-system.ts` | Runtime meshes: master figure (sphere, cylinder, boxes) and see-through ghost hands (boxes); his words and the turn arrow drawn on canvas with the browser default font | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/master-system.ts` | Runtime meshes: master figure in Japanese-style work clothes (sphere, cylinder, boxes; crossed collar, sash, apron, sleeves) and see-through ghost hands (boxes); his words and the turn arrow drawn on canvas with the browser default font | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/sfx.ts` | Sounds synthesized with the Web Audio API at runtime, including the master's wooden clack (no audio files) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/debug-hud-system.ts` | Debug-only labels and status panel drawn on canvas with the browser default font (no font file) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 

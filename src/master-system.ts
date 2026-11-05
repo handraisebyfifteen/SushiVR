@@ -5,6 +5,7 @@ import {
   DoubleSide,
   type Entity,
   Group,
+  Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -19,6 +20,7 @@ import { chef, FISH_LABEL, type FishKind, holdingAnything, progress, service } f
 import { hands } from './hands.js';
 import { playClack } from './sfx.js';
 import { type Kind, overStation, stations } from './station-system.js';
+import { type BoxPart, mergeGeometries, partMatrix } from './scene-assets/lib/batch.js';
 import { Master, Saku, StationKind } from './sushi-components.js';
 import { makeTextSprite, makeTurnArrowSprite } from './text-sprites.js';
 import {
@@ -76,6 +78,10 @@ const TURN_STEPS = new Set<StepKey>(['turnBack', 'turnFront']);
 const GESTURE_SECONDS = 0.9;
 const WORD_LIFT = 0.17;
 const FACE_TURN_RATE = 4;
+/** The master's sleeves (square, metres) and hands (wrist to fingertips). */
+const SLEEVE_WIDTH = 0.085;
+const HAND_LENGTH = 0.09;
+const UNIT_BOX = new BoxGeometry(1, 1, 1);
 
 const ghostMaterial = new MeshBasicMaterial({
   color: '#4FB8FF',
@@ -164,6 +170,7 @@ export class MasterSystem extends createSystem({
   private figure!: Group;
   private head!: Group;
   private handR!: Mesh;
+  private sleeveR!: Mesh;
   private ghosts!: [GhostHand, GhostHand];
   private arrow!: Sprite;
   private words = new Map<string, Sprite>();
@@ -195,31 +202,67 @@ export class MasterSystem extends createSystem({
   private readonly handRestL = new Vector3(-0.2, 0.98, -0.1);
   private readonly handRestR = new Vector3(0.2, 0.98, -0.1);
   private readonly handPoint = new Vector3(0.16, 1.32, -0.34);
+  private readonly shoulderL = new Vector3(-0.215, 1.4, -0.01);
+  private readonly shoulderR = new Vector3(0.215, 1.4, -0.01);
+  private readonly up = new Vector3(0, 1, 0);
+  private readonly armDir = new Vector3();
 
   init(): void {
     const skin = new MeshStandardMaterial({ color: '#E3C3A0', roughness: 0.8 });
-    const coat = new MeshStandardMaterial({ color: '#F2EFE8', roughness: 0.9 });
-    const band = new MeshStandardMaterial({ color: '#23304A', roughness: 0.8 });
+    const white = new MeshStandardMaterial({ color: '#F2EFE8', roughness: 0.9 });
+    const navy = new MeshStandardMaterial({ color: '#23304A', roughness: 0.8 });
     this.figure = new Group();
     this.figure.name = 'Master';
     this.head = new Group();
     this.head.position.y = 1.55;
     const face = new Mesh(new SphereGeometry(0.1, 16, 12), skin);
     face.name = 'Head';
-    const headband = new Mesh(new CylinderGeometry(0.103, 0.103, 0.03, 20, 1), band);
+    const headband = new Mesh(new CylinderGeometry(0.103, 0.103, 0.03, 20, 1), navy);
     headband.name = 'Headband';
     headband.position.y = 0.04;
     this.head.add(face, headband);
-    const torso = new Mesh(new BoxGeometry(0.38, 0.5, 0.2), coat);
-    torso.name = 'Torso';
-    torso.position.y = 1.2;
-    const handL = new Mesh(new BoxGeometry(0.06, 0.05, 0.09), skin);
+
+    // Japanese-style work clothes. The figure faces -Z, so its right is +X.
+    // The left sleeve hangs at rest and is welded into the white body; the
+    // right sleeve follows the pointing hand every frame.
+    const sleeveLen = this.armPose(this.shoulderL, this.handRestL, this.a, this.q);
+    const sleeveL = new Matrix4().compose(this.a, this.q, this.tmp.set(SLEEVE_WIDTH, sleeveLen, SLEEVE_WIDTH));
+    const whiteParts: BoxPart[] = [
+      { w: 0.38, h: 0.62, d: 0.2, x: 0, y: 1.14, z: 0 }, // top, to the hips
+      { w: 0.13, h: 0.82, d: 0.15, x: -0.08, y: 0.42, z: 0 }, // trousers
+      { w: 0.13, h: 0.82, d: 0.15, x: 0.08, y: 0.42, z: 0 },
+    ];
+    const body = new Mesh(
+      mergeGeometries([...whiteParts.map((p): [BoxGeometry, Matrix4] => [UNIT_BOX, partMatrix(p)]), [UNIT_BOX, sleeveL]]),
+      white,
+    );
+    body.name = 'Clothes';
+    // Crossed collar worn the living way: the wearer's left panel over the
+    // right, so it reads as a "y" from the front. Then the sash, the long
+    // apron and the sandals.
+    const navyParts: BoxPart[] = [
+      { w: 0.035, h: 0.35, d: 0.012, x: 0.03, y: 1.295, z: -0.106, rz: 0.475 },
+      { w: 0.035, h: 0.12, d: 0.01, x: 0.025, y: 1.395, z: -0.103, rz: -0.43 },
+      { w: 0.39, h: 0.05, d: 0.21, x: 0, y: 0.97, z: 0 },
+      { w: 0.36, h: 0.56, d: 0.012, x: 0, y: 0.68, z: -0.112 },
+      { w: 0.11, h: 0.04, d: 0.24, x: -0.08, y: 0.02, z: -0.03 },
+      { w: 0.11, h: 0.04, d: 0.24, x: 0.08, y: 0.02, z: -0.03 },
+    ];
+    const trim = new Mesh(mergeGeometries(navyParts.map((p): [BoxGeometry, Matrix4] => [UNIT_BOX, partMatrix(p)])), navy);
+    trim.name = 'Apron';
+
+    const handGeometry = new BoxGeometry(0.06, HAND_LENGTH, 0.045);
+    const handL = new Mesh(handGeometry, skin);
     handL.name = 'HandLeft';
     handL.position.copy(this.handRestL);
-    this.handR = new Mesh(new BoxGeometry(0.06, 0.05, 0.09), skin);
+    handL.quaternion.copy(this.q);
+    this.handR = new Mesh(handGeometry, skin);
     this.handR.name = 'HandRight';
     this.handR.position.copy(this.handRestR);
-    this.figure.add(this.head, torso, handL, this.handR);
+    this.sleeveR = new Mesh(new BoxGeometry(SLEEVE_WIDTH, 1, SLEEVE_WIDTH), white);
+    this.sleeveR.name = 'SleeveRight';
+    this.updateRightArm();
+    this.figure.add(this.head, body, trim, handL, this.sleeveR, this.handR);
     this.figure.position.set(MASTER_POSITION[0], MASTER_POSITION[1], MASTER_POSITION[2]);
     this.entity = this.world.createTransformEntity(this.figure);
     this.entity.addComponent(Master, {});
@@ -859,6 +902,7 @@ export class MasterSystem extends createSystem({
     const hand = this.handR;
     this.a.copy(pointing ? this.handPoint : this.handRestR);
     hand.position.lerp(this.a, Math.min(1, delta * 6));
+    this.updateRightArm();
 
     // Nod or shake.
     this.head.rotation.set(0, 0, 0);
@@ -869,6 +913,26 @@ export class MasterSystem extends createSystem({
       if (this.gesture === 'nod') this.head.rotation.x = wave * 0.35;
       else this.head.rotation.y = wave * 0.45;
     }
+  }
+
+  /** The right sleeve runs from the shoulder to the wrist; the hand lines up with it. */
+  private updateRightArm(): void {
+    this.sleeveR.scale.y = this.armPose(this.shoulderR, this.handR.position, this.sleeveR.position, this.sleeveR.quaternion);
+    this.handR.quaternion.copy(this.sleeveR.quaternion);
+  }
+
+  /**
+   * Pose a unit-height sleeve from `shoulder` toward `hand` (both figure-local),
+   * ending at the wrist. Writes the sleeve centre and rotation; returns its length.
+   */
+  private armPose(shoulder: Vector3, hand: Vector3, outPos: Vector3, outQuat: Quaternion): number {
+    const dir = this.armDir.subVectors(hand, shoulder);
+    const reach = dir.length();
+    dir.multiplyScalar(1 / Math.max(reach, 1e-4));
+    outQuat.setFromUnitVectors(this.up, dir);
+    const length = Math.max(0.05, reach - HAND_LENGTH / 2);
+    outPos.copy(shoulder).addScaledVector(dir, length / 2);
+    return length;
   }
 
   private sync(delta: number): void {
