@@ -217,3 +217,63 @@ export function makeTurnArrowSprite(): Sprite {
   sprite.name = 'TurnArrow';
   return sprite;
 }
+
+/**
+ * Order ticket shown inside the neta case while a door is open: the fish as
+ * a tile with its look (stripes for the silver-skinned fish, a pink tint and
+ * outline for white fish), its English name, and whether wasabi goes on.
+ */
+export function makeOrderTicket(fishName: string, fishColor: string, striped: boolean, wasabi: boolean): Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 384;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = 'rgba(255,252,244,0.96)';
+  ctx.fillRect(0, 0, 384, 160);
+  ctx.strokeStyle = '#2B2622';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, 380, 156);
+  // Fish tile.
+  ctx.fillStyle = fishColor;
+  ctx.fillRect(18, 28, 120, 104);
+  if (striped) {
+    ctx.fillStyle = '#3F5266';
+    for (let i = 0; i < 5; i++) ctx.fillRect(26 + i * 23, 28, 9, 104);
+  }
+  ctx.strokeStyle = '#2B2622';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(18, 28, 120, 104);
+  // Name and wasabi.
+  ctx.fillStyle = '#1E1A17';
+  ctx.textBaseline = 'middle';
+  let fontPx = 40;
+  ctx.font = `bold ${fontPx}px sans-serif`;
+  const room = 384 - 160 - 14;
+  const measured = ctx.measureText(fishName).width;
+  if (measured > room) {
+    fontPx = Math.floor((fontPx * room) / measured);
+    ctx.font = `bold ${fontPx}px sans-serif`;
+  }
+  ctx.fillText(fishName, 160, 58);
+  ctx.fillStyle = wasabi ? '#4F7F25' : '#8A8A8A';
+  ctx.beginPath();
+  ctx.arc(176, 112, 13, 0, Math.PI * 2);
+  ctx.fill();
+  if (!wasabi) {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(163, 125);
+    ctx.lineTo(189, 99);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#1E1A17';
+  ctx.font = 'bold 30px sans-serif';
+  ctx.fillText(wasabi ? 'Wasabi' : 'No wasabi', 200, 113);
+  const texture = new CanvasTexture(canvas);
+  const sprite = new Sprite(new SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+  sprite.scale.set(0.15, 0.0625, 1);
+  sprite.renderOrder = 905;
+  sprite.name = 'OrderTicket';
+  return sprite;
+}

@@ -1,9 +1,19 @@
-import { createSystem, type Object3D, Vector3 } from '@iwsdk/core';
-import { chef } from './game-state.js';
+import {
+  type Entity,
+  type Mesh,
+  type MeshStandardMaterial,
+  type Object3D,
+  type Sprite,
+  createSystem,
+  Vector3,
+} from '@iwsdk/core';
+import { COLOR_READY, glowObject } from './feedback.js';
+import { chef, FISH_COLOR, FISH_LABEL, type FishKind, service } from './game-state.js';
 import { hands } from './hands.js';
-import { NETA_SLOT_PITCH } from './layout.js';
+import { NETA_CASE_DEPTH, NETA_CASE_HEIGHT, NETA_SLOT_PITCH } from './layout.js';
 import { stations } from './station-system.js';
-import { Held, StationKind } from './sushi-components.js';
+import { Fish, Held, Saku, StationKind } from './sushi-components.js';
+import { makeOrderTicket, makeTextSprite } from './text-sprites.js';
 
 /** Seconds-ish time constant of the door slide (higher is snappier). */
 const DOOR_SPEED = 12;
@@ -16,6 +26,14 @@ const REACH_BOTTOM = 0.02;
 const REACH_TOP = 0.34;
 /** The doors close this long after the hand has left. */
 const CLOSE_DELAY = 0.3;
+/** The neta hand's pinch point this close to a saku marks it as the one a pinch takes (as in the cutting system). */
+const PICK_DISTANCE = 0.12;
+/** LED strip brightness: always on, brighter while a door is open. */
+const LED_REST = 0.6;
+const LED_OPEN = 1.8;
+/** Order ticket on the machine housing (case-local): the housing spans x -0.6..-0.44. */
+const TICKET_X = -0.52;
+const TICKET_Y = NETA_CASE_HEIGHT * 0.6;
 
 const tmp = new Vector3();
 
@@ -43,8 +61,16 @@ export const caseDoors = {
  * hand comes up to the case, the door in front of it slides over its
  * neighbour. Taking a saku (or putting one back) closes it again, as does
  * the hand leaving. Keeping the case shut keeps the fish cold.
+ *
+ * While a door is open the case comes into focus: the LED strip brightens,
+ * the saku a pinch would take glows white with its name above it, and the
+ * current order ticket shows on the chef side of the machine housing at the
+ * case's left end, like a slip clipped there (clear of the saku names and
+ * the master's words above the fish).
  */
-export class NetaCaseSystem extends createSystem({}) {
+export class NetaCaseSystem extends createSystem({
+  saku: { required: [Saku] },
+}) {
   private doors: Object3D[] = [];
   private closedX: number[] = [];
   /** Slot whose door the hand has asked for, or -1. */
@@ -54,6 +80,12 @@ export class NetaCaseSystem extends createSystem({}) {
   private lastHolding: string = Held.None;
   private away = 0;
   private readonly local = new Vector3();
+  private readonly sakuPos = new Vector3();
+  private led: MeshStandardMaterial | null = null;
+  private hovered: Entity | null = null;
+  private tags = new Map<FishKind, Sprite>();
+  private ticket: Sprite | null = null;
+  private ticketKey = '';
 
   update(delta: number): void {
     if (!this.findDoors()) return;
@@ -100,6 +132,76 @@ export class NetaCaseSystem extends createSystem({}) {
       const dir = i === 2 ? -1 : 1;
       this.doors[i].position.x = this.closedX[i] + dir * NETA_SLOT_PITCH * caseDoors.open[i];
     }
+    this.updateFocus(reaching && holding === Held.None);
+  }
+
+  /** LED, the saku a pinch would take, and the order ticket, while a door is open. */
+  private updateFocus(choosing: boolean): void {
+    let mostOpen = 0;
+    for (let i = 0; i < 3; i++) mostOpen = Math.max(mostOpen, caseDoors.open[i]);
+    if (this.led) this.led.emissiveIntensity = LED_REST + (LED_OPEN - LED_REST) * mostOpen;
+
+    // The saku nearest the pinch point, behind an open door.
+    let best: Entity | null = null;
+    if (choosing) {
+      const grasp = hands.all[chef.netaSide].grasp;
+      let bestD = PICK_DISTANCE;
+      for (const entity of this.queries.saku.entities) {
+        const object = entity.object3D;
+        if (!object) continue;
+        object.getWorldPosition(this.sakuPos);
+        const d = this.sakuPos.distanceTo(grasp);
+        if (d < bestD && caseDoors.isOpenAt(this.sakuPos)) {
+          bestD = d;
+          best = entity;
+        }
+      }
+    }
+    if (best !== this.hovered) {
+      if (this.hovered?.object3D) glowObject(this.hovered.object3D, null);
+      if (best?.object3D) glowObject(best.object3D, COLOR_READY);
+      for (const tag of this.tags.values()) tag.visible = false;
+      this.hovered = best;
+    }
+    if (best?.object3D) {
+      const tag = this.tagFor(best.getValue(Saku, 'fish') as FishKind);
+      best.object3D.getWorldPosition(tag.position);
+      tag.position.y += 0.075;
+      tag.visible = true;
+    }
+
+    // The order ticket, on the housing at the left end while a door is open.
+    const order = service.order;
+    const key = order ? `${order.fish}|${order.wasabi}` : '';
+    if (key !== this.ticketKey) {
+      this.ticketKey = key;
+      if (this.ticket) {
+        this.ticket.removeFromParent();
+        this.ticket.material.map?.dispose();
+        this.ticket.material.dispose();
+        this.ticket = null;
+      }
+      if (order) {
+        this.ticket = makeOrderTicket(FISH_LABEL[order.fish], FISH_COLOR[order.fish], order.fish === Fish.Silver, order.wasabi);
+        caseDoors.object!.add(this.ticket);
+      }
+    }
+    if (this.ticket) {
+      this.ticket.visible = mostOpen > 0.3;
+      this.ticket.position.set(TICKET_X, TICKET_Y, NETA_CASE_DEPTH / 2 + 0.01);
+    }
+  }
+
+  private tagFor(fish: FishKind): Sprite {
+    let tag = this.tags.get(fish);
+    if (!tag) {
+      tag = makeTextSprite(FISH_LABEL[fish], { width: 0.13 });
+      tag.name = `SakuTag_${fish}`;
+      tag.visible = false;
+      this.world.createTransformEntity(tag);
+      this.tags.set(fish, tag);
+    }
+    return tag;
   }
 
   private findDoors(): boolean {
@@ -116,6 +218,12 @@ export class NetaCaseSystem extends createSystem({}) {
     this.doors = found;
     this.closedX = found.map((d) => d.position.x);
     caseDoors.object = object;
+    const led = object.getObjectByName('LedStrip') as Mesh | undefined;
+    if (led) {
+      // Own copy, so brightening it does not touch any other mesh.
+      this.led = (led.material as MeshStandardMaterial).clone();
+      led.material = this.led;
+    }
     return true;
   }
 }

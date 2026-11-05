@@ -74,7 +74,9 @@ wasabi is wanted):
    open by itself. Pinch the ordered saku and set it on the board; the door
    closes once you have taken it. A wrong one glows amber; pinch it back into
    the case (the door opens for it again). A hand that needs washing cannot
-   touch the fish.
+   touch the fish. While a door is open the case lights up: the saku your
+   fingers would take glows white with its name above it, and the order
+   ticket (fish and wasabi) shows on the machine housing at the left end.
 2. Right hand: make a fist on the knife. With the left palm resting on the
    saku, draw the blade toward you along the white guide line: one slice.
    Wipe the blade on the wet cloth before opening your hand to put it down.
