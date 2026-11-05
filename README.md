@@ -70,9 +70,11 @@ service wash with water only; soap now would make the food smell of it.
 **One order** (the card above the customer shows the fish color and whether
 wasabi is wanted):
 
-1. Left hand: pinch the ordered saku in the case and set it on the board. A
-   wrong one glows amber; pinch it back into the case. A hand that needs
-   washing cannot touch the fish.
+1. Left hand: reach to the case; the glass door in front of your hand slides
+   open by itself. Pinch the ordered saku and set it on the board; the door
+   closes once you have taken it. A wrong one glows amber; pinch it back into
+   the case (the door opens for it again). A hand that needs washing cannot
+   touch the fish.
 2. Right hand: make a fist on the knife. With the left palm resting on the
    saku, draw the blade toward you along the white guide line: one slice.
    Wipe the blade on the wet cloth before opening your hand to put it down.

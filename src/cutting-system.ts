@@ -3,6 +3,7 @@ import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
 import { chef, type FishKind, progress, service } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
+import { caseDoors } from './neta-case-system.js';
 import { pieceApi } from './nigiri-system.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { Held, Saku, StationKind } from './sushi-components.js';
@@ -115,6 +116,8 @@ export class CuttingSystem extends createSystem({
       if (!hand.tracked || !hand.pinchStart || state.holding !== Held.None) return;
       const saku = this.nearestSaku(hand.grasp);
       if (!saku) return;
+      // A saku in the case can only be taken through its open door.
+      if (saku !== this.onBoard && !caseDoors.isOpenAt(saku.object3D!.getWorldPosition(this.tmp))) return;
       if (state.needsWash) {
         feedback.flash(StationKind.NetaCase, COLOR_WARN);
         coach.mistake('washFirst', StationKind.NetaCase);

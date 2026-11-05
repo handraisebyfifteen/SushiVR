@@ -15,11 +15,14 @@ import {
   MANAITA_THICKNESS,
   MANAITA_WIDTH,
   NETA_CASE_DEPTH,
+  NETA_CASE_HEIGHT,
+  NETA_SLOT_PITCH,
   TSUKEDAI_DEPTH,
   TSUKEDAI_TOP,
   WORK_COUNTER_DEPTH,
   WORK_COUNTER_TOP,
 } from '../layout.js';
+import { mergeBoxes } from './lib/batch.js';
 
 /**
  * Sushi bar front: the chef's counter and everything on it, built from
@@ -40,6 +43,7 @@ const lightWood = new MeshStandardMaterial({ color: '#D9B98A', roughness: 0.7 })
 const paleWood = new MeshStandardMaterial({ color: '#EADBB8', roughness: 0.65 });
 const lacquer = new MeshStandardMaterial({ color: '#1E1A1A', roughness: 0.35 });
 const steel = new MeshStandardMaterial({ color: '#C9CDD2', roughness: 0.25, metalness: 0.8 });
+const ledLight = new MeshStandardMaterial({ color: '#FFFFFF', emissive: '#FFF4E0', emissiveIntensity: 0.6, roughness: 0.4 });
 const glass = new MeshStandardMaterial({
   color: '#BFE3F2',
   roughness: 0.05,
@@ -147,6 +151,9 @@ const caseDark = new MeshStandardMaterial({ color: '#2A2D30', roughness: 0.5 });
 
 /** Inside width of the neta case; saku are placed along it. */
 export const NETA_CASE_WIDTH = 1.2;
+/** Door track offsets from the case's chef-side edge (outer doors front, middle door back). */
+export const NETA_DOOR_FRONT = 0.006;
+export const NETA_DOOR_BACK = 0.017;
 export { NETA_CASE_DEPTH };
 
 /**
@@ -161,7 +168,7 @@ export function createNetaCase(): Group {
   root.name = 'NetaCase';
   const W = NETA_CASE_WIDTH;
   const D = NETA_CASE_DEPTH;
-  const H = 0.22;
+  const H = NETA_CASE_HEIGHT;
   const base = box(W, 0.05, D, steel, 'Base');
   base.position.y = 0.025;
   const floor = box(W - 0.2, 0.004, D - 0.04, caseFloor, 'Floor');
@@ -171,21 +178,68 @@ export function createNetaCase(): Group {
   housing.position.set(-W / 2 + 0.08, H / 2, 0);
   const panel = box(0.004, 0.05, 0.1, caseDark, 'HousingPanel');
   panel.position.set(-W / 2 + 0.162, 0.14, 0);
-  // Glass: sloped front on the customer side (-Z), flat top, right end.
+  // Glass, sloped for a view in: the customer-side front leans back toward
+  // the chef, and the top falls gently toward the customer. Right end glass.
   const glassW = W - 0.16;
   const glassX = 0.08;
-  const front = box(glassW, 0.19, 0.006, glass, 'GlassFront');
-  front.rotation.x = -0.35;
-  front.position.set(glassX, 0.05 + 0.09, -D / 2 + 0.035);
-  const top = box(glassW, 0.006, D - 0.1, glass, 'GlassTop');
-  top.position.set(glassX, H - 0.003, 0.02);
-  const end = box(0.006, H - 0.05, D, glass, 'GlassEnd');
-  end.position.set(W / 2 - 0.003, 0.05 + (H - 0.05) / 2, 0);
+  const frontBottom = { y: 0.05, z: -D / 2 + 0.005 };
+  const frontTop = { y: H - 0.02, z: -D / 2 + 0.07 };
+  const frontLen = Math.hypot(frontTop.y - frontBottom.y, frontTop.z - frontBottom.z);
+  const front = box(glassW, frontLen, 0.006, glass, 'GlassFront');
+  front.rotation.x = Math.atan2(frontTop.z - frontBottom.z, frontTop.y - frontBottom.y);
+  front.position.set(glassX, (frontBottom.y + frontTop.y) / 2, (frontBottom.z + frontTop.z) / 2);
+  const topBack = { y: H, z: D / 2 - 0.02 };
+  const topLen = Math.hypot(topBack.z - frontTop.z, topBack.y - frontTop.y);
+  const top = box(glassW, 0.006, topLen, glass, 'GlassTop');
+  top.rotation.x = -Math.atan2(topBack.y - frontTop.y, topBack.z - frontTop.z);
+  top.position.set(glassX, (frontTop.y + topBack.y) / 2 - 0.003, (frontTop.z + topBack.z) / 2);
+  const end = box(0.006, H - 0.07, D, glass, 'GlassEnd');
+  end.position.set(W / 2 - 0.003, 0.05 + (H - 0.07) / 2, 0);
   const railTop = box(glassW, 0.01, 0.01, steel, 'RailTop');
-  railTop.position.set(glassX, H, -D / 2 + 0.07);
+  railTop.position.set(glassX, frontTop.y, frontTop.z);
+  // LED strip under the top at the chef side: lights the fish (brighter while a door is open).
+  const led = box(glassW - 0.02, 0.006, 0.012, ledLight, 'LedStrip');
+  led.position.set(glassX, H - 0.012, D / 2 - 0.035);
   const railBottom = box(glassW, 0.01, 0.01, steel, 'RailBottom');
   railBottom.position.set(glassX, 0.055, -D / 2 + 0.005);
-  root.add(base, floor, housing, panel, front, top, end, railTop, railBottom);
+  root.add(base, floor, housing, panel, front, top, end, railTop, railBottom, led);
+
+  // Chef side (+Z): one sliding glass door per saku slot, on two tracks so an
+  // open door slides over its neighbour; NetaCaseSystem opens them as the
+  // neta hand comes near. A fixed pane closes the right end.
+  const doorH = H - 0.075;
+  const doorY = 0.058 + doorH / 2;
+  for (let i = 0; i < 3; i++) {
+    const door = new Group();
+    door.name = `Door${i}`;
+    door.position.set((i - 1) * NETA_SLOT_PITCH, doorY, D / 2 - (i === 1 ? NETA_DOOR_BACK : NETA_DOOR_FRONT));
+    const pane = box(NETA_SLOT_PITCH - 0.006, doorH, 0.004, glass, 'Pane');
+    const stiles = new Mesh(
+      mergeBoxes([
+        { w: 0.008, h: doorH, d: 0.008, x: -NETA_SLOT_PITCH / 2 + 0.004, y: 0, z: 0 },
+        { w: 0.008, h: doorH, d: 0.008, x: NETA_SLOT_PITCH / 2 - 0.004, y: 0, z: 0 },
+        // Pull handle near the leading edge, on the chef's face.
+        { w: 0.01, h: 0.06, d: 0.01, x: (i === 2 ? -1 : 1) * (NETA_SLOT_PITCH / 2 - 0.03), y: 0, z: 0.007 },
+      ]),
+      steel,
+    );
+    stiles.name = 'Stiles';
+    door.add(pane, stiles);
+    root.add(door);
+  }
+  const doorsEnd = 1.5 * NETA_SLOT_PITCH;
+  const glassEnd = glassX + glassW / 2;
+  const fixed = box(glassEnd - doorsEnd, doorH, 0.004, glass, 'FixedPane');
+  fixed.position.set((doorsEnd + glassEnd) / 2, doorY, D / 2 - NETA_DOOR_FRONT);
+  const rails = new Mesh(
+    mergeBoxes([
+      { w: glassW, h: 0.008, d: 0.024, x: glassX, y: 0.054, z: D / 2 - 0.012 },
+      { w: glassW, h: 0.008, d: 0.024, x: glassX, y: H - 0.01, z: D / 2 - 0.012 },
+    ]),
+    steel,
+  );
+  rails.name = 'DoorRails';
+  root.add(fixed, rails);
   return root;
 }
 

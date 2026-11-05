@@ -152,6 +152,10 @@ export interface NodeLayout {
 }
 
 const SAKU_Z = NETA_CASE_Z + 0.03;
+/** Saku slots in the neta case, one sliding door in front of each. */
+export const NETA_SLOT_PITCH = 0.28;
+/** Neta case height to the top glass (a real case is about 27 cm). */
+export const NETA_CASE_HEIGHT = 0.27;
 const SAKU_Y = TSUKEDAI_TOP + 0.055;
 const DISH_Z = MANAITA_Z - 0.1;
 
@@ -175,9 +179,9 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
     position: [0, TSUKEDAI_TOP, NETA_CASE_Z],
     station: { depth: NETA_CASE_DEPTH },
   },
-  'saku-tuna': { position: [-0.28, SAKU_Y, SAKU_Z] },
+  'saku-tuna': { position: [-NETA_SLOT_PITCH, SAKU_Y, SAKU_Z] },
   'saku-white': { position: [0, SAKU_Y, SAKU_Z] },
-  'saku-silver': { position: [0.28, SAKU_Y, SAKU_Z] },
+  'saku-silver': { position: [NETA_SLOT_PITCH, SAKU_Y, SAKU_Z] },
   geta: { position: [0, TSUKEDAI_TOP, GETA_Z] },
   'customer-counter': {
     position: [0, -STEP_HEIGHT, TSUKEDAI_CUSTOMER_Z - CUSTOMER_COUNTER_DEPTH / 2],
