@@ -36,6 +36,8 @@ export const STALE_SECONDS = 240;
 export const JOIN_DISTANCE = 0.1;
 /** Pinch distance to the piece for shaping touches and picking it up. */
 export const TOUCH_DISTANCE = 0.09;
+/** The index fingertip takes wasabi only this close above the dish (passing high over it does not). */
+export const WASABI_TOUCH_HEIGHT = 0.035;
 /** Flip: the neta hand pushes forward this far while its fingers curl this much more. */
 export const FLIP_PUSH_DISTANCE = 0.04;
 export const FLIP_CURL_DELTA = 0.2;

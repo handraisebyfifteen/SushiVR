@@ -41,6 +41,7 @@ import {
   STALE_SECONDS,
   TEMPO_MS,
   TOUCH_DISTANCE,
+  WASABI_TOUCH_HEIGHT,
 } from './tuning.js';
 
 type Stage = (typeof NigiriStage)[keyof typeof NigiriStage];
@@ -337,7 +338,10 @@ export class NigiriSystem extends createSystem({}) {
   private updateWasabi(riceHand: typeof hands.left): void {
     if (!riceHand.tracked) return;
     if (this.wasabi === 'none') {
-      if (overStation(riceHand.indexTip, StationKind.Wasabi)) {
+      // The fingertip has to come down to the dish, not just pass over it.
+      const dish = stations.get(StationKind.Wasabi);
+      const low = !!dish && riceHand.indexTip.y < dish.pos.y + WASABI_TOUCH_HEIGHT;
+      if (low && overStation(riceHand.indexTip, StationKind.Wasabi)) {
         this.wasabi = 'finger';
         this.wasabiBlob.visible = true;
         feedback.flash(StationKind.Wasabi, COLOR_DONE);
