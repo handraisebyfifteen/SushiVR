@@ -37,12 +37,15 @@ You are the chef at a small sushi bar, seated, using only your hands. The
 right hand is the rice hand and the left hand is the neta (fish) hand; a
 single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 
-**Around you**: the 1 m cutting board, with the wasabi dish and tezu bowl
-(vinegar water) at its right-back corner (pinch to move them; the spot is
-remembered), the knife and wet cloth on the right, the glass neta case with
-three fish blocks (saku) beyond the board, and the customer counter with the
-serving stand (geta) behind it. The rice tub is low on your right, out of
-sight. A stainless prep sink with its faucet, the soap and the hand towel are behind you, with a dish cabinet above the sink.
+**Around you**: the kitchen floor is one step above the customer side, as
+in a real sushi bar. In front of you is the 1 m cutting board, with the
+wasabi dish and tezu bowl (vinegar water) at its right-back corner (pinch to
+move them; the spot is remembered) and the knife and wet cloth on the right.
+Beyond the board a raised ledge carries the long glass neta case with three
+fish blocks (saku); the strip of ledge in front of the case holds the serving
+stand (geta), and the lower customer counter lies beyond it. The rice tub is
+low on your right, out of sight. The prep sink with its faucet, the soap and
+the hand towel are behind you, with a dish cupboard above the sink.
 
 **Turn around**: look far to the left and hold for a second. The view blinks
 and the bar turns 180 degrees. Do the same to turn back. Turning is blocked
