@@ -167,6 +167,29 @@ function tonguePiece(): BufferGeometry {
   return patterned(shape(new BoxGeometry(0.03, 0.005, 0.058, 3, 1, 10), 0.058, 0.55, 0.003));
 }
 
+/** Squid legs (geso), opened flat: four legs side by side, suckers underneath, joined at the head end. */
+function gesoPiece(): BufferGeometry {
+  const parts: Array<BufferGeometry | [BufferGeometry, Matrix4]> = [];
+  for (let i = 0; i < 4; i++) {
+    const path: Vector3[] = [];
+    const radii: number[] = [];
+    const x0 = (i - 1.5) * 0.0062;
+    for (let k = 0; k <= 7; k++) {
+      const t = k / 7;
+      path.push(new Vector3(x0 * (1 + 0.5 * t) + Math.sin(t * 3 + i) * 0.0012, 0.0024, -0.026 + t * 0.054));
+      radii.push(0.0034 - 0.0022 * t);
+    }
+    parts.push(flat(taperedTube(path, radii, 6, 0.6), i % 2 ? '#EADFD3' : '#E4D6C9'));
+  }
+  const sucker = flat(new SphereGeometry(0.0011, 4, 3), '#C99C8C');
+  for (let i = 0; i < 4; i++) {
+    for (let k = 1; k < 7; k++) {
+      parts.push([sucker, new Matrix4().makeTranslation((i - 1.5) * 0.0062 * (1 + (0.5 * k) / 7), 0.0006, -0.026 + (k / 7) * 0.054)]);
+    }
+  }
+  return weld(parts);
+}
+
 function eelPiece(): BufferGeometry {
   return patterned(shape(new BoxGeometry(0.034, 0.008, 0.085, 2, 1, 8), 0.085, 0.25, 0.003));
 }
@@ -477,6 +500,7 @@ export function caseLook(id: NetaId): CaseLook {
       look = pieces(tonguePiece(), shingle(n, 0.058, 0.0125), def.look.pattern === 'tip' ? NetaPattern.Cockle : NetaPattern.ArkShell, [0.058, 0.005, 0.03]);
       break;
     case 'eels': look = pieces(eelPiece(), shingle(n, 0.085, 0.0065), NetaPattern.SeaEel, [0.085, 0.008, 0.034]); break;
+    case 'legs': look = pieces(gesoPiece(), shingle(n, 0.056, 0.011), NetaPattern.Squid, [0.056, 0.005, 0.03]); break;
     case 'pouches': {
       // Straight from the pack into a small stainless insert pan (nakago),
       // broth and all: the pouches in one loose pile, the top ones above the

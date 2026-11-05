@@ -5,124 +5,208 @@ import { type Dims, prepMaterial, roundedBlock } from './neta-look.js';
 import { flat, patterned, taperedTube, weld } from './neta-paint.js';
 
 /**
- * The saku-taking materials as they come out of the ice box, and the cuts
- * they take. Each is a group lying with its length along Z (toward the
- * chef), centred on its origin, bottom at y = 0; its parts are named
- * meshes. A cut is a guide line along Z at local x, drawn toward the chef.
- * Runtime meshes (src/prep-cut-system.ts), built from the same per-pixel
- * neta materials as the case.
+ * The fish of the morning delivery as they come out of the ice box (paper,
+ * then plastic, round each), and the work each takes. A material is a group
+ * lying with its length along Z (toward the chef), centred on its origin,
+ * bottom at y = 0; its parts are named meshes.
+ *  - cut: a guide line, along Z (drawn toward the chef) or across it (X).
+ *    A low cut is drawn flat along the board, under the flesh (shaving the
+ *    skin off).
+ *  - pull: the neta hand holds the material, the rice hand pinches a part
+ *    and pulls it away (the wrapping, the squid's legs, its skin).
+ *  - wipe: a sheet of kitchen paper rubbed over it.
+ * What a step frees as scrap stays on the board until it is thrown away.
+ * Runtime meshes (src/prep-cut-system.ts), drawn with the case's per-pixel
+ * neta materials.
  */
 
+export interface PrepEffect {
+  /** Parts moved (root-local dx, dz) when the step is done. */
+  shift?: Array<[string, number, number]>;
+  /** Parts that become scrap (to be thrown away). */
+  scrap?: string[];
+  hide?: string[];
+  show?: string[];
+}
+
 export type PrepStep =
-  /** A cut along Z at local x (over z0 +- len / 2). It may push a part aside, free a scrap, or swap a part for another. */
-  | { kind: 'cut'; x: number; z0: number; len: number; shift?: [string, number]; scrap?: string; swap?: [string, string] }
-  /** Both hands pinch (the neta hand the first part, the rice hand the second) and pull them apart: the second is a scrap. */
-  | { kind: 'pull'; netaPart: string; ricePart: string; netaAt: Vector3; riceAt: Vector3 };
+  | ({ kind: 'cut'; axis: 'z' | 'x'; at: number; mid: number; len: number; low?: boolean; say: string } & PrepEffect)
+  | ({ kind: 'pull'; netaAt: Vector3; riceAt: Vector3; parts: string[]; say: string } & PrepEffect)
+  | ({ kind: 'wipe'; say: string } & PrepEffect);
+
+export interface PrepProduct {
+  /** The parts that go together; the first gives the centre and the length. */
+  parts: string[];
+  neta: NetaId;
+  /** Into its place in the case, or back on the ice to wait for the range. */
+  dest: 'case' | 'ice';
+}
 
 export interface PrepMaterialLook {
   root: Group;
-  /** Length along Z, half its width across, and its highest top. */
   length: number;
   halfWidth: number;
+  /** The flesh's highest top (the guide lines lie on it). */
   top: number;
   steps: PrepStep[];
-  /** The parts that are saku once cut, and the case item each fills. */
-  products: Array<{ part: string; neta: NetaId }>;
+  products: PrepProduct[];
 }
 
-/** A block of one neta lying along Z, centred at (cx, cz), from y = 0. */
-function block(name: string, neta: NetaId, L: number, H: number, W: number, cx: number, cz = 0): Mesh {
-  const dims: Dims = [L, H, W];
-  const mesh = new Mesh(patterned(roundedBlock(L, H, W, 0.004)), prepMaterial(neta, dims));
-  // The pattern runs along the geometry's X: turn the mesh so X lies along -Z.
+const plainMaterials = new Map<string, MeshStandardMaterial>();
+function plain(color: string, roughness = 0.5): MeshStandardMaterial {
+  const key = `${color}/${roughness}`;
+  let m = plainMaterials.get(key);
+  if (!m) {
+    m = new MeshStandardMaterial({ color, roughness });
+    plainMaterials.set(key, m);
+  }
+  return m;
+}
+const paperMaterial = new MeshStandardMaterial({ color: '#F3EFE6', roughness: 0.95 });
+const plasticMaterial = new MeshStandardMaterial({ color: '#E4EEF3', roughness: 0.08, transparent: true, opacity: 0.34, depthWrite: false });
+
+/** Turns a block built along X so it lies along Z, centred at (cx, cz), from y0. */
+function lay(mesh: Mesh, L: number, cx: number, cz: number, y0: number, name: string): Mesh {
   mesh.rotation.y = Math.PI / 2;
-  mesh.position.set(cx, 0, cz + L / 2);
+  mesh.position.set(cx, y0, cz + L / 2);
   mesh.name = name;
   return mesh;
 }
+/** Flesh of one neta (its own per-pixel pattern). */
+function flesh(name: string, neta: NetaId, L: number, H: number, W: number, cx: number, cz = 0, y0 = 0): Mesh {
+  const dims: Dims = [L, H, W];
+  return lay(new Mesh(patterned(roundedBlock(L, H, W, 0.004)), prepMaterial(neta, dims)), L, cx, cz, y0, name);
+}
+/** A plain-coloured part (skin, blood line, scraps). */
+function part(name: string, color: string, L: number, H: number, W: number, cx: number, cz = 0, y0 = 0, roughness = 0.5): Mesh {
+  return lay(new Mesh(roundedBlock(L, H, W, Math.min(0.003, H / 3, W / 3)), plain(color, roughness)), L, cx, cz, y0, name);
+}
+/** The fish shop's wrapping: paper round the fish, a plastic bag round that. */
+function wrapping(root: Group, L: number, H: number, W: number, cx: number): void {
+  root.add(
+    lay(new Mesh(roundedBlock(L + 0.012, H + 0.008, W + 0.012, 0.006), paperMaterial), L + 0.012, cx, 0, 0, 'Paper'),
+    lay(new Mesh(roundedBlock(L + 0.03, H + 0.018, W + 0.026, 0.01), plasticMaterial), L + 0.03, cx, 0, 0, 'Plastic'),
+  );
+}
+/** The two pulls that unwrap a material: the plastic bag, then the paper. */
+function unwrapSteps(L: number, top: number): PrepStep[] {
+  return [
+    { kind: 'pull', netaAt: new Vector3(0, top + 0.012, -0.03), riceAt: new Vector3(0, top * 0.6, L / 2 + 0.012), parts: ['Plastic'], scrap: ['Plastic'], say: 'Off with the bag' },
+    { kind: 'pull', netaAt: new Vector3(0, top + 0.008, -0.03), riceAt: new Vector3(0, top * 0.6, L / 2 + 0.004), parts: ['Paper'], scrap: ['Paper'], say: 'Unwrap the paper' },
+  ];
+}
 
-/** A belly cut of tuna: fatty (the belly side), medium fatty and lean, side by side. */
+/** A belly cut of tuna, skin on the belly side: fatty, medium fatty and lean side by side. */
 function tunaBelly(): PrepMaterialLook {
   const L = 0.2;
   const W = 0.044;
   const root = new Group();
   root.name = 'TunaBelly';
   root.add(
-    block('FattyTuna', 'FattyTuna', L, 0.034, W, -W),
-    block('MediumFattyTuna', 'MediumFattyTuna', L, 0.041, W, 0),
-    block('LeanTuna', 'LeanTuna', L, 0.047, W, W),
+    part('Skin', '#8C97A1', L, 0.034, 0.006, -1.5 * W - 0.003, 0, 0, 0.35),
+    flesh('FattyTuna', 'FattyTuna', L, 0.034, W, -W),
+    flesh('MediumFattyTuna', 'MediumFattyTuna', L, 0.041, W, 0),
+    flesh('LeanTuna', 'LeanTuna', L, 0.047, W, W),
   );
+  wrapping(root, L, 0.047, 3 * W + 0.006, -0.003);
   return {
     root,
     length: L,
-    halfWidth: 1.5 * W,
+    halfWidth: 0.075,
     top: 0.047,
     steps: [
-      { kind: 'cut', x: -W / 2, z0: 0, len: L, shift: ['FattyTuna', -0.012] },
-      { kind: 'cut', x: W / 2, z0: 0, len: L, shift: ['LeanTuna', 0.012] },
+      ...unwrapSteps(L, 0.047),
+      { kind: 'cut', axis: 'z', at: -1.5 * W, mid: 0, len: L, scrap: ['Skin'], say: 'Cut off the skin side' },
+      { kind: 'cut', axis: 'z', at: -W / 2, mid: 0, len: L, shift: [['FattyTuna', -0.012, 0]], say: 'Along the line' },
+      { kind: 'cut', axis: 'z', at: W / 2, mid: 0, len: L, shift: [['LeanTuna', 0.012, 0]], say: 'Along the line' },
     ],
     products: [
-      { part: 'FattyTuna', neta: 'FattyTuna' },
-      { part: 'MediumFattyTuna', neta: 'MediumFattyTuna' },
-      { part: 'LeanTuna', neta: 'LeanTuna' },
+      { parts: ['FattyTuna'], neta: 'FattyTuna', dest: 'case' },
+      { parts: ['MediumFattyTuna'], neta: 'MediumFattyTuna', dest: 'case' },
+      { parts: ['LeanTuna'], neta: 'LeanTuna', dest: 'case' },
     ],
   };
 }
 
-const bloodLine = new MeshStandardMaterial({ color: '#4A1015', roughness: 0.45 });
-
-/** A bonito quarter loin (節): silver skin on the outer side, the dark blood line along the inner edge. */
-function bonitoLoin(): PrepMaterialLook {
-  const L = 0.22;
+/**
+ * A bonito half, skin down: the back (背) on the right, the belly (腹) on the
+ * left, the blood line between them; the hard skin round the neck at the
+ * belly's far (head) end.
+ */
+function bonitoHalf(): PrepMaterialLook {
+  const L = 0.26;
+  const neck = 0.035;
   const root = new Group();
-  root.name = 'BonitoLoin';
-  const loin = block('Bonito', 'Bonito', L, 0.04, 0.05, 0.008);
-  const chiai = new Mesh(roundedBlock(L - 0.01, 0.032, 0.013, 0.004), bloodLine);
-  chiai.rotation.y = Math.PI / 2;
-  chiai.position.set(-0.0245, 0, (L - 0.01) / 2);
-  chiai.name = 'BloodLine';
-  root.add(loin, chiai);
+  root.name = 'BonitoHalf';
+  const s = 0.004; // skin
+  root.add(
+    part('SkinBack', '#4E6478', L, s, 0.046, 0.025, 0, 0, 0.35),
+    flesh('Back', 'Bonito', L, 0.034, 0.038, 0.029, 0, s),
+    part('BloodBack', '#4A1015', L - 0.01, 0.03, 0.008, 0.006, 0, s, 0.45),
+    part('SkinBelly', '#A9BAC6', L - neck, s, 0.044, -0.024, neck / 2, 0, 0.35),
+    flesh('Belly', 'Bonito', L - neck, 0.026, 0.036, -0.028, neck / 2, s),
+    part('BloodBelly', '#4A1015', L - neck - 0.01, 0.024, 0.008, -0.006, neck / 2, s, 0.45),
+    part('Neck', '#6E6966', neck, 0.03, 0.044, -0.024, -L / 2 + neck / 2, 0, 0.6),
+  );
+  wrapping(root, L, 0.038, 0.098, 0);
+  const back = ['Back', 'SkinBack', 'BloodBack'];
+  const belly = ['Belly', 'SkinBelly', 'BloodBelly', 'Neck'];
+  const d = 0.012;
   return {
     root,
     length: L,
-    halfWidth: 0.033,
-    top: 0.04,
-    steps: [{ kind: 'cut', x: -0.0175, z0: 0, len: L, scrap: 'BloodLine' }],
-    products: [{ part: 'Bonito', neta: 'Bonito' }],
+    halfWidth: 0.062,
+    top: 0.038,
+    steps: [
+      ...unwrapSteps(L, 0.038),
+      {
+        kind: 'cut', axis: 'z', at: 0, mid: 0, len: L, say: 'Split back and belly',
+        shift: [...back.map((p): [string, number, number] => [p, d, 0]), ...belly.map((p): [string, number, number] => [p, -d, 0])],
+      },
+      { kind: 'cut', axis: 'z', at: d + 0.01, mid: 0, len: L, scrap: ['BloodBack'], say: 'Off with the blood line' },
+      // Shaved, not pulled: pulling the skin splits bonito flesh.
+      { kind: 'cut', axis: 'z', at: d + 0.029, mid: 0, len: L, low: true, scrap: ['SkinBack'], say: 'Shave the skin off, flat' },
+      { kind: 'cut', axis: 'x', at: -L / 2 + neck, mid: -d - 0.024, len: 0.06, scrap: ['Neck'], say: 'Off with the hard skin' },
+      { kind: 'cut', axis: 'z', at: -d - 0.01, mid: neck / 2, len: L - neck, scrap: ['BloodBelly'], say: 'Off with the blood line' },
+    ],
+    products: [
+      { parts: ['Back'], neta: 'Bonito', dest: 'case' },
+      { parts: ['Belly', 'SkinBelly'], neta: 'BonitoBelly', dest: 'ice' },
+    ],
   };
 }
 
 const squidSkin = new MeshStandardMaterial({ color: '#FFFFFF', vertexColors: true, roughness: 0.32 });
 
-/** A whole squid: the body (mantle) with its fins toward the far end, the head and legs at the near end. */
+/** A whole squid: the body (mantle) with its fins, the guts inside its mouth, the head and legs at the near end. */
 function squid(): PrepMaterialLook {
   const root = new Group();
   root.name = 'Squid';
-  const bodyFar = -0.13;
-  const bodyNear = 0.04;
-  // Body: a flattened tube, open at the near end, tapering to a point.
+  const far = -0.13;
+  const near = 0.04;
+  const bodyMid = (far + near) / 2;
+  const bodyLen = near - far;
+  // Body: a flattened tube, open at the near end, tapering to a point; brownish skin.
   const path: Vector3[] = [];
   const radii: number[] = [];
   for (let i = 0; i <= 12; i++) {
     const t = i / 12;
-    path.push(new Vector3(0, 0.017, bodyNear + (bodyFar - bodyNear) * t));
+    path.push(new Vector3(0, 0.017, near + (far - near) * t));
     radii.push(0.026 * Math.sqrt(Math.max(0.02, 1 - t ** 2.2)));
   }
-  const mantle = flat(taperedTube(path, radii, 14, 0.62), '#EFE5DA');
-  const fin = flat(roundedBlock(0.055, 0.003, 0.03, 0.001), '#E6D8CB');
+  const fin = flat(roundedBlock(0.055, 0.003, 0.03, 0.001), '#C9A694');
   const body = new Mesh(
     weld([
-      mantle,
+      flat(taperedTube(path, radii, 14, 0.62), '#D8BBAA'),
       [fin, new Matrix4().makeRotationY(-Math.PI / 2 + 0.35).setPosition(0.012, 0.016, -0.07)],
       [fin, new Matrix4().makeRotationY(-Math.PI / 2 - 0.35).setPosition(-0.012, 0.016, -0.07)],
     ]),
     squidSkin,
   );
   body.name = 'Body';
-  // Head and legs: a small head, eight arms and two long tentacles fanning toward the chef.
+  // Head and legs fanning toward the chef; the guts sac behind the head comes out with them.
   const parts: Array<BufferGeometry | [BufferGeometry, Matrix4]> = [];
-  const head = flat(new SphereGeometry(1, 12, 8), '#E2CFC2');
-  parts.push([head, new Matrix4().makeScale(0.017, 0.012, 0.016).setPosition(0, 0.013, bodyNear + 0.012)]);
+  parts.push([flat(new SphereGeometry(1, 12, 8), '#E2CFC2'), new Matrix4().makeScale(0.017, 0.012, 0.016).setPosition(0, 0.013, near + 0.012)]);
   for (let i = 0; i < 10; i++) {
     const long = i >= 8;
     const spread = ((long ? (i - 8.5) * 2 : i - 3.5) / 3.5) * 0.5;
@@ -131,41 +215,91 @@ function squid(): PrepMaterialLook {
     const ar: number[] = [];
     for (let k = 0; k <= 6; k++) {
       const t = k / 6;
-      arm.push(new Vector3(Math.sin(spread) * len * t, 0.006 + 0.004 * (1 - t), bodyNear + 0.024 + Math.cos(spread) * len * t));
+      arm.push(new Vector3(Math.sin(spread) * len * t, 0.006 + 0.004 * (1 - t), near + 0.024 + Math.cos(spread) * len * t));
       ar.push(0.0045 * (1 - 0.7 * t));
     }
     parts.push(flat(taperedTube(arm, ar, 6, 0.8), long ? '#D9C0B0' : '#DDC6B7'));
   }
   const legs = new Mesh(weld(parts), squidSkin);
   legs.name = 'Legs';
-  // Cut open, the body lies flat as one sheet: the saku.
-  const sheetL = bodyNear - bodyFar - 0.01;
-  const sheet = block('Sheet', 'Squid', sheetL, 0.01, 0.075, 0, (bodyNear + bodyFar) / 2);
+  const guts = new Mesh(new SphereGeometry(1, 10, 6).scale(0.015, 0.01, 0.022).translate(0, 0.012, near - 0.012), plain('#9C7A3C', 0.4));
+  guts.name = 'Guts';
+  // Opened: the legs flat (geso), the body as one sheet with its skin over it.
+  const aside = 0.085;
+  const legsFlat = new Mesh(gesoFlat(), squidSkin);
+  legsFlat.name = 'LegsFlat';
+  legsFlat.position.set(aside, 0, near + 0.07);
+  legsFlat.visible = false;
+  const sheet = flesh('Sheet', 'Squid', bodyLen - 0.01, 0.01, 0.075, 0, bodyMid);
   sheet.visible = false;
-  root.add(body, legs, sheet);
+  const skin = part('BodySkin', '#C59C88', bodyLen - 0.008, 0.002, 0.077, 0, bodyMid, 0.01, 0.4);
+  skin.visible = false;
+  root.add(body, legs, guts, legsFlat, sheet, skin);
+  wrapping(root, 0.27, 0.034, 0.07, 0);
   return {
     root,
-    length: 0.26,
-    halfWidth: 0.04,
+    length: 0.27,
+    halfWidth: 0.045,
     top: 0.03,
     steps: [
-      { kind: 'pull', netaPart: 'Body', ricePart: 'Legs', netaAt: new Vector3(0, 0.03, -0.05), riceAt: new Vector3(0, 0.015, bodyNear + 0.03) },
-      { kind: 'cut', x: 0, z0: (bodyNear + bodyFar) / 2, len: bodyNear - bodyFar, swap: ['Body', 'Sheet'] },
+      ...unwrapSteps(0.27, 0.034),
+      {
+        kind: 'pull', netaAt: new Vector3(0, 0.03, -0.05), riceAt: new Vector3(0, 0.015, near + 0.03), parts: ['Legs', 'Guts'],
+        shift: [['Legs', aside, 0.03], ['Guts', aside, 0.03]], say: 'Pull the legs out',
+      },
+      { kind: 'cut', axis: 'x', at: near + 0.03 + 0.002, mid: aside, len: 0.05, scrap: ['Guts'], say: 'Cut off the guts' },
+      { kind: 'cut', axis: 'z', at: aside, mid: near + 0.07, len: 0.09, hide: ['Legs'], show: ['LegsFlat'], say: 'Open the legs flat' },
+      { kind: 'cut', axis: 'z', at: 0, mid: bodyMid, len: bodyLen, hide: ['Body'], show: ['Sheet', 'BodySkin'], say: 'Open the body' },
+      {
+        kind: 'pull', netaAt: new Vector3(-0.02, 0.014, bodyMid - 0.03), riceAt: new Vector3(0.02, 0.013, near - 0.012), parts: ['BodySkin'],
+        scrap: ['BodySkin'], say: 'Peel the skin off',
+      },
+      { kind: 'wipe', say: 'Pat it dry with paper' },
     ],
-    products: [{ part: 'Sheet', neta: 'Squid' }],
+    products: [
+      { parts: ['Sheet'], neta: 'Squid', dest: 'case' },
+      { parts: ['LegsFlat'], neta: 'Geso', dest: 'case' },
+    ],
   };
 }
 
-/** The look and cuts of a saku-taking material, built fresh (one per day). */
+/** The legs opened out flat: ten legs fanned from a flat head piece, suckers underneath. */
+function gesoFlat(): BufferGeometry {
+  const parts: Array<BufferGeometry | [BufferGeometry, Matrix4]> = [];
+  parts.push(flat(roundedBlock(0.03, 0.006, 0.04, 0.002), '#E6D7CA').rotateY(Math.PI / 2).translate(0, 0, -0.035));
+  for (let i = 0; i < 10; i++) {
+    const spread = ((i - 4.5) / 4.5) * 0.45;
+    const len = i === 0 || i === 9 ? 0.07 : 0.05;
+    const arm: Vector3[] = [];
+    const ar: number[] = [];
+    for (let k = 0; k <= 6; k++) {
+      const t = k / 6;
+      arm.push(new Vector3(Math.sin(spread) * len * t, 0.003, -0.02 + Math.cos(spread) * len * t));
+      ar.push(0.004 * (1 - 0.7 * t));
+    }
+    parts.push(flat(taperedTube(arm, ar, 6, 0.55), i % 2 ? '#EADCCF' : '#E2D2C4'));
+  }
+  return weld(parts);
+}
+
+/** The look and work of a delivered material, built fresh (one per day). */
 export function prepMaterialLook(id: PrepId): PrepMaterialLook | null {
   switch (id) {
     case 'TunaBelly':
       return tunaBelly();
-    case 'BonitoLoin':
-      return bonitoLoin();
+    case 'BonitoHalf':
+      return bonitoHalf();
     case 'Squid':
       return squid();
     default:
       return null;
   }
+}
+
+/** A sheet of kitchen paper (in the hand, then used). */
+export function paperSheet(): Mesh {
+  const mesh = new Mesh(roundedBlock(0.11, 0.0015, 0.1, 0.0005), paperMaterial);
+  mesh.geometry.translate(-0.055, 0, 0);
+  mesh.name = 'KitchenPaper';
+  return mesh;
 }

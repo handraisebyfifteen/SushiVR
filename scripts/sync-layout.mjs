@@ -90,17 +90,26 @@ order.forEach((id, i) => {
 });
 
 // --- reach report: the ice box of the morning prep, near end of each material (neta hand) ---
+// and the other prep props: trash bin (neta hand, down at the left foot), paper box, and the
+// telephone (facing the sink: the left hand is on +X).
 {
   const sx = -layout.SHOULDER_HALF_WIDTH;
   const y = layout.WORK_COUNTER_TOP + layout.ICE_BOX_ICE_TOP + 0.03;
   const z = layout.ICE_BOX_Z + layout.ICE_BOX_DEPTH / 2 - layout.ICE_BOX_WALL - 0.04;
   console.log('ice box material     x       lean');
-  // Box-local x of each material (src/prep-cut-system.ts SLOT_X).
-  for (const [name, bx] of [['TunaBelly', 0.08], ['BonitoLoin', -0.03], ['Squid', -0.105]]) {
+  // Box-local x of each material (src/prep-cut-system.ts SLOT); the squid lies on top of the others.
+  for (const [name, bx] of [['TunaBelly', 0.068], ['BonitoHalf', -0.088], ['Squid', 0]]) {
     const x = layout.ICE_BOX_X + bx;
     const lean = Math.hypot(x - sx, y - shoulderY, z - layout.SHOULDER_BEHIND_EYES) - reach;
     console.log(`${name.padEnd(18)} ${x.toFixed(3).padStart(7)}  ${lean > 0 ? `${(lean * 100).toFixed(0)} cm` : 'ok'}`);
   }
+  const row = (name, px, py, pz, sx, sz) => {
+    const lean = Math.hypot(px - sx, py - shoulderY, pz - sz) - reach;
+    console.log(`${name.padEnd(18)} ${px.toFixed(3).padStart(7)}  ${lean > 0 ? `${(lean * 100).toFixed(0)} cm` : 'ok'}`);
+  };
+  row('TrashBin', layout.TRASH_BIN_X, layout.TRASH_BIN_TOP + 0.05, layout.TRASH_BIN_Z, -layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
+  row('PaperBox', layout.PAPER_BOX_X, layout.MANAITA_TOP + 0.06, layout.MANAITA_Z - 0.1, -layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
+  row('Phone handset', layout.PHONE_X, layout.SINK_TOP + 0.12, layout.PHONE_Z - 0.04, layout.SHOULDER_HALF_WIDTH, -layout.SHOULDER_BEHIND_EYES);
 }
 
 if (check) {

@@ -50,10 +50,18 @@ export type StepKey =
   | 'squeezeRoll'
   | 'cutRoll'
   // morning prep
+  | 'callFishShop'
   | 'takeMaterial'
   | 'cutPrep'
-  | 'pullSquid'
-  | 'stockSaku';
+  | 'pullPrep'
+  | 'wipePaper'
+  | 'stockSaku'
+  | 'discardScrap'
+  | 'liftBoard'
+  | 'washBoard'
+  | 'leanBoard'
+  | 'returnBoard'
+  | 'hangNoren';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
 export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';

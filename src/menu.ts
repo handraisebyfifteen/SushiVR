@@ -15,10 +15,15 @@ export const Neta = {
   Abalone: 'Abalone',
   Octopus: 'Octopus',
   Squid: 'Squid',
+  /** The squid's legs (geso), opened flat. */
+  Geso: 'Geso',
   Flounder: 'Flounder',
   StripedJack: 'StripedJack',
   Yellowtail: 'Yellowtail',
+  /** Bonito back (背), skinned. */
   Bonito: 'Bonito',
+  /** Bonito belly (腹), its skin side seared. */
+  BonitoBelly: 'BonitoBelly',
   LeanTuna: 'LeanTuna',
   MediumFattyTuna: 'MediumFattyTuna',
   FattyTuna: 'FattyTuna',
@@ -67,6 +72,7 @@ export type CaseShape =
   | 'halves'
   | 'tongues'
   | 'eels'
+  | 'legs'
   | 'pouches'
   | 'urchin'
   | 'roe'
@@ -147,24 +153,26 @@ const def = (
 /** For saku: colour = flesh, colour2 = fat / skin / blood line. For pieces: colour = top, colour2 = underside or detail. */
 export const NETA: Record<NetaId, NetaDef> = {
   Tamago: def('Sweet omelette', 'saku', 10, look('block', '#F2C94C', '#9C5A1E', 'layers', 0.2, 0.044)),
-  Abalone: def('Abalone', 'saku', 6, look('shell', '#B58E55', '#6E5130', 'rim', 0.6, 0.05)),
+  Abalone: def('Abalone', 'saku', 6, look('shell', '#B58E55', '#6E5130', 'rim', 0.6, 0.047)),
   Octopus: def('Octopus', 'saku', 10, look('tentacle', '#8A2E3E', '#F1E4D6', 'plain', 0.5, 0.046)),
   Squid: def('Squid', 'saku', 10, look('sheet', '#F6F3EC', '#E2DED3', 'plain', 0.5, 0.044)),
-  Flounder: def('Flounder', 'saku', 12, look('saku', '#F1ECE4', '#EBCDC4', 'plain', 0.75, 0.042)),
-  StripedJack: def('Striped jack', 'saku', 10, look('saku', '#EED3C6', '#B8C4CC', 'yellowLine', 0.65, 0.042), { skinEdge: true }),
-  Yellowtail: def('Young yellowtail', 'saku', 12, look('saku', '#F2CDB9', '#A3313A', 'bloodLine', 0.65, 0.042)),
-  Bonito: def('Bonito', 'saku', 10, look('saku', '#9A2B30', '#8FA1B3', 'skinSilver', 0.5, 0.042), { skinEdge: true }),
-  LeanTuna: def('Lean tuna', 'saku', 15, look('saku', '#B3202C', '#7A1820', 'plain', 0.55, 0.042)),
-  MediumFattyTuna: def('Medium fatty tuna', 'saku', 12, look('saku', '#D96B72', '#F6E3DF', 'fatLight', 0.6, 0.042)),
-  FattyTuna: def('Fatty tuna', 'saku', 10, look('saku', '#ECAAA8', '#FBF0EC', 'fatHeavy', 0.65, 0.042)),
-  Kohada: def('Gizzard shad', 'piece', 8, look('fillets', '#C9D3DB', '#2E3338', 'spots', 0.85, 0.042)),
-  HorseMackerel: def('Horse mackerel', 'piece', 6, look('fillets', '#A9B9C6', '#E8B9AE', 'plain', 0.85, 0.042)),
-  CuredMackerel: def('Cured mackerel', 'saku', 8, look('saku', '#E8C7BD', '#5E7488', 'mackerel', 0.6, 0.042), { skinEdge: true }),
-  Prawn: def('Prawn', 'piece', 6, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.048)),
-  SweetShrimp: def('Sweet shrimp', 'piece', 12, look('shrimps', '#F6A48C', '#F8D3C6', 'plain', 0.85, 0.042), { perPiece: 2 }),
-  Scallop: def('Scallop', 'piece', 8, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.048)),
+  Geso: def('Squid legs', 'piece', 6, look('legs', '#EEE3D8', '#C99C8C', 'plain', 0.6, 0.044)),
+  Flounder: def('Flounder', 'saku', 12, look('saku', '#F1ECE4', '#EBCDC4', 'plain', 0.75, 0.04)),
+  StripedJack: def('Striped jack', 'saku', 10, look('saku', '#EED3C6', '#B8C4CC', 'yellowLine', 0.65, 0.04), { skinEdge: true }),
+  Yellowtail: def('Young yellowtail', 'saku', 12, look('saku', '#F2CDB9', '#A3313A', 'bloodLine', 0.65, 0.04)),
+  Bonito: def('Bonito back', 'saku', 10, look('saku', '#9A2B30', '#6E1A20', 'plain', 0.5, 0.04)),
+  BonitoBelly: def('Bonito belly', 'saku', 8, look('saku', '#A8403C', '#2B211C', 'skinSilver', 0.55, 0.04), { skinEdge: true }),
+  LeanTuna: def('Lean tuna', 'saku', 15, look('saku', '#B3202C', '#7A1820', 'plain', 0.55, 0.04)),
+  MediumFattyTuna: def('Medium fatty tuna', 'saku', 12, look('saku', '#D96B72', '#F6E3DF', 'fatLight', 0.6, 0.04)),
+  FattyTuna: def('Fatty tuna', 'saku', 10, look('saku', '#ECAAA8', '#FBF0EC', 'fatHeavy', 0.65, 0.04)),
+  Kohada: def('Gizzard shad', 'piece', 8, look('fillets', '#C9D3DB', '#2E3338', 'spots', 0.85, 0.04)),
+  HorseMackerel: def('Horse mackerel', 'piece', 6, look('fillets', '#A9B9C6', '#E8B9AE', 'plain', 0.85, 0.04)),
+  CuredMackerel: def('Cured mackerel', 'saku', 8, look('saku', '#E8C7BD', '#5E7488', 'mackerel', 0.6, 0.04), { skinEdge: true }),
+  Prawn: def('Prawn', 'piece', 6, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.045)),
+  SweetShrimp: def('Sweet shrimp', 'piece', 12, look('shrimps', '#F6A48C', '#F8D3C6', 'plain', 0.85, 0.04), { perPiece: 2 }),
+  Scallop: def('Scallop', 'piece', 8, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.045)),
   ArkShell: def('Ark shell', 'piece', 6, look('tongues', '#E5583E', '#F6C9A8', 'rim', 0.75, 0.046)),
-  Cockle: def('Egg cockle', 'piece', 6, look('tongues', '#F0E2CC', '#2C2230', 'tip', 0.6, 0.042)),
+  Cockle: def('Egg cockle', 'piece', 6, look('tongues', '#F0E2CC', '#2C2230', 'tip', 0.6, 0.04)),
   SeaEel: def('Sea eel', 'piece', 8, look('eels', '#8C5A2E', '#E9D6BE', 'glaze', 0.7, 0.046)),
   InariAge: def('Inari pouch', 'age', 10, look('pouches', '#B87A33', '#8E5A22', 'plain', 0.5, 0.05)),
   Uni: def('Sea urchin', 'scoop', 8, look('urchin', '#E89A34', '#E3C99C', 'plain', 0.75, 0.058)),
@@ -183,7 +191,7 @@ export const NETA: Record<NetaId, NetaDef> = {
  * the right end. The one place to rearrange the case.
  */
 export const CASE_ORDER: readonly NetaId[] = [
-  'Tamago', 'Abalone', 'Octopus', 'Squid', 'Flounder', 'StripedJack', 'Yellowtail', 'Bonito',
+  'Tamago', 'Abalone', 'Octopus', 'Squid', 'Geso', 'Flounder', 'StripedJack', 'Yellowtail', 'Bonito', 'BonitoBelly',
   'LeanTuna', 'MediumFattyTuna', 'FattyTuna',
   'Kohada', 'HorseMackerel', 'CuredMackerel', 'Prawn', 'SweetShrimp', 'Scallop', 'ArkShell', 'Cockle',
   'SeaEel', 'InariAge',
@@ -218,6 +226,7 @@ export const Menu = {
   MediumFattyTunaNigiri: 'MediumFattyTunaNigiri',
   FattyTunaNigiri: 'FattyTunaNigiri',
   BonitoNigiri: 'BonitoNigiri',
+  BonitoBellyNigiri: 'BonitoBellyNigiri',
   FlounderNigiri: 'FlounderNigiri',
   StripedJackNigiri: 'StripedJackNigiri',
   YellowtailNigiri: 'YellowtailNigiri',
@@ -225,6 +234,7 @@ export const Menu = {
   KohadaNigiri: 'KohadaNigiri',
   HorseMackerelNigiri: 'HorseMackerelNigiri',
   SquidNigiri: 'SquidNigiri',
+  GesoNigiri: 'GesoNigiri',
   OctopusNigiri: 'OctopusNigiri',
   PrawnNigiri: 'PrawnNigiri',
   SweetShrimpNigiri: 'SweetShrimpNigiri',
@@ -259,6 +269,7 @@ export const MENU: Record<MenuId, MenuDef> = {
   MediumFattyTunaNigiri: nigiri('MediumFattyTuna', 2),
   FattyTunaNigiri: nigiri('FattyTuna', 1.5),
   BonitoNigiri: nigiri('Bonito'),
+  BonitoBellyNigiri: nigiri('BonitoBelly'),
   FlounderNigiri: nigiri('Flounder'),
   StripedJackNigiri: nigiri('StripedJack'),
   YellowtailNigiri: nigiri('Yellowtail', 1.5),
@@ -266,6 +277,7 @@ export const MENU: Record<MenuId, MenuDef> = {
   KohadaNigiri: nigiri('Kohada'),
   HorseMackerelNigiri: nigiri('HorseMackerel'),
   SquidNigiri: nigiri('Squid'),
+  GesoNigiri: nigiri('Geso', 0.7),
   OctopusNigiri: nigiri('Octopus'),
   PrawnNigiri: nigiri('Prawn'),
   SweetShrimpNigiri: nigiri('SweetShrimp'),

@@ -21,6 +21,10 @@ export const PREP_STAGE = 1;
 export const PREP_CUT_EXCELLENT = 0.006;
 export const PREP_CUT_GOOD = 0.012;
 export const PREP_CUT_POOR = 0.02;
+/** Seconds from the call to the fish shop until its delivery is on the counter. */
+export const DELIVERY_SECONDS = 8;
+/** Seconds a washed board stands against the sink before it can go back. */
+export const BOARD_DRY_SECONDS = 10;
 /** How far apart the hands must pull to draw the squid's legs out of its body. */
 export const SQUID_PULL_DISTANCE = 0.08;
 

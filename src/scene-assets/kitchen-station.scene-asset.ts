@@ -100,14 +100,38 @@ export function createWorkTable(): Group {
     }
   }
   root.add(tintedBoxes('WorkTableSteel', metal, steel));
-  // Hangiri: a shallow cypress tub with two copper hoops, on the undershelf.
+  // A three-sho gas rice cooker on the undershelf: aluminium drum on a dark
+  // burner base, a domed lid with a knob, and the gas tap at the front.
   const y0 = 0.19;
   root.add(
+    tintedCylinders('RiceCooker', metal, [
+      [{ r: 0.165, h: 0.05, x: 0, y: y0 + 0.025, z: 0 }, '#2E3033'],
+      [{ r: 0.155, h: 0.2, x: 0, y: y0 + 0.15, z: 0 }, '#C6CBD0'],
+      [{ r: 0.162, h: 0.012, x: 0, y: y0 + 0.25, z: 0 }, '#AEB4BA'],
+      [{ r: 0.148, h: 0.03, x: 0, y: y0 + 0.27, z: 0 }, '#D2D6DA'],
+      [{ r: 0.03, h: 0.025, x: 0, y: y0 + 0.297, z: 0 }, '#1E1F21'],
+      [{ r: 0.014, h: 0.03, x: 0.07, y: y0 + 0.03, z: -0.17, rx: Math.PI / 2 }, '#B23A2E'],
+    ]),
+  );
+  // The shari-kiri tools hung on the wall above the table: the hangiri (a
+  // wide, shallow cypress tub with copper hoops) on its edge, the rice paddle
+  // and the fan beside it.
+  const wallZ = D / 2 - 0.05;
+  const hy = T + 0.33;
+  root.add(
     tintedCylinders('Hangiri', tubWood, [
-      [{ r: 0.15, h: 0.09, x: 0, y: y0 + 0.045, z: 0 }, '#D8B27A'],
-      [{ r: 0.134, h: 0.004, x: 0, y: y0 + 0.09, z: 0 }, '#C49A62'],
-      [{ r: 0.153, h: 0.012, x: 0, y: y0 + 0.022, z: 0 }, '#B8703A'],
-      [{ r: 0.153, h: 0.012, x: 0, y: y0 + 0.068, z: 0 }, '#B8703A'],
+      [{ r: 0.2, h: 0.08, x: 0, y: hy, z: wallZ, rx: Math.PI / 2 }, '#D8B27A'],
+      [{ r: 0.184, h: 0.004, x: 0, y: hy, z: wallZ - 0.04, rx: Math.PI / 2 }, '#C49A62'],
+      [{ r: 0.203, h: 0.012, x: 0, y: hy, z: wallZ - 0.022, rx: Math.PI / 2 }, '#B8703A'],
+      [{ r: 0.203, h: 0.012, x: 0, y: hy, z: wallZ + 0.022, rx: Math.PI / 2 }, '#B8703A'],
+    ]),
+    tintedBoxes('ShariTools', tubWood, [
+      // Paddle (shamoji): blade and handle.
+      [{ w: 0.07, h: 0.11, d: 0.008, x: -0.16, y: T + 0.2, z: wallZ - 0.07 }, '#E2C79A'],
+      [{ w: 0.024, h: 0.13, d: 0.01, x: -0.16, y: T + 0.32, z: wallZ - 0.07 }, '#D9BC8C'],
+      // Fan (uchiwa): face and handle.
+      [{ w: 0.2, h: 0.18, d: 0.004, x: 0.17, y: T + 0.24, z: wallZ - 0.07, rz: 0.08 }, '#E8E2D2'],
+      [{ w: 0.016, h: 0.13, d: 0.008, x: 0.172, y: T + 0.1, z: wallZ - 0.068 }, '#9A7448'],
     ]),
   );
   return root;

@@ -322,7 +322,11 @@ export class PracticeSystem extends createSystem({
         this.say('Case restocked');
       },
       Digit9: () => this.prepCarry(),
-      Digit0: () => this.pullSquid(),
+      Digit0: () => this.pullPrep(),
+      Minus: () => this.paperWipe(),
+      Equal: () => this.callFishShop(),
+      BracketLeft: () => this.boardStep(),
+      BracketRight: () => this.hangNoren(),
     };
     const caseKey = caseKeys[e.code];
     if (caseKey) {
@@ -772,96 +776,201 @@ export class PracticeSystem extends createSystem({
     ]);
   }
 
-  /** 9 in the morning prep: a material from the ice box onto the board, or the next saku into the case. */
+  /** 9 in the morning prep: a fish from the ice to the board, a saku into the case (or on the ice), a scrap into the trash. */
   private prepCarry(): void {
     if (!prep.active) return this.say('The prep is over: the bar is open');
     const side = chef.netaSide;
-    if (prep.next !== 'take' && prep.next !== 'stock') return this.say(prep.next === 'cut' ? 'Cut it first (K, X)' : prep.next === 'pull' ? 'Pull the legs out first (0)' : 'Nothing to carry');
+    const next = prep.next;
+    if (next !== 'take' && next !== 'stock' && next !== 'discard') {
+      return this.say(next === 'cut' ? 'Cut it first (K, X)' : next === 'pull' ? 'Pull it off first (0)' : next === 'wipe' ? 'Pat it dry first (-)' : 'Nothing to carry');
+    }
     if (!this.ready(side, Held.None)) return;
-    if (prep.next === 'take') {
+    let from: Vector3;
+    let to: Vector3;
+    let label: string;
+    if (next === 'take') {
       const board = this.reachable(StationKind.CuttingBoard);
       if (!board) return;
-      const at = prep.boxAt.clone();
-      this.run(side, 'From the ice box to the board', [
-        move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
-        move(at, v(0, 0.005, 0), 'grasp', 0.2),
-        wait(0.2),
-        pinch(1),
-        wait(0.12),
-        move(at, v(0, 0.14, 0), 'grasp', 0.25),
-        move(board, v(0, 0.14, 0.06), 'grasp', 0.4),
-        move(board, v(0, 0.06, 0.06), 'grasp', 0.15),
-        pinch(0),
-        wait(0.1),
-        this.rest(side),
-      ]);
-      return;
+      from = prep.boxAt.clone();
+      to = board.add(v(0, 0.08, 0.06));
+      label = 'From the ice box to the board';
+    } else if (next === 'stock') {
+      from = prep.productAt.clone();
+      to = prep.slotAt.clone().add(v(0, 0.05, 0));
+      label = 'Into its place';
+    } else {
+      from = prep.scrapAt.clone();
+      to = prep.trashAt.clone().add(v(0, 0.12, 0));
+      label = 'Into the trash';
     }
-    const at = prep.productAt.clone();
-    const slot = prep.slotAt.clone();
-    this.run(side, 'Saku into the case', [
-      move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
-      move(at, v(0, 0.005, 0), 'grasp', 0.2),
-      wait(0.2),
+    this.run(side, label, [
+      move(from, v(0, 0.1, 0.03), 'grasp', 0.35),
+      move(from, v(0, 0.004, 0), 'grasp', 0.2),
+      wait(0.25),
       pinch(1),
       wait(0.12),
-      move(at, v(0, 0.14, 0), 'grasp', 0.25),
-      move(slot, v(0, 0.12, 0.05), 'grasp', 0.4),
-      move(slot, v(0, 0.05, 0), 'grasp', 0.2),
+      move(from, v(0, 0.14, 0), 'grasp', 0.25),
+      move(to, v(0, 0.08, 0.03), 'grasp', 0.4),
+      move(to, v(0, 0, 0), 'grasp', 0.2),
       pinch(0),
       wait(0.1),
       this.rest(side),
     ]);
   }
 
-  /** 0 in the morning prep: the neta hand holds the squid's body, the rice hand pulls the legs out. */
-  private pullSquid(): void {
-    if (!prep.active || prep.next !== 'pull') return this.say('Nothing to pull apart');
+  /** 0 in the morning prep: the neta hand holds the fish, the rice hand pulls off the wrapping, the legs or the skin. */
+  private pullPrep(): void {
+    if (!prep.active || prep.next !== 'pull') return this.say('Nothing to pull off');
     const neta = chef.netaSide;
     const rice = chef.riceSide;
     if (!this.ready(neta, Held.None) || !this.ready(rice, Held.None)) return;
-    const body = prep.pullNeta.clone();
-    const legs = prep.pullRice.clone();
-    this.run(neta, 'Holding the body', [
-      move(body, v(0, 0.08, 0), 'grasp', 0.3),
-      move(body, v(0, 0, 0), 'grasp', 0.15),
-      wait(0.2),
-      pinch(1),
-      wait(1.3),
-      pinch(0),
-      wait(0.1),
-      this.rest(neta),
-    ]);
-    this.run(rice, 'Pulling the legs out', [
-      move(legs, v(0, 0.08, 0.02), 'grasp', 0.3),
-      move(legs, v(0, 0, 0), 'grasp', 0.15),
-      wait(0.3),
+    const hold = prep.pullNeta.clone();
+    const grip = prep.pullRice.clone();
+    this.run(neta, 'Holding it down', [move(hold, v(0, 0.08, 0), 'grasp', 0.3), move(hold, v(0, 0, 0), 'grasp', 0.15), wait(0.25), pinch(1), wait(1.4), pinch(0), wait(0.1), this.rest(neta)]);
+    this.run(rice, prep.say || 'Pulling it off', [
+      move(grip, v(0, 0.08, 0.02), 'grasp', 0.3),
+      move(grip, v(0, 0, 0), 'grasp', 0.15),
+      wait(0.35),
       pinch(1),
       wait(0.15),
-      move(legs, v(0.03, 0.03, 0.13), 'grasp', 0.6),
+      move(grip, v(0.03, 0.04, 0.18), 'grasp', 0.6),
+      wait(0.1),
       pinch(0),
       wait(0.1),
       this.rest(rice),
     ]);
   }
 
-  /** X in the morning prep: the neta hand steadies the material, the blade is drawn toward the chef along the line. */
+  /** X in the morning prep: the neta hand steadies the fish; the blade is drawn along the line (toward the chef, across, or flat along the board). */
   private cutPrep(): void {
     const rice = chef.riceSide;
     const neta = chef.netaSide;
-    if (prep.next !== 'cut') return this.say(prep.next === 'take' ? 'Put a material on the board first (9)' : 'Nothing to cut now');
+    if (prep.next !== 'cut') return this.say(prep.next === 'take' ? 'Put a fish on the board first (9)' : 'Nothing to cut now');
     if (this.driver[rice].busy || this.driver[neta].busy) return this.say('Hands are busy');
     const material = prep.materialAt.clone();
-    const guide = prep.guideAt.clone();
-    this.run(neta, 'Hand on the fish', [move(material, v(-0.06, 0.04, 0), 'palm', 0.3), wait(1.25), this.rest(neta)]);
-    this.run(rice, 'Cutting along the line', [
+    const g = prep.guideAt.clone();
+    this.run(neta, 'Hand on the fish', [move(material, v(-0.07, 0.04, -0.03), 'palm', 0.3), wait(1.35), this.rest(neta)]);
+    if (prep.guideAcross) {
+      // Fingers to the left, the blade 15 cm ahead of the palm: drawn across from right to left.
+      this.run(rice, prep.say || 'Cutting across', [
+        wait(0.3),
+        move(g, v(0.24, 0.18, 0), 'palm', 0.3, { yaw: 90 }),
+        move(g, v(0.24, 0.05, 0), 'palm', 0.15),
+        move(g, v(0.08, 0.05, 0), 'palm', 0.5),
+        move(g, v(0.08, 0.18, 0), 'palm', 0.15),
+        moveLocal(KNIFE_READY, 'palm', 0.3, { yaw: 0 }),
+      ]);
+      return;
+    }
+    const y = prep.guideLow ? 0.004 : 0.05;
+    this.run(rice, prep.say || 'Cutting along the line', [
       wait(0.3),
-      move(guide, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
-      move(guide, v(0, 0.05, 0.09), 'palm', 0.15),
-      move(guide, v(0, 0.05, 0.23), 'palm', 0.5),
-      move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
+      move(g, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
+      move(g, v(0, y, 0.09), 'palm', 0.15),
+      move(g, v(0, y, 0.23), 'palm', 0.5),
+      move(g, v(0, 0.18, 0.23), 'palm', 0.15),
       moveLocal(KNIFE_READY, 'palm', 0.3),
     ]);
+  }
+
+  /** - in the morning prep: a sheet of kitchen paper, rubbed over the fish, then into the trash. */
+  private paperWipe(): void {
+    if (prep.next !== 'wipe') return this.say('Nothing to pat dry');
+    const side = chef.riceSide;
+    if (!this.ready(side, Held.None)) return;
+    const box = prep.paperAt.clone();
+    const fish = prep.materialAt.clone();
+    const trash = prep.trashAt.clone();
+    this.run(side, 'Patting it dry', [
+      move(box, v(0, 0.08, 0), 'grasp', 0.3),
+      move(box, v(0, 0.01, 0), 'grasp', 0.15),
+      wait(0.25),
+      pinch(1),
+      wait(0.12),
+      move(fish, v(0, 0.06, 0), 'grasp', 0.35),
+      move(fish, v(0, 0.02, 0), 'grasp', 0.15),
+      rub(fish, v(0, 0.02, 0), 'grasp', 3, 0.05, 2, () => prep.next !== 'wipe'),
+      move(trash, v(0, 0.12, 0), 'grasp', 0.45),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
+  /** = : the handset lifted to call the fish shop (turn around first), then put back. */
+  private callFishShop(): void {
+    const side = chef.riceSide;
+    if (!this.ready(side, Held.None)) return;
+    const at = this.reachable(StationKind.Phone);
+    if (!at) return;
+    this.run(side, 'Calling the fish shop', [
+      move(at, v(0, 0.08, -0.02), 'grasp', 0.35),
+      move(at, v(0, 0, 0), 'grasp', 0.15),
+      wait(0.25),
+      pinch(1),
+      wait(0.12),
+      move(at, v(0, 0.14, -0.05), 'grasp', 0.3),
+      wait(1.5),
+      move(at, v(0, 0.02, 0), 'grasp', 0.3),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
+  /** [ : the board — lift it, wash it at the sink, stand it to drain, lift it again, put it back. T turns around between. */
+  private boardStep(): void {
+    const neta = chef.netaSide;
+    const rice = chef.riceSide;
+    const next = prep.next;
+    if (next === 'liftBoard') {
+      if (!this.ready(neta, Held.None)) return;
+      const leaning = prep.boardAt.z > 0;
+      const at = prep.boardAt.clone().add(leaning ? v(0, 0, 0) : v(0, 0.022, 0.17));
+      this.run(neta, 'Lifting the board (then T to turn)', [
+        move(at, v(0, 0.08, 0.03), 'grasp', 0.35),
+        move(at, v(0, 0, 0), 'grasp', 0.2),
+        wait(0.25),
+        pinch(1),
+        wait(0.15),
+        moveLocal(v(-0.12, 1.0, -0.28), 'grasp', 0.4),
+        hold(),
+      ]);
+      return;
+    }
+    if (next === 'washBoard') {
+      const sink = this.reachable(StationKind.Sink);
+      if (!sink) return;
+      this.run(neta, 'Board over the sink', [move(sink, v(0.12, 0.06, -0.05), 'grasp', 0.4), hold()]);
+      this.run(rice, 'Scrubbing it under the tap', [
+        move(sink, v(-0.05, 0.02, 0), 'palm', 0.4),
+        rub(sink, v(-0.05, 0.02, 0), 'palm', 3, 0.06, 2, () => prep.next !== 'washBoard'),
+        this.rest(rice),
+      ]);
+      return;
+    }
+    if (next === 'leanBoard') {
+      this.run(neta, 'Standing it to drain', [pinch(0), wait(0.1), this.rest(neta)]);
+      return;
+    }
+    if (next === 'dryBoard') return this.say('It is draining: wait a little');
+    if (next === 'returnBoard') {
+      const home = prep.boardHome.clone().add(v(0, 0.06, 0.17));
+      this.run(neta, 'Board back on the counter', [move(home, v(0, 0.05, 0), 'grasp', 0.4), move(home, v(0, 0, 0), 'grasp', 0.2), pinch(0), wait(0.1), this.rest(neta)]);
+      return;
+    }
+    this.say('Nothing to do with the board now');
+  }
+
+  /** ] : point at the noren at the entrance and pinch: hung out, the bar opens. */
+  private hangNoren(): void {
+    const side = chef.netaSide;
+    if (!this.ready(side, Held.None)) return;
+    // Out from the shoulder toward the noren, index finger pointing.
+    const shoulder = this.player.localToWorld(v(-SHOULDER_X, 1.02, 0.06));
+    const toward = prep.norenAt.clone().sub(shoulder).setY(0).normalize().multiplyScalar(0.42).add(shoulder);
+    toward.y = 1.08;
+    this.run(side, 'Pointing at the noren', [move(toward, v(0, 0, 0), 'grasp', 0.4), pose('point'), wait(0.5), pinch(1), wait(0.15), pinch(0), pose('default'), wait(0.1), this.rest(side)]);
   }
 
   /** X on a roll: the neta hand steadies the roll, the blade is drawn across the next guide line. */
@@ -1429,7 +1538,7 @@ export class PracticeSystem extends createSystem({
       'Y wasabi   H hands   Z nori   U spread   I roll',
       'Space touch on the beat   F flip   G half turn',
       'M carry / let go   Q E turn 45   S serve',
-      'Prep: 9 ice box to board / saku to case   0 pull the squid apart',
+      'Prep: = phone  9 carry  0 pull off  X cut  - paper  [ board  ] noren',
       `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}`,
     ];
     lines.forEach((line, i) => ctx.fillText(line, 20, 90 + i * 44));

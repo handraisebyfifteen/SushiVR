@@ -42,9 +42,10 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 the customer side. You sit in the middle of a 1 m chef's aisle. In front of
 you is the 1 m cutting board (36 cm deep) on a stainless cold table, with the wasabi dish and tezu bowl
 (vinegar water) side by side at its right-back corner (pinch to move either;
-the spot is remembered), the nori box at its left-back corner, the styrofoam
-ice box of the morning's fish on the counter beside the board's left end
-(put away once the bar opens), the bamboo
+the spot is remembered), the nori box and a box of kitchen paper at its
+left-back corner, the styrofoam ice box of the morning's fish on the counter
+beside the board's left end (put away once the bar opens), a trash bin at
+your left foot, the bamboo
 mat (makisu) rolled up at its left edge (it lies open in front of you while
 a roll is ordered), and the knife and wet cloth on the right. Beyond the board the
 raised tsukedai (30 cm) carries the 1.5 m glass neta case (see below) and,
@@ -55,8 +56,12 @@ plain noren and four paper lanterns. The rice tub (ohitsu) sits low on your
 right, out of your usual view; its lid slides aside as your hand reaches in
 and closes once you have the rice. Behind you are the prep sink with its faucet, the soap and a hand
 towel hanging on a bar under the sink's front edge; on the sink's right
-stand a stainless work table and a four-burner gas range with an oven, and
-on its left a glass-door dish cabinet against the back wall. The kitchen
+stand a stainless work table (a three-sho gas rice cooker underneath, the
+hangiri, paddle and fan hung on the wall above) and a four-burner gas range
+with an oven; on its left a black dial telephone at the sink's end, a
+glass-door dish cabinet against the back wall and an open food shelf at the
+aisle's end. The shop's entrance, a lattice door with its noren, is beyond
+the customer's seat. The kitchen
 doorway, with its noren and the brighter kitchen beyond, is at the
 left end of the aisle. Fluorescent work lights hang over the board and the
 sink.
@@ -90,28 +95,47 @@ fine: it gets washed at the sink).
 customer yet. The case items you prep start empty; the rest are full (the
 easy difficulty, `DIFFICULTY` in `src/tuning.ts`).
 
-1. Wash your hands first (soap, faucet, towel, as below): the fish is not
+1. Turn around (look far left or far right and hold) and lift the black
+   telephone's handset on the sink's left end: the fish shop brings what is
+   missing ("the usual"). A few seconds later its styrofoam box is on the
+   counter left of the board. Wash your hands meanwhile: the fish is not
    touched with unwashed hands.
-2. Left hand: pinch a material in the ice box and let go over the board. It
-   lies with its length toward you.
-3. With the left hand steadying it, grip the knife and draw it toward you
-   along each white line. The tuna belly (a 1/8 or 1/16 belly cut from the
-   tuna dealer) takes two cuts: fatty, medium fatty and lean. The bonito
-   quarter loses its blood line in one cut. For the squid, first pinch the
-   body with the left hand and the legs with the right and pull them apart
-   (the legs go back on the ice), then cut the body open along its length.
-4. Pinch each saku and let go over the case: it fills its place.
-5. When everything is prepped, wipe and put the knife down and wash again
-   with soap: the bar opens and the first customer walks in. Your cuts are
-   graded (how close to the line); the total shows over the board.
+2. Left hand: pinch a fish in the box (the one on top first) and let go over
+   the board. Each one is wrapped in paper inside a plastic bag: hold it with
+   the left hand, pinch the wrapping with the right and pull it off, twice.
+3. With the left hand steadying it, grip the knife and draw it along each
+   white line: toward you along the fish, across it, or flat along the board
+   to shave off skin.
+   - Tuna belly (a 1/8 or 1/16 cut from the tuna dealer): cut off the skin
+     side, then split it into fatty, medium fatty and lean.
+   - Bonito half: split it along the blood line into back and belly. The
+     back loses its blood line and has its skin shaved off (pulling it would
+     split the flesh); the belly loses the hard skin at the neck and its
+     blood line, then goes back on the ice: it is seared on the range later.
+   - Squid: pull the legs out of the body, cut off the guts, open the legs
+     flat and the body; peel the body's skin off by hand (pull, as with the
+     wrapping) and pat it dry with a sheet from the kitchen-paper box.
+4. Pinch each saku and let go over the case: it fills its place (the squid
+   legs are geso). What comes off (wrapping, skin, blood line, guts, used
+   paper) stays on the board's right: drop it in the trash bin at your left
+   foot, whose lid opens as your hand comes near.
+5. Clean up: wipe and put the knife down; pinch the board's near edge, turn
+   around, wash it under the faucet (rub it with the other hand), let go
+   over the sink to stand it up to drain, then after a moment take it back
+   to the counter. Wash your hands with soap, and finally point at the noren
+   hanging inside the shop's entrance (beyond the customer's seat) and
+   pinch: it is hung outside, the bar is open and the first customer walks
+   in. Your cuts are graded (how close to the line); the total shows over
+   the board.
 
 Later stages add the gas range (octopus on a high flame, conger eel held at
-90 degrees, gourd strips and abalone cooked until the liquid is gone) and
-filleting whole white fish; until then those items start full.
+90 degrees, gourd strips and abalone cooked until the liquid is gone, the
+bonito belly seared) and filleting whole white fish; until then those items
+start full.
 
 **Opening**: turn to the sink, pinch the soap pump, rub both hands under the
 faucet, then put both hands on the towel hanging under the sink and grip it
-(two fists). Once the prep is done, service starts when your hands are dry.
+(two fists). After the prep and the cleaning, this wash lets you hang the noren.
 During service wash with water only; soap now would make the food smell of it.
 
 **One order** (the card above the customer shows a picture of the item, its
@@ -237,10 +261,13 @@ step of the work, from the opening wash through the saku, the knife and the
 nigiri to serving; the keys are listed on a small panel in view. For the
 case: 4 takes what was ordered, 5 takes the selected neta, 6 (Shift+6 back)
 steps through the neta, 7 makes the customer order the selected one, and 8
-restocks the whole case. In the morning prep, 9 carries the next material from
-the ice box to the board (or the next saku into the case), 0 pulls the squid
-apart, and X (knife in hand) cuts along the line; O skips the prep and opens
-the bar. For a gunkan, Z takes a nori strip, H wraps, and 4
+restocks the whole case. In the morning prep, = lifts the telephone (turned
+around), 9 carries the next fish to the board, a saku into the case or a
+scrap into the trash, 0 pulls off the wrapping, the legs or the skin, X
+(knife in hand) cuts along the line, - pats the squid dry with paper, [ does
+the next step with the board (lift, wash, stand, lift, put back; T turns
+around between), and ] points at the noren and pinches; O skips the prep and
+opens the bar. For a gunkan, Z takes a nori strip, H wraps, and 4
 on a sea urchin or salmon roe order puts the topping on. For an inari, 4
 takes a pouch, H fills it and Space folds it shut on the beat. For a roll,
 Z lays the nori on the mat, U spreads the rice, 4 lays the next filling, I

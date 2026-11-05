@@ -74,10 +74,18 @@ const STEP_WORDS: Record<StepKey, string> = {
   rollMaki: 'Push to roll',
   squeezeRoll: 'Both fists on the beat',
   cutRoll: 'Cut on the line',
+  callFishShop: 'Call the fish shop',
   takeMaterial: 'Take it from the ice',
-  cutPrep: 'Pull along the line',
-  pullSquid: 'Pull the legs out',
+  cutPrep: 'Along the line',
+  pullPrep: 'Pull it off',
+  wipePaper: 'Pat it dry with paper',
   stockSaku: 'Into the case',
+  discardScrap: 'Scraps in the trash',
+  liftBoard: 'Lift the board',
+  washBoard: 'Wash it under the tap',
+  leanBoard: 'Stand it to drain',
+  returnBoard: 'Board back on the counter',
+  hangNoren: 'Point at the noren, pinch',
 };
 
 const MISTAKE_WORDS: Record<MistakeKey, string> = {
@@ -395,6 +403,8 @@ export class MasterSystem extends createSystem({
       if (!back && chef.boardDirt > 0) return 'wipeBoard';
       return back ? 'turnFront' : null;
     }
+    // The morning prep starts with the call to the fish shop (the phone is behind you).
+    if (prep.active && !prep.ordered && !holdingAnything()) return back ? 'callFishShop' : 'turnBack';
     if (!holdingAnything()) {
       if (L.needsWash || R.needsWash) {
         if (!back) return 'turnBack';
@@ -402,10 +412,10 @@ export class MasterSystem extends createSystem({
       }
       if (L.needsTowel || R.needsTowel) return back ? 'towel' : 'turnBack';
       if (chef.clothDirty) return back ? 'turnFront' : 'takeCloth';
-      if (back) return 'turnFront';
+      if (back && !(prep.active && this.prepWantsBack())) return 'turnFront';
     }
     // The morning prep, before the bar opens.
-    if (prep.active) return back ? null : this.prepStep();
+    if (prep.active) return this.prepStep(back);
     if (!chef.open || back) return null;
     // A roll uses the knife too: its own recipe decides about the knife.
     if ((progress.kind ?? orderKind()) === 'maki') return this.makiStep();
@@ -449,22 +459,45 @@ export class MasterSystem extends createSystem({
   }
 
   /** The morning prep: a material from the ice box onto the board, its cuts, then each saku into the case. */
-  private prepStep(): StepKey | null {
+  /** The prep steps done facing the sink: washing the board and letting it drain. */
+  private prepWantsBack(): boolean {
+    return prep.next === 'washBoard' || prep.next === 'leanBoard' || prep.next === 'dryBoard' || (prep.next === 'liftBoard' && prep.boardAt.z > 0);
+  }
+
+  /** The morning prep: the fish from the ice, its work, the saku into the case, the scraps out, the board washed, the noren. */
+  private prepStep(back: boolean): StepKey | null {
     if (progress.knifeHeld) {
       if (prep.next === 'cut') return 'cutPrep';
       return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
     }
+    const front = (step: StepKey): StepKey => (back ? 'turnFront' : step);
     switch (prep.next) {
       case 'take':
-        return 'takeMaterial';
+        return front('takeMaterial');
       case 'cut':
-        return 'holdKnife';
+        return front('holdKnife');
       case 'pull':
-        return 'pullSquid';
+        return front('pullPrep');
+      case 'wipe':
+        return front('wipePaper');
       case 'stock':
-        return 'stockSaku';
+        return front('stockSaku');
+      case 'discard':
+        return front('discardScrap');
+      case 'liftBoard':
+        return prep.boardAt.z > 0 ? (back ? 'liftBoard' : 'turnBack') : front('liftBoard');
+      case 'washBoard':
+        return back ? 'washBoard' : 'turnBack';
+      case 'leanBoard':
+        return back ? 'leanBoard' : 'turnBack';
+      case 'dryBoard':
+        return null;
+      case 'returnBoard':
+        return front('returnBoard');
+      case 'noren':
+        return front('hangNoren');
     }
-    return null;
+    return back ? 'turnFront' : null;
   }
 
   /** A gunkan: rice, a nori strip, wrap, wasabi if ordered, the topping, then the geta. */
@@ -541,6 +574,8 @@ export class MasterSystem extends createSystem({
     if (filling) return `Lay the ${NETA[filling].name.toLowerCase()}`;
     if (step === 'place' && (progress.kind ?? orderKind()) !== 'nigiri') return 'Onto the geta';
     if (step === 'place') return service.customerHandKnown ? 'Geta: on the diagonal' : 'Geta: straight across';
+    // A cut or a pull in the prep says which one (Cut off the skin side, Off with the bag...).
+    if ((step === 'cutPrep' || step === 'pullPrep') && prep.say) return prep.say;
     return STEP_WORDS[step];
   }
 
@@ -577,8 +612,20 @@ export class MasterSystem extends createSystem({
         return StationKind.NoriBox;
       case 'takeMaterial':
         return StationKind.IceBox;
+      case 'callFishShop':
+        return StationKind.Phone;
+      case 'wipePaper':
+        return StationKind.PaperBox;
+      case 'discardScrap':
+        return StationKind.TrashBin;
+      case 'liftBoard':
+      case 'returnBoard':
+        return StationKind.CuttingBoard;
+      case 'washBoard':
+      case 'leanBoard':
+        return StationKind.Sink;
       case 'cutPrep':
-      case 'pullSquid':
+      case 'pullPrep':
         return StationKind.CuttingBoard;
       case 'stockSaku':
         return StationKind.NetaCase;
@@ -631,11 +678,23 @@ export class MasterSystem extends createSystem({
       case 'cutPrep':
         out.copy(prep.guideAt).add(this.tmp.set(0, 0.15, 0));
         return;
-      case 'pullSquid':
+      case 'pullPrep':
         out.copy(prep.materialAt).add(this.tmp.set(0, 0.15, 0));
         return;
       case 'stockSaku':
         out.copy(prep.slotAt).add(this.tmp.set(0, 0.18, 0));
+        return;
+      case 'discardScrap':
+        out.copy(prep.scrapAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'wipePaper':
+        out.copy(prep.materialAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'liftBoard':
+        out.copy(prep.boardAt).add(this.tmp.set(0, 0.2, 0));
+        return;
+      case 'hangNoren':
+        out.copy(prep.norenAt).add(this.tmp.set(0, 0.5, 0));
         return;
       case 'placeFilling':
         if (this.netaAt(this.nextFilling(), out)) {
@@ -1114,7 +1173,7 @@ export class MasterSystem extends createSystem({
         rice.pose(this.go(this.phase(2) * 1.4, b, c), yaw, 1, 0);
         return true;
       }
-      case 'pullSquid': {
+      case 'pullPrep': {
         // The neta hand holds the body; the rice hand pinches the legs and draws them out toward the chef.
         neta.pose(a.copy(prep.pullNeta), yaw, 0, 1);
         const k = this.phase(2);

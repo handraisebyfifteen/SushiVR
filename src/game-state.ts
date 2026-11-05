@@ -37,9 +37,9 @@ export const chef = {
   netaSide: (CHEF_LEFT_HANDED ? 1 : 0) as Side,
 };
 
-/** True while a hand carries food, the knife or the finished piece (the wet cloth may travel to the sink). */
+/** True while a hand carries food, the knife or the finished piece (the wet cloth and the board may travel to the sink). */
 export function holdingAnything(): boolean {
-  return chef.hands.some((h) => h.holding !== Held.None && h.holding !== Held.Cloth && h.holding !== Held.Dish);
+  return chef.hands.some((h) => h.holding !== Held.None && h.holding !== Held.Cloth && h.holding !== Held.Dish && h.holding !== Held.Board);
 }
 
 /** The current order; null while no customer is seated. */
@@ -101,13 +101,41 @@ export const progress = {
 };
 
 /** What the morning prep asks for next (for the master, practice and hints). */
-export type PrepNext = 'take' | 'cut' | 'pull' | 'stock';
+export type PrepNext =
+  | 'call'
+  | 'wait'
+  | 'take'
+  | 'cut'
+  | 'pull'
+  | 'wipe'
+  | 'stock'
+  | 'discard'
+  | 'liftBoard'
+  | 'washBoard'
+  | 'leanBoard'
+  | 'dryBoard'
+  | 'returnBoard'
+  | 'noren';
 
 /** The morning prep (仕込み), from the start of the day until the bar opens. */
 export const prep = {
   active: true,
+  /** The fish shop has been called, and its delivery (the ice box) has arrived. */
+  ordered: false,
+  delivered: false,
   /** Every prep task is finished. */
   done: false,
+  /** Scraps still on the board or in a hand (thrown away before opening). */
+  scrapsLeft: 0,
+  /** The board has been washed at the sink, dried and put back. */
+  boardWashed: false,
+  /** The hands were washed (soap) after the prep and cleaning. */
+  washedAfter: false,
+  /** What the next step says (the master's word for a cut or a pull). */
+  say: '',
+  /** The next guide line runs across the board (X) instead of toward the chef, or flat along the board (a shave). */
+  guideAcross: false,
+  guideLow: false,
   /** Burners still lit (the gas range, a later stage): the bar does not open with the fire on. */
   burnersOn: 0,
   tasksDone: 0,
@@ -127,11 +155,24 @@ export const prep = {
   /** ...and the next saku to stock and its place in the case. */
   productAt: new Vector3(),
   slotAt: new Vector3(),
+  /** The next scrap to throw away and the trash bin; the paper box; the board while it is being washed. */
+  scrapAt: new Vector3(),
+  trashAt: new Vector3(),
+  paperAt: new Vector3(),
+  boardAt: new Vector3(),
+  boardHome: new Vector3(),
+  /** The noren at the entrance, hung inside until the bar opens. */
+  norenAt: new Vector3(),
 };
 
-/** The bar may open: the prep is finished and the fire is out (or there was no prep). */
+/** Cleaning is done after the prep: no scraps, the board washed and back, the knife wiped and down. */
+export function prepCleaned(): boolean {
+  return prep.done && prep.scrapsLeft === 0 && prep.boardWashed && !progress.knifeHeld && !chef.knifeDirty;
+}
+
+/** The noren may be hung out: prep and cleaning done, hands washed after, the fire out (or there was no prep). */
 export function prepReady(): boolean {
-  return !prep.active || (prep.done && prep.burnersOn === 0);
+  return !prep.active || (prepCleaned() && prep.washedAfter && prep.burnersOn === 0);
 }
 
 /** The kind of the current order (nigiri, gunkan...), or null. */

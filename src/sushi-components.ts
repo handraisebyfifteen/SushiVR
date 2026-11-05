@@ -26,6 +26,12 @@ export const StationKind = {
   Makisu: 'Makisu',
   /** The morning's materials on ice in a styrofoam box, at the counter's left end. */
   IceBox: 'IceBox',
+  /** The trash bin at the chef's left foot; its lid opens as a hand comes near. */
+  TrashBin: 'TrashBin',
+  /** A box of kitchen paper at the board's back edge. */
+  PaperBox: 'PaperBox',
+  /** The telephone on the sink's left end (seen facing the sink). */
+  Phone: 'Phone',
 } as const;
 
 /**
@@ -82,6 +88,12 @@ export const Held = {
   Filling: 'Filling',
   /** A half sheet of nori on its way to the mat. */
   NoriSheet: 'NoriSheet',
+  /** A sheet of kitchen paper (patting the squid dry). */
+  Paper: 'Paper',
+  /** The manaita, carried to the sink to be washed and back. */
+  Board: 'Board',
+  /** The telephone handset. */
+  Phone: 'Phone',
 } as const;
 
 /** The chef's hands and tools, mirrored from the game state for inspection. */

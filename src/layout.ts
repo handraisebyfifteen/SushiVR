@@ -138,8 +138,8 @@ export const NETA_DOOR_PITCH = NETA_GLASS_WIDTH / NETA_DOOR_COUNT;
 export const NETA_FLOOR_Y = TSUKEDAI_TOP + 0.054;
 export const NETA_FRONT_Z = NETA_CASE_Z + NETA_CASE_DEPTH / 2 - 0.025;
 /** Space kept clear at each end of the glass part, and between the neta hand's items and the rice hand's. */
-const NETA_END_MARGIN = 0.012;
-export const NETA_ZONE_GAP = 0.02;
+const NETA_END_MARGIN = 0.008;
+export const NETA_ZONE_GAP = 0.014;
 
 /**
  * X centres of the case items, left to right, spread evenly over the glass
@@ -201,6 +201,22 @@ export const ICE_BOX_WALL = 0.02;
 export const ICE_BOX_X = -MANAITA_WIDTH / 2 - 0.02 - ICE_BOX_WIDTH / 2;
 export const ICE_BOX_Z = MANAITA_Z + 0.03;
 
+/** The trash bin at the chef's left foot (opposite the rice tub), just clear of the cold table. */
+export const TRASH_BIN_X = -0.36;
+export const TRASH_BIN_Z = TSUKEDAI_CHEF_Z + WORK_COUNTER_DEPTH + 0.14;
+export const TRASH_BIN_TOP = 0.42;
+/** The kitchen paper box on the board's back edge, between the nori box and the work. */
+export const PAPER_BOX_X = -0.2;
+/** The black telephone on the sink's left end (seen facing the sink), at its front edge. */
+export const PHONE_X = 0.42;
+export const PHONE_Z = BACK_ROW_Z + 0.1;
+/** The food shelf against the aisle's right end wall (seen from the bar), facing the aisle. */
+export const FOOD_SHELF_X = ROOM_END_X - WALL_THICKNESS / 2 - 0.18;
+export const FOOD_SHELF_Z = AISLE_CENTER_Z;
+/** The shop's entrance, beyond the customer's seat on the left, facing the bar. */
+export const ENTRANCE_X = -0.8;
+export const ENTRANCE_Z = CUSTOMER_SEAT_Z - 1.1;
+
 /** Scene node id -> where `npm run layout` puts it. Nodes not listed are left alone. */
 export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   'chef-platform': {
@@ -218,6 +234,11 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   'nori-box': { position: [-0.38, MANAITA_TOP, DISH_Z] },
   // Left of centre, toward the chef, where both hands reach it (rolled up at the board's left edge when not in use).
   makisu: { position: [-0.2, MANAITA_TOP, MANAITA_Z + 0.07], station: { width: 0.24, depth: 0.22, height: 0.004 } },
+  'paper-box': { position: [PAPER_BOX_X, MANAITA_TOP, DISH_Z], station: { radius: 0.08, height: 0.06 } },
+  'trash-bin': { position: [TRASH_BIN_X, 0, TRASH_BIN_Z], station: { radius: 0.14, height: TRASH_BIN_TOP } },
+  phone: { position: [PHONE_X, SINK_TOP, PHONE_Z], station: { radius: 0.12, height: 0.12 } },
+  'food-shelf': { position: [FOOD_SHELF_X, 0, FOOD_SHELF_Z] },
+  entrance: { position: [ENTRANCE_X, -STEP_HEIGHT, ENTRANCE_Z] },
   'ice-box': {
     position: [ICE_BOX_X, WORK_COUNTER_TOP, ICE_BOX_Z],
     station: { width: ICE_BOX_WIDTH - 2 * ICE_BOX_WALL, depth: ICE_BOX_DEPTH - 2 * ICE_BOX_WALL, height: ICE_BOX_ICE_TOP },

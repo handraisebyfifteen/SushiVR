@@ -22,7 +22,7 @@ const BLINK_OPEN_SECONDS = 0.22;
 type Phase = 'idle' | 'closing' | 'hold' | 'opening';
 
 /**
- * Turning around without leaving the stool: look far to the left and hold.
+ * Turning around without leaving the stool: look far to the left (or the right) and hold.
  * The view blinks to black and the whole bar is rotated 180 degrees around the
  * player's head, so the washing station behind the chef is now in front.
  * The same gesture turns back. Rotating the player rig instead of the scene
@@ -74,7 +74,8 @@ export class TurnSystem extends createSystem({
     if (this.phase === 'idle') {
       if (!this.armed && Math.abs(this.yawDeg) < REARM_YAW_DEG) this.armed = true;
       // Nothing in the hands: a chef carrying fish, rice or the knife stays put.
-      const looking = this.armed && !holdingAnything() && this.yawDeg > TURN_YAW_DEG;
+      // Either way: past the left (the range side) or the right (the telephone and the shelves).
+      const looking = this.armed && !holdingAnything() && Math.abs(this.yawDeg) > TURN_YAW_DEG;
       this.holdTime = looking ? this.holdTime + delta : 0;
       if (this.holdTime >= TURN_HOLD_SECONDS) {
         this.holdTime = 0;

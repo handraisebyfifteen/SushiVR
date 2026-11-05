@@ -15,6 +15,7 @@ import {
   createWetCloth,
 } from './scene-assets/counter.scene-asset.js';
 import { createIceBox } from './scene-assets/ice-box.scene-asset.js';
+import { createEntrance, createFoodShelf, createPaperBox, createPhone, createTrashBin } from './scene-assets/shop-props.scene-asset.js';
 import { caseItemAssets } from './scene-assets/case-items.scene-asset.js';
 import { createDishCabinet } from './scene-assets/dish-cabinet.scene-asset.js';
 import { createEaves } from './scene-assets/eaves.scene-asset.js';
@@ -48,6 +49,11 @@ export default defineAssets({
   'wasabi-dish': createWasabiDish(),
   'nori-box': createNoriBox(),
   'ice-box': createIceBox(),
+  'trash-bin': createTrashBin(),
+  'paper-box': createPaperBox(),
+  phone: createPhone(),
+  'food-shelf': createFoodShelf(),
+  entrance: createEntrance(),
   makisu: createMakisu(),
   'rice-tub': createRiceTub(),
   'sink-unit': createSinkUnit(),

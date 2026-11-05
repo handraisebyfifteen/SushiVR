@@ -8,15 +8,16 @@ import type { NetaId } from './menu.js';
  * of the ice box, lies on the board with its length toward the chef and is
  * cut along guide lines, each one drawn toward the chef. Every saku it gives
  * goes into the case, where one saku fills that item. Simmering (煮る,
- * 炊く, 煮切る) on the gas range and filleting whole white fish come in
- * later stages; until a stage is built, its items start the day full.
+ * 炊く, 煮切る) and searing on the gas range (stage 3) and filleting whole
+ * white fish (stage 4) come later; until a stage is built, its items start
+ * the day full. Stage 2 turns the score into money.
  */
 export type PrepKind = 'block' | 'squid' | 'fillet3' | 'fillet5' | 'simmer';
 
 export interface PrepTask {
   name: string;
   /** The build stage that brings it in (PREP_STAGE in src/tuning.ts). */
-  stage: 1 | 2 | 3;
+  stage: 1 | 2 | 3 | 4;
   kind: PrepKind;
   /** The case items it fills, in the order its saku lie on the board, left to right. */
   makes: readonly NetaId[];
@@ -26,28 +27,35 @@ export const PREP = {
   // Stage 1: saku-taking on the manaita.
   /** A belly cut (1/8 or 1/16 of the fish) from the tuna dealer: fatty, medium fatty and lean. */
   TunaBelly: { name: 'Tuna belly', stage: 1, kind: 'block', makes: ['FattyTuna', 'MediumFattyTuna', 'LeanTuna'] },
-  /** A bonito quarter (節), kept that way: the blood line comes off and the rest is the saku. */
-  BonitoLoin: { name: 'Bonito loin', stage: 1, kind: 'block', makes: ['Bonito'] },
-  /** A whole squid: legs pulled out of the body, the body cut open into a sheet. */
-  Squid: { name: 'Squid', stage: 1, kind: 'squid', makes: ['Squid'] },
-  // Stage 2: the gas range (prepared already; from putting it in the pot).
+  /**
+   * A bonito half (半身), skin on: split along the blood line into the back
+   * and the belly. The back is skinned (shaved, not pulled: it splits) and
+   * loses its blood line; the belly loses the hard skin at the neck and its
+   * blood line, then waits on ice to have its skin side seared (stage 3).
+   */
+  BonitoHalf: { name: 'Bonito half', stage: 1, kind: 'block', makes: ['Bonito'] },
+  /** A whole squid, taken apart: legs and body both opened flat, the body skinned and patted dry. */
+  Squid: { name: 'Squid', stage: 1, kind: 'squid', makes: ['Squid', 'Geso'] },
+  /** The bonito belly, seared on the skin side, chilled on ice and drained (on the range). */
+  BonitoBelly: { name: 'Bonito belly', stage: 3, kind: 'simmer', makes: ['BonitoBelly'] },
+  // Stage 3: the gas range (prepared already; from putting it in the pot).
   /** 炊く on a high flame. */
-  Octopus: { name: 'Octopus', stage: 2, kind: 'simmer', makes: ['Octopus'] },
+  Octopus: { name: 'Octopus', stage: 3, kind: 'simmer', makes: ['Octopus'] },
   /** 煮る, held at 90 degrees so it does not fall apart. */
-  SeaEel: { name: 'Conger eel', stage: 2, kind: 'simmer', makes: ['SeaEel'] },
+  SeaEel: { name: 'Conger eel', stage: 3, kind: 'simmer', makes: ['SeaEel'] },
   /** 煮切る: until the liquid is gone. */
-  Kanpyo: { name: 'Gourd strips', stage: 2, kind: 'simmer', makes: ['Kanpyo'] },
-  Abalone: { name: 'Abalone', stage: 2, kind: 'simmer', makes: ['Abalone'] },
-  // Stage 3: whole white fish, filleted in the shop.
-  Flounder: { name: 'Flounder', stage: 3, kind: 'fillet5', makes: ['Flounder'] },
-  StripedJack: { name: 'Striped jack', stage: 3, kind: 'fillet3', makes: ['StripedJack'] },
-  Yellowtail: { name: 'Young yellowtail', stage: 3, kind: 'fillet3', makes: ['Yellowtail'] },
+  Kanpyo: { name: 'Gourd strips', stage: 3, kind: 'simmer', makes: ['Kanpyo'] },
+  Abalone: { name: 'Abalone', stage: 3, kind: 'simmer', makes: ['Abalone'] },
+  // Stage 4: whole white fish, filleted in the shop.
+  Flounder: { name: 'Flounder', stage: 4, kind: 'fillet5', makes: ['Flounder'] },
+  StripedJack: { name: 'Striped jack', stage: 4, kind: 'fillet3', makes: ['StripedJack'] },
+  Yellowtail: { name: 'Young yellowtail', stage: 4, kind: 'fillet3', makes: ['Yellowtail'] },
 } as const satisfies Record<string, PrepTask>;
 
 export type PrepId = keyof typeof PREP;
 
 /** The saku-taking materials, in the ice box from right (nearest the board) to left. */
-export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoLoin', 'Squid'];
+export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoHalf', 'Squid'];
 
 /** The tasks of the stages built so far. */
 export function prepTasks(stage: number): PrepId[] {
