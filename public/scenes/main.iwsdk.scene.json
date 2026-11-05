@@ -546,6 +546,40 @@
       }
     },
     {
+      "id": "work-table",
+      "name": "Work Table (stainless)",
+      "content": {
+        "type": "asset",
+        "asset": "work-table",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.56,
+          0,
+          0.775
+        ]
+      }
+    },
+    {
+      "id": "gas-stove",
+      "name": "Gas Range (four burners, oven)",
+      "content": {
+        "type": "asset",
+        "asset": "gas-stove",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -1.12,
+          0,
+          0.775
+        ]
+      }
+    },
+    {
       "id": "key-light",
       "name": "Key Light (overhead work light)",
       "transform": {

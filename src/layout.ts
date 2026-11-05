@@ -87,6 +87,13 @@ export const CABINET_WIDTH = 0.7;
 export const CABINET_DEPTH = 0.4;
 export const CABINET_HEIGHT = 1.8;
 export const CABINET_GAP = 0.03;
+/** Stainless work table, then a commercial gas range, on the sink's right (seen facing the sink). */
+export const WORKTABLE_WIDTH = 0.4;
+/** Gas range: four burners over an oven with a side cupboard on each side. */
+export const RANGE_WIDTH = 0.7;
+/** Height of the range's top frame (the grates sit just above it). */
+export const RANGE_HEIGHT = 0.8;
+export const BACK_ROW_GAP = 0.01;
 /** Kitchen doorway in the end wall on the player's left (-X), centred on the aisle. */
 export const KITCHEN_DOOR_WIDTH = 0.8;
 export const KITCHEN_DOOR_HEIGHT = 1.85;
@@ -126,6 +133,8 @@ export const SINK_ZONE_Z = BACK_ROW_Z + SINK_ZONE_DEPTH / 2;
 /** Glass-door dish cabinet, in the same row as the sink, against the back wall. */
 export const CABINET_X = SINK_UNIT_X + SINK_WIDTH / 2 + CABINET_GAP + CABINET_WIDTH / 2;
 export const CABINET_Z = BACK_WALL_Z - CABINET_DEPTH / 2;
+export const WORKTABLE_X = SINK_UNIT_X - SINK_WIDTH / 2 - BACK_ROW_GAP - WORKTABLE_WIDTH / 2;
+export const STOVE_X = WORKTABLE_X - WORKTABLE_WIDTH / 2 - BACK_ROW_GAP - RANGE_WIDTH / 2;
 
 type Vec3 = [number, number, number];
 export interface NodeLayout {
@@ -174,6 +183,8 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   },
   towel: { position: [SINK_BASIN_X + SINK_BASIN_WIDTH / 2 + 0.12, SINK_TOP, BACK_ROW_Z + 0.08] },
   'dish-cabinet': { position: [CABINET_X, 0, CABINET_Z] },
+  'work-table': { position: [WORKTABLE_X, 0, SINK_UNIT_Z] },
+  'gas-stove': { position: [STOVE_X, 0, SINK_UNIT_Z] },
   eaves: { position: [0, 0, EAVES_Z] },
   'itaba-room': { position: [0, 0, 0] },
 };

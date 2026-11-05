@@ -67,18 +67,29 @@ export function instances(
 
 /** Boxes welded into one indexed geometry. */
 export function mergeBoxes(parts: BoxPart[]): BufferGeometry {
+  return mergeGeometries(parts.map((p): [BufferGeometry, Matrix4] => [unitBox, partMatrix(p)]));
+}
+
+/** Any geometries (position, normal, uv; indexed or not), each placed by a matrix, welded into one. */
+export function mergeGeometries(parts: Array<[BufferGeometry, Matrix4]>): BufferGeometry {
   const pos: number[] = [];
   const nor: number[] = [];
   const uv: number[] = [];
   const index: number[] = [];
-  const m = new Matrix4();
-  for (const p of parts) {
-    const g = new BoxGeometry(1, 1, 1).applyMatrix4(partMatrix(p, m));
+  for (const [source, matrix] of parts) {
+    const g = source.clone().applyMatrix4(matrix);
     const base = pos.length / 3;
-    pos.push(...(g.getAttribute('position').array as Float32Array));
-    nor.push(...(g.getAttribute('normal').array as Float32Array));
-    uv.push(...(g.getAttribute('uv').array as Float32Array));
-    for (const i of g.getIndex()!.array) index.push(base + i);
+    const p = g.getAttribute('position');
+    const n = g.getAttribute('normal');
+    const t = g.getAttribute('uv');
+    for (let i = 0; i < p.count; i++) {
+      pos.push(p.getX(i), p.getY(i), p.getZ(i));
+      nor.push(n.getX(i), n.getY(i), n.getZ(i));
+      uv.push(t ? t.getX(i) : 0, t ? t.getY(i) : 0);
+    }
+    const idx = g.getIndex();
+    if (idx) for (let i = 0; i < idx.count; i++) index.push(base + idx.getX(i));
+    else for (let i = 0; i < p.count; i++) index.push(base + i);
     g.dispose();
   }
   const out = new BufferGeometry();

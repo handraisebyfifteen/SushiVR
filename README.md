@@ -49,7 +49,9 @@ customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
 eave on timber posts, left over from the sushi-stall days, carries a short
 plain noren and four paper lanterns. The rice tub is low on your right, out
 of sight. Behind you are the prep sink with its faucet, the soap and the hand
-towel, and beside it a glass-door dish cabinet against the back wall. The
+towel; on the sink's right stand a stainless work table and a four-burner
+gas range with an oven, and on its left a glass-door dish cabinet against
+the back wall. The
 kitchen doorway, with its noren and the brighter kitchen beyond, is at the
 left end of the aisle. Fluorescent work lights hang over the board and the
 sink.

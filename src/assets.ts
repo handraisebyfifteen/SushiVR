@@ -15,6 +15,7 @@ import {
 import { createDishCabinet } from './scene-assets/dish-cabinet.scene-asset.js';
 import { createEaves } from './scene-assets/eaves.scene-asset.js';
 import { createItabaRoom } from './scene-assets/itaba-room.scene-asset.js';
+import { createGasStove, createWorkTable } from './scene-assets/kitchen-station.scene-asset.js';
 import { createChefPlatform, createRoomFloor } from './scene-assets/room.scene-asset.js';
 import {
   createSinkUnit,
@@ -50,4 +51,6 @@ export default defineAssets({
   'dish-cabinet': createDishCabinet(),
   eaves: createEaves(),
   'itaba-room': createItabaRoom(),
+  'work-table': createWorkTable(),
+  'gas-stove': createGasStove(),
 });
