@@ -15,6 +15,7 @@ import type { Score } from './scoring.js';
 import { stations } from './station-system.js';
 import { Bar, Customer, CustomerState, Fish, StationKind } from './sushi-components.js';
 import { type IconKind, makeIconSprite, makeOrderSprite, makeTextSprite } from './text-sprites.js';
+import { CUSTOMER_SEAT_Z, STEP_HEIGHT } from './layout.js';
 import { LEFT_HANDED_CUSTOMER_RATIO, PIECES_PER_CUSTOMER, RESULT_SECONDS } from './tuning.js';
 import { TurnSystem } from './turn-system.js';
 
@@ -22,7 +23,8 @@ const REACH_SECONDS = 0.8;
 const RETURN_SECONDS = 0.6;
 const LEAVE_SECONDS = 1.0;
 /** Customer floor is one step (0.2 m) below the chef's platform. */
-const SEAT = new Vector3(0, -0.2, -1.25);
+/** Where the customer sits: just beyond the customer counter, on the lower floor. */
+const SEAT = new Vector3(0, -STEP_HEIGHT, CUSTOMER_SEAT_Z);
 const HAND_REST_X = 0.17;
 const ALL_ICONS: IconKind[] = ['rhythm', 'fish', 'wasabi', 'orientation', 'hand', 'fresh', 'hygiene', 'board', 'soap', 'knife'];
 

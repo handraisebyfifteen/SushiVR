@@ -12,6 +12,9 @@ import {
   createWasabiDish,
   createWetCloth,
 } from './scene-assets/counter.scene-asset.js';
+import { createDishCabinet } from './scene-assets/dish-cabinet.scene-asset.js';
+import { createEaves } from './scene-assets/eaves.scene-asset.js';
+import { createItabaRoom } from './scene-assets/itaba-room.scene-asset.js';
 import { createChefPlatform, createRoomFloor } from './scene-assets/room.scene-asset.js';
 import {
   createSinkUnit,
@@ -44,4 +47,7 @@ export default defineAssets({
   'sink-unit': createSinkUnit(),
   soap: createSoap(),
   towel: createTowel(),
+  'dish-cabinet': createDishCabinet(),
+  eaves: createEaves(),
+  'itaba-room': createItabaRoom(),
 });

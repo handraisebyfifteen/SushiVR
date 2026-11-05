@@ -29,6 +29,7 @@ Other useful commands:
 npm run typecheck   # TypeScript type check
 npm run build       # production build into dist/
 npm run preview     # serve the production build locally
+npm run layout      # move scene nodes after changing src/layout.ts
 ```
 
 ## How to play (hand tracking)
@@ -37,15 +38,21 @@ You are the chef at a small sushi bar, seated, using only your hands. The
 right hand is the rice hand and the left hand is the neta (fish) hand; a
 single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 
-**Around you**: the kitchen floor is one step above the customer side, as
-in a real sushi bar. In front of you is the 1 m cutting board, with the
-wasabi dish and tezu bowl (vinegar water) at its right-back corner (pinch to
-move them; the spot is remembered) and the knife and wet cloth on the right.
-Beyond the board a raised ledge carries the long glass neta case with three
-fish blocks (saku); the strip of ledge in front of the case holds the serving
-stand (geta), and the lower customer counter lies beyond it. The rice tub is
-low on your right, out of sight. The prep sink with its faucet, the soap and
-the hand towel are behind you, with a dish cupboard above the sink.
+**Around you** (a Showa-era sushi bar): the kitchen floor is one step above
+the customer side. You sit in the middle of a 1 m chef's aisle. In front of
+you is the 1 m cutting board (36 cm deep), with the wasabi dish and tezu bowl
+(vinegar water) at its right-back corner (pinch to move them; the spot is
+remembered) and the knife and wet cloth on the right. Beyond the board the
+raised tsukedai (30 cm) carries the long glass neta case with three fish
+blocks (saku) and, in front of the case, the serving stand (geta); the lower
+customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
+eave on timber posts, left over from the sushi-stall days, carries a short
+plain noren and four paper lanterns. The rice tub is low on your right, out
+of sight. Behind you are the prep sink with its faucet, the soap and the hand
+towel, and beside it a glass-door dish cabinet against the back wall. The
+kitchen doorway, with its noren and the brighter kitchen beyond, is at the
+left end of the aisle. Fluorescent work lights hang over the board and the
+sink.
 
 **Turn around**: look far to the left and hold for a second. The view blinks
 and the bar turns 180 degrees. Do the same to turn back. Turning is blocked
@@ -124,6 +131,7 @@ production builds, and nothing shows without the flag.
 | --- | --- |
 | `iwsdk.config.json` | Project authority: active scene, asset/component modules, XR and world features |
 | `src/index.ts` | App entry point: `World.create()` and system registration |
+| `src/layout.ts` | Every bar dimension (counter depths, aisle width, heights, the reach model); run `npm run layout` after editing |
 | `src/assets.ts` | Asset catalog shared by the runtime and the editor |
 | `src/components.ts` | Component catalog shared by the runtime and the editor |
 | `src/scene-assets/` | 3D models built in code (no external model files) |

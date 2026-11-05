@@ -31,7 +31,10 @@ Column meanings:
 | `src/scene-assets/counter.scene-asset.ts` | `wet-cloth` (procedural fukin) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `tezu-bowl` (procedural vinegar-water bowl) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `wasabi-dish` (procedural dish with wasabi mound) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/wash-station.scene-asset.ts` | `sink-unit` (procedural stainless prep sink: sliding-door cabinet, drainboard, basin, backsplash, faucet, dish cabinet above) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/wash-station.scene-asset.ts` | `sink-unit` (procedural stainless prep sink: sliding-door cabinet, drainboard, front-set basin, backsplash, long faucet) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/dish-cabinet.scene-asset.ts` | `dish-cabinet` (procedural glass-door dish cabinet with plates and bowls) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/eaves.scene-asset.ts` | `eaves` (procedural tiled eave on timber posts, plain noren, paper lanterns; instanced) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/itaba-room.scene-asset.ts` | `itaba-room` (procedural chef's room: walls, ceiling, fluorescent fixtures, kitchen doorway with noren, unlit kitchen beyond, floor light spill) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/wash-station.scene-asset.ts` | `soap` (procedural soap pump bottle) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/wash-station.scene-asset.ts` | `towel` (procedural folded hand towel) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/turn-system.ts` | Runtime mesh: blink sphere for the turn-around transition (primitive) |

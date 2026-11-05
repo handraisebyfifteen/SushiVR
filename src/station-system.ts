@@ -1,9 +1,12 @@
 import { createSystem, type Entity, Vector3 } from '@iwsdk/core';
+import { debug } from './debug.js';
 import { chef } from './game-state.js';
+import { MANAITA_TOP } from './layout.js';
 import { hands } from './hands.js';
 import { Held, Station, StationKind } from './sushi-components.js';
 
 export type Kind = (typeof StationKind)[keyof typeof StationKind];
+const ALL_KINDS = Object.values(StationKind) as Kind[];
 
 export interface StationInfo {
   entity: Entity;
@@ -21,7 +24,7 @@ export const stations = new Map<Kind, StationInfo>();
 const ZONE_HEIGHT = 0.3;
 const ZONE_BELOW = 0.05;
 /** Bump the version when authored positions change, so old saved spots are ignored. */
-const STORAGE_PREFIX = 'sushi-vr.station.v3.';
+const STORAGE_PREFIX = 'sushi-vr.station.v4.';
 /** A pinch this close to a movable dish picks it up (closer than a saku pick). */
 const DISH_PICK_DISTANCE = 0.06;
 
@@ -61,6 +64,7 @@ export class StationSystem extends createSystem({
 
   update(): void {
     this.updateDish();
+    if (debug.enabled) this.probeReach();
     for (const entity of this.queries.stations.entities) {
       const object = entity.object3D;
       if (!object) continue;
@@ -104,7 +108,7 @@ export class StationSystem extends createSystem({
     const object = this.heldDish.object3D!;
     if (hand.tracked) {
       object.position.copy(hand.grasp);
-      object.position.y = Math.max(object.position.y - 0.03, 0.77);
+      object.position.y = Math.max(object.position.y - 0.03, MANAITA_TOP);
     }
     if (hand.pinchEnd || !hand.tracked) {
       this.remember(this.heldDish);
@@ -114,6 +118,36 @@ export class StationSystem extends createSystem({
   }
 
   private readonly tmp = new Vector3();
+  private readonly palmMask = [0, 0];
+  private readonly tipMask = [0, 0];
+
+  /**
+   * Debug only: logs which stations each hand's palm, and its pinch point or
+   * index fingertip, are over whenever that changes, with the palm's world
+   * position, so reach can be checked from the console.
+   */
+  private probeReach(): void {
+    for (let i = 0; i < 2; i++) {
+      const hand = hands.all[i];
+      let palm = 0;
+      let tip = 0;
+      if (hand?.tracked) {
+        for (let k = 0; k < ALL_KINDS.length; k++) {
+          const kind = ALL_KINDS[k];
+          if (overStation(hand.palm, kind)) palm |= 1 << k;
+          if (overStation(hand.grasp, kind) || overStation(hand.indexTip, kind)) tip |= 1 << k;
+        }
+      }
+      if (palm === this.palmMask[i] && tip === this.tipMask[i]) continue;
+      this.palmMask[i] = palm;
+      this.tipMask[i] = tip;
+      const names = (mask: number) => ALL_KINDS.filter((_, k) => mask & (1 << k)).join(',') || 'none';
+      const p = hand.palm;
+      console.log(
+        `[Reach] ${i === 0 ? 'left' : 'right'} palm:${names(palm)} tip:${names(tip)} at ${p.x.toFixed(3)} ${p.y.toFixed(3)} ${p.z.toFixed(3)}`,
+      );
+    }
+  }
 
   private key(entity: Entity): string | null {
     if (!entity.getValue(Station, 'movable')) return null;

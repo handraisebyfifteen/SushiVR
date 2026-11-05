@@ -5,6 +5,13 @@ import {
   Mesh,
   MeshStandardMaterial,
 } from '@iwsdk/core';
+import {
+  BACK_WALL_Z,
+  ROOM_LENGTH,
+  STEP_HEIGHT,
+  TSUKEDAI_CUSTOMER_Z,
+  WALL_THICKNESS,
+} from '../layout.js';
 
 /**
  * Empty room: a plain floor the player can stand and walk on.
@@ -35,7 +42,11 @@ const platformMaterial = new MeshStandardMaterial({ color: '#6B5B4A', roughness:
  * floor, as in a real sushi bar. The player stands on its top (y = 0).
  * Origin at the top surface center; the block extends downward.
  */
-export function createChefPlatform(width = 3.6, depth = 2.5, height = 0.2): Group {
+export function createChefPlatform(
+  width = ROOM_LENGTH + 2 * WALL_THICKNESS,
+  depth = BACK_WALL_Z + WALL_THICKNESS - TSUKEDAI_CUSTOMER_Z,
+  height = STEP_HEIGHT,
+): Group {
   const root = new Group();
   root.name = 'ChefPlatform';
   const block = new Mesh(new BoxGeometry(width, height, depth), platformMaterial);

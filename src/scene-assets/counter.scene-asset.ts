@@ -6,6 +6,20 @@ import {
   MeshStandardMaterial,
   SphereGeometry,
 } from '@iwsdk/core';
+import {
+  BAR_LENGTH,
+  CUSTOMER_COUNTER_DEPTH,
+  CUSTOMER_COUNTER_HEIGHT,
+  GETA_DEPTH,
+  MANAITA_DEPTH,
+  MANAITA_THICKNESS,
+  MANAITA_WIDTH,
+  NETA_CASE_DEPTH,
+  TSUKEDAI_DEPTH,
+  TSUKEDAI_TOP,
+  WORK_COUNTER_DEPTH,
+  WORK_COUNTER_TOP,
+} from '../layout.js';
 
 /**
  * Sushi bar front: the chef's counter and everything on it, built from
@@ -13,9 +27,10 @@ import {
  * returns a parentless Object3D whose origin is its contact point, so the
  * scene can place it on a surface.
  *
- * Layout (chef seated at the origin, facing -Z; distances are set in
- * public/scenes/main.iwsdk.scene.json):
- *   cutting board (1 m wide) -> neta case (long glass showcase) -> customer counter + geta
+ * Layout (chef seated at the origin, facing -Z): manaita on the work counter
+ * -> tsukedai carrying the neta case and the geta -> customer counter. Every
+ * dimension comes from src/layout.ts; positions are applied to the scene by
+ * `npm run layout`.
  *
  * Shared materials: one material per look keeps draw-call state changes low.
  */
@@ -61,28 +76,31 @@ function box(
 export function createCounter(): Group {
   const root = new Group();
   root.name = 'Counter';
-  const top = box(1.8, 0.04, 0.34, darkWood, 'CounterTop');
-  top.position.set(0, 0.73, 0);
-  const legL = box(0.06, 0.71, 0.3, darkWood, 'LegL');
-  legL.position.set(-0.87, 0.355, 0);
-  const legR = box(0.06, 0.71, 0.3, darkWood, 'LegR');
-  legR.position.set(0.87, 0.355, 0);
+  const legH = WORK_COUNTER_TOP - 0.04;
+  const top = box(BAR_LENGTH, 0.04, WORK_COUNTER_DEPTH, darkWood, 'CounterTop');
+  top.position.set(0, WORK_COUNTER_TOP - 0.02, 0);
+  const legL = box(0.06, legH, WORK_COUNTER_DEPTH - 0.04, darkWood, 'LegL');
+  legL.position.set(-BAR_LENGTH / 2 + 0.03, legH / 2, 0);
+  const legR = box(0.06, legH, WORK_COUNTER_DEPTH - 0.04, darkWood, 'LegR');
+  legR.position.set(BAR_LENGTH / 2 - 0.03, legH / 2, 0);
   root.add(top, legL, legR);
   return root;
 }
 
 /**
- * Raised ledge between the chef's counter and the customer counter: the neta
- * case sits on its chef side, and the strip in front of the case is where
- * the geta (or a leaf, or the sushi itself) is placed for the customer.
+ * Tsukedai: the raised step between the chef's counter and the customer
+ * counter. The neta case sits on its chef side, and the strip in front of the
+ * case is where the geta (or a leaf, or the sushi itself) is placed for the
+ * customer. Kept under the manifest id `ledge`.
  */
 export function createLedge(): Group {
   const root = new Group();
   root.name = 'Ledge';
-  const body = box(1.8, 0.74, 0.34, darkWood, 'Body');
-  body.position.set(0, 0.37, 0);
-  const top = box(1.8, 0.04, 0.34, lightWood, 'Top');
-  top.position.set(0, 0.76, 0);
+  const bodyH = TSUKEDAI_TOP - 0.04;
+  const body = box(BAR_LENGTH, bodyH, TSUKEDAI_DEPTH, darkWood, 'Body');
+  body.position.set(0, bodyH / 2, 0);
+  const top = box(BAR_LENGTH, 0.04, TSUKEDAI_DEPTH, lightWood, 'Top');
+  top.position.set(0, TSUKEDAI_TOP - 0.02, 0);
   root.add(body, top);
   return root;
 }
@@ -91,10 +109,11 @@ export function createLedge(): Group {
 export function createCustomerCounter(): Group {
   const root = new Group();
   root.name = 'CustomerCounter';
-  const body = box(1.8, 0.71, 0.42, darkWood, 'Body');
-  body.position.set(0, 0.355, 0);
-  const top = box(1.8, 0.04, 0.42, lightWood, 'Top');
-  top.position.set(0, 0.73, 0);
+  const bodyH = CUSTOMER_COUNTER_HEIGHT - 0.04;
+  const body = box(BAR_LENGTH, bodyH, CUSTOMER_COUNTER_DEPTH, darkWood, 'Body');
+  body.position.set(0, bodyH / 2, 0);
+  const top = box(BAR_LENGTH, 0.04, CUSTOMER_COUNTER_DEPTH, lightWood, 'Top');
+  top.position.set(0, CUSTOMER_COUNTER_HEIGHT - 0.02, 0);
   root.add(body, top);
   return root;
 }
@@ -103,8 +122,8 @@ export function createCustomerCounter(): Group {
 export function createCuttingBoard(): Group {
   const root = new Group();
   root.name = 'CuttingBoard';
-  const board = box(1.0, 0.02, 0.3, paleWood, 'Board');
-  board.position.y = 0.01;
+  const board = box(MANAITA_WIDTH, MANAITA_THICKNESS, MANAITA_DEPTH, paleWood, 'Board');
+  board.position.y = MANAITA_THICKNESS / 2;
   root.add(board);
   return root;
 }
@@ -113,11 +132,11 @@ export function createCuttingBoard(): Group {
 export function createGeta(): Group {
   const root = new Group();
   root.name = 'Geta';
-  const plank = box(0.26, 0.02, 0.12, lightWood, 'Plank');
+  const plank = box(0.26, 0.02, GETA_DEPTH, lightWood, 'Plank');
   plank.position.y = 0.04;
-  const footL = box(0.03, 0.03, 0.1, lightWood, 'FootL');
+  const footL = box(0.03, 0.03, GETA_DEPTH - 0.02, lightWood, 'FootL');
   footL.position.set(-0.1, 0.015, 0);
-  const footR = box(0.03, 0.03, 0.1, lightWood, 'FootR');
+  const footR = box(0.03, 0.03, GETA_DEPTH - 0.02, lightWood, 'FootR');
   footR.position.set(0.1, 0.015, 0);
   root.add(plank, footL, footR);
   return root;
@@ -128,7 +147,7 @@ const caseDark = new MeshStandardMaterial({ color: '#2A2D30', roughness: 0.5 });
 
 /** Inside width of the neta case; saku are placed along it. */
 export const NETA_CASE_WIDTH = 1.2;
-export const NETA_CASE_DEPTH = 0.22;
+export { NETA_CASE_DEPTH };
 
 /**
  * Neta case: a long, low refrigerated showcase between chef and customer,

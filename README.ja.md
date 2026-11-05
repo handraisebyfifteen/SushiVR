@@ -31,6 +31,7 @@ npm run build   # dist/ に出力
 | --- | --- |
 | `iwsdk.config.json` | プロジェクト設定（使うシーン・アセット・XR 機能など） |
 | `src/index.ts` | アプリの起点。`World.create()` とシステムの登録 |
+| `src/layout.ts` | 板場の寸法（カウンター・つけ台・まな板の奥行き、通路幅、高さ、腕の届く範囲）。変更後は `npm run layout` でシーンの配置に反映 |
 | `src/assets.ts` | アセット（3D モデル・音など）の一覧 |
 | `src/components.ts` | コンポーネントの一覧 |
 | `src/scene-assets/` | コードで作る 3D モデル |
