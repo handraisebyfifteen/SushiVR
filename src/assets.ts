@@ -13,8 +13,8 @@ import {
 } from './scene-assets/counter.scene-asset.js';
 import { createRoomFloor } from './scene-assets/room.scene-asset.js';
 import {
-  createBackCounter,
-  createSink,
+  createDishCabinet,
+  createSinkUnit,
   createSoap,
   createTowel,
 } from './scene-assets/wash-station.scene-asset.js';
@@ -39,8 +39,8 @@ export default defineAssets({
   'wet-cloth': createWetCloth(),
   'tezu-bowl': createTezuBowl(),
   'wasabi-dish': createWasabiDish(),
-  'back-counter': createBackCounter(),
-  sink: createSink(),
+  'sink-unit': createSinkUnit(),
+  'dish-cabinet': createDishCabinet(),
   soap: createSoap(),
   towel: createTowel(),
 });

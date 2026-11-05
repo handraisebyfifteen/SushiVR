@@ -231,15 +231,15 @@
         "position": [
           0,
           0.75,
-          -0.48
+          -0.47
         ]
       },
       "components": {
         "Station": {
           "kind": "NetaCase",
-          "width": 0.9,
-          "depth": 0.14,
-          "height": 0.02
+          "width": 1.2,
+          "depth": 0.24,
+          "height": 0.05
         }
       }
     },
@@ -255,8 +255,8 @@
       "transform": {
         "position": [
           -0.28,
-          0.77,
-          -0.46
+          0.805,
+          -0.45
         ]
       },
       "components": {
@@ -277,8 +277,8 @@
       "transform": {
         "position": [
           0,
-          0.77,
-          -0.46
+          0.805,
+          -0.45
         ]
       },
       "components": {
@@ -299,8 +299,8 @@
       "transform": {
         "position": [
           0.28,
-          0.77,
-          -0.46
+          0.805,
+          -0.45
         ]
       },
       "components": {
@@ -322,7 +322,7 @@
         "position": [
           0,
           0,
-          -0.79
+          -0.8
         ]
       }
     },
@@ -339,7 +339,7 @@
         "position": [
           0,
           0.75,
-          -0.62
+          -0.64
         ]
       },
       "components": {
@@ -369,11 +369,11 @@
       }
     },
     {
-      "id": "back-counter",
-      "name": "Back Counter",
+      "id": "sink-unit",
+      "name": "Sink Unit",
       "content": {
         "type": "asset",
-        "asset": "back-counter",
+        "asset": "sink-unit",
         "castShadow": true,
         "receiveShadow": true
       },
@@ -381,32 +381,26 @@
         "position": [
           0,
           0,
-          0.5
+          0.6
         ]
       }
     },
     {
       "id": "sink",
-      "name": "Sink",
-      "content": {
-        "type": "asset",
-        "asset": "sink",
-        "castShadow": true,
-        "receiveShadow": true
-      },
+      "name": "Sink (basin zone)",
       "transform": {
         "position": [
-          0,
-          0.75,
-          0.5
+          -0.25,
+          0.8,
+          0.6
         ]
       },
       "components": {
         "Station": {
           "kind": "Sink",
-          "width": 0.36,
-          "depth": 0.28,
-          "height": 0.1
+          "width": 0.45,
+          "depth": 0.38,
+          "height": 0
         }
       }
     },
@@ -421,8 +415,8 @@
       },
       "transform": {
         "position": [
-          -0.3,
-          0.75,
+          -0.53,
+          0.8,
           0.5
         ]
       },
@@ -446,7 +440,7 @@
       "transform": {
         "position": [
           0.3,
-          0.75,
+          0.8,
           0.5
         ]
       },
@@ -456,6 +450,23 @@
           "radius": 0.11,
           "height": 0.02
         }
+      }
+    },
+    {
+      "id": "dish-cabinet",
+      "name": "Dish Cabinet",
+      "content": {
+        "type": "asset",
+        "asset": "dish-cabinet",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          1.05,
+          0,
+          0.85
+        ]
       }
     },
     {
@@ -544,7 +555,7 @@
         "target": [
           0,
           0.8,
-          0.5
+          0.6
         ],
         "fov": 70,
         "role": "diagnostic"

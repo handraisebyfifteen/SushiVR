@@ -42,7 +42,7 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 remembered), the knife and wet cloth on the right, the glass neta case with
 three fish blocks (saku) beyond the board, and the customer counter with the
 serving stand (geta) behind it. The rice tub is low on your right, out of
-sight. The sink, soap and hand towel are behind you.
+sight. A stainless prep sink with its faucet, the soap and the hand towel are behind you, next to a dish cabinet.
 
 **Turn around**: look far to the left and hold for a second. The view blinks
 and the bar turns 180 degrees. Do the same to turn back. Turning is blocked

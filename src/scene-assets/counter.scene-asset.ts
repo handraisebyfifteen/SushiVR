@@ -15,7 +15,7 @@ import {
  *
  * Layout (chef seated at the origin, facing -Z; distances are set in
  * public/scenes/main.iwsdk.scene.json):
- *   cutting board (1 m wide) -> neta case (glass) -> customer counter + geta
+ *   cutting board (1 m wide) -> neta case (long glass showcase) -> customer counter + geta
  *
  * Shared materials: one material per look keeps draw-call state changes low.
  */
@@ -107,27 +107,50 @@ export function createGeta(): Group {
   return root;
 }
 
+const caseFloor = new MeshStandardMaterial({ color: '#3F8C5B', roughness: 0.8 });
+const caseDark = new MeshStandardMaterial({ color: '#2A2D30', roughness: 0.5 });
+
+/** Inside width of the neta case; saku are placed along it. */
+export const NETA_CASE_WIDTH = 1.2;
+export const NETA_CASE_DEPTH = 0.24;
+
 /**
- * Neta case: a refrigerated glass showcase between chef and customer.
- * Glass on the customer side, the top and both ends; open on the chef side
- * so a hand can reach in. Fish blocks (saku) are separate assets placed inside.
+ * Neta case: a long, low refrigerated showcase between chef and customer,
+ * like the stainless counter-top cases in sushi bars. Stainless base, green
+ * floor inside, a sloped glass front on the customer side, a glass top and a
+ * glass end; the chef side (+Z) is open so a hand can reach in. The
+ * compressor housing sits at the left end.
  */
 export function createNetaCase(): Group {
   const root = new Group();
   root.name = 'NetaCase';
-  const base = box(0.9, 0.02, 0.14, lacquer, 'Base');
-  base.position.y = 0.01;
-  const front = box(0.9, 0.12, 0.006, glass, 'GlassFront');
-  front.position.set(0, 0.08, -0.067);
-  const top = box(0.9, 0.006, 0.14, glass, 'GlassTop');
-  top.position.set(0, 0.137, 0);
-  const endL = box(0.006, 0.12, 0.14, glass, 'GlassL');
-  endL.position.set(-0.447, 0.08, 0);
-  const endR = box(0.006, 0.12, 0.14, glass, 'GlassR');
-  endR.position.set(0.447, 0.08, 0);
-  const rail = box(0.9, 0.012, 0.012, steel, 'Rail');
-  rail.position.set(0, 0.134, -0.067);
-  root.add(base, front, top, endL, endR, rail);
+  const W = NETA_CASE_WIDTH;
+  const D = NETA_CASE_DEPTH;
+  const H = 0.22;
+  const base = box(W, 0.05, D, steel, 'Base');
+  base.position.y = 0.025;
+  const floor = box(W - 0.2, 0.004, D - 0.04, caseFloor, 'Floor');
+  floor.position.set(0.08, 0.052, 0);
+  // Compressor housing at the left end.
+  const housing = box(0.16, H, D, steel, 'Housing');
+  housing.position.set(-W / 2 + 0.08, H / 2, 0);
+  const panel = box(0.004, 0.05, 0.1, caseDark, 'HousingPanel');
+  panel.position.set(-W / 2 + 0.162, 0.14, 0);
+  // Glass: sloped front on the customer side (-Z), flat top, right end.
+  const glassW = W - 0.16;
+  const glassX = 0.08;
+  const front = box(glassW, 0.19, 0.006, glass, 'GlassFront');
+  front.rotation.x = -0.35;
+  front.position.set(glassX, 0.05 + 0.09, -D / 2 + 0.035);
+  const top = box(glassW, 0.006, D - 0.1, glass, 'GlassTop');
+  top.position.set(glassX, H - 0.003, 0.02);
+  const end = box(0.006, H - 0.05, D, glass, 'GlassEnd');
+  end.position.set(W / 2 - 0.003, 0.05 + (H - 0.05) / 2, 0);
+  const railTop = box(glassW, 0.01, 0.01, steel, 'RailTop');
+  railTop.position.set(glassX, H, -D / 2 + 0.07);
+  const railBottom = box(glassW, 0.01, 0.01, steel, 'RailBottom');
+  railBottom.position.set(glassX, 0.055, -D / 2 + 0.005);
+  root.add(base, floor, housing, panel, front, top, end, railTop, railBottom);
   return root;
 }
 
