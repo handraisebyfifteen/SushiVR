@@ -253,6 +253,8 @@ export class HygieneSystem extends createSystem({}) {
       e.setValue(Chef, f[4], h.holding);
     }
     e.setValue(Chef, 'soaped', chef.soaped);
+    e.setValue(Chef, 'soapDuringService', chef.soapDuringService);
+    e.setValue(Chef, 'knifeUnwiped', chef.knifeUnwiped);
     e.setValue(Chef, 'boardDirt', chef.boardDirt);
     e.setValue(Chef, 'clothDirty', chef.clothDirty);
     e.setValue(Chef, 'knifeDirty', chef.knifeDirty);

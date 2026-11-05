@@ -66,6 +66,7 @@ export const Held = {
   Neta: 'Neta',
   Rice: 'Rice',
   Sushi: 'Sushi',
+  Dish: 'Dish',
 } as const;
 
 /** The chef's hands and tools, mirrored from the game state for inspection. */
@@ -81,6 +82,8 @@ export const Chef = createComponent('Chef', {
   leftHolding: { type: Types.Enum, enum: Held, default: Held.None },
   rightHolding: { type: Types.Enum, enum: Held, default: Held.None },
   soaped: { type: Types.Boolean, default: false },
+  soapDuringService: { type: Types.Boolean, default: false },
+  knifeUnwiped: { type: Types.Boolean, default: false },
   boardDirt: { type: Types.Float32, default: 0 },
   clothDirty: { type: Types.Boolean, default: false },
   knifeDirty: { type: Types.Boolean, default: false },

@@ -136,9 +136,6 @@
           "radius": 0.06,
           "height": 0.02,
           "movable": true
-        },
-        "OneHandGrabbable": {
-          "rotate": false
         }
       }
     },
@@ -164,9 +161,6 @@
           "radius": 0.07,
           "height": 0.05,
           "movable": true
-        },
-        "OneHandGrabbable": {
-          "rotate": false
         }
       }
     },
@@ -181,7 +175,7 @@
       },
       "transform": {
         "position": [
-          0.6,
+          0.57,
           0.75,
           -0.28
         ],
@@ -211,9 +205,9 @@
       },
       "transform": {
         "position": [
-          0.74,
+          0.66,
           0.75,
-          -0.28
+          -0.2
         ]
       },
       "components": {

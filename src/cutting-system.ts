@@ -3,7 +3,7 @@ import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
 import { chef, type FishKind, service } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { pieceApi } from './nigiri-system.js';
-import { overStation, stations } from './station-system.js';
+import { type Kind, overStation, stations } from './station-system.js';
 import { Held, Saku, StationKind } from './sushi-components.js';
 import { BOARD_DIRT_PER_CUT, CUT_STROKE, RUB_WIPE_KNIFE } from './tuning.js';
 
@@ -168,8 +168,8 @@ export class CuttingSystem extends createSystem({
     }
     this.blade.copy(hand.palm).addScaledVector(hand.fingerDir, BLADE_REACH);
 
-    // Wipe on the wet cloth.
-    const onCloth = overStation(this.blade, StationKind.WetCloth);
+    // Wipe on the wet cloth: any part of the blade passing over it counts.
+    const onCloth = this.bladeOver(StationKind.WetCloth, 0.1);
     if (this.wipeRub.update(this.blade, onCloth && chef.knifeDirty) >= RUB_WIPE_KNIFE) {
       chef.knifeDirty = false;
       this.wipeRub.reset();
@@ -217,10 +217,27 @@ export class CuttingSystem extends createSystem({
     }
   }
 
+  /** True when the blade segment (palm to tip) passes within `radius` of the station, at blade height. */
+  private bladeOver(kind: Kind, radius: number): boolean {
+    const info = stations.get(kind);
+    if (!info) return false;
+    const hand = hands.all[chef.riceSide];
+    const ax = hand.palm.x, az = hand.palm.z;
+    const bx = this.blade.x, bz = this.blade.z;
+    const dx = bx - ax, dz = bz - az;
+    const len2 = dx * dx + dz * dz;
+    let t = len2 > 0 ? ((info.pos.x - ax) * dx + (info.pos.z - az) * dz) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = ax + dx * t - info.pos.x;
+    const cz = az + dz * t - info.pos.z;
+    const y = hand.palm.y;
+    return cx * cx + cz * cz < radius * radius && y > info.pos.y - 0.05 && y < info.pos.y + 0.2;
+  }
+
   private cut(saku: Entity): void {
     const fish = this.sakuFish(saku);
     // Cutting at the right end (the guide) leaves the skin edge on the customer's right.
-    const skinRight = this.blade.x > this.sakuPos.x;
+    const skinRight = hands.all[chef.riceSide].palm.x > this.sakuPos.x;
     this.tmp.set(this.sakuPos.x + SLICE_OFFSET_X, this.sakuPos.y, this.sakuPos.z);
     pieceApi.cut(fish, skinRight, this.tmp);
     this.returnHome(saku);

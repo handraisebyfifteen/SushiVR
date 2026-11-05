@@ -36,8 +36,9 @@ export const chef = {
   netaSide: (CHEF_LEFT_HANDED ? 1 : 0) as Side,
 };
 
+/** True while a hand carries food, the knife or the finished piece (the wet cloth may travel to the sink). */
 export function holdingAnything(): boolean {
-  return chef.hands[0].holding !== Held.None || chef.hands[1].holding !== Held.None;
+  return chef.hands.some((h) => h.holding !== Held.None && h.holding !== Held.Cloth && h.holding !== Held.Dish);
 }
 
 /** The current order; null while no customer is seated. */

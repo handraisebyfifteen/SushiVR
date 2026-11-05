@@ -30,10 +30,15 @@ Column meanings:
 | `src/scene-assets/counter.scene-asset.ts` | `tezu-bowl` (procedural vinegar-water bowl) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `wasabi-dish` (procedural dish with wasabi mound) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/wash-station.scene-asset.ts` | `back-counter` (procedural back counter) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/wash-station.scene-asset.ts` | `basin` (procedural hand-washing tub with water surface) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/wash-station.scene-asset.ts` | `sink` (procedural steel sink with faucet) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/wash-station.scene-asset.ts` | `soap` (procedural soap pump bottle) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/wash-station.scene-asset.ts` | `towel` (procedural folded hand towel) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/turn-system.ts` | Runtime mesh: blink sphere for the turn-around transition (primitive) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/turn-system.ts` | Runtime mesh: blink sphere for the turn-around transition (primitive) |
+| `src/nigiri-system.ts` | Runtime meshes: rice ball, fish slice, wasabi dab, beat rings, serve-hold bar; judgement words drawn on canvas |
+| `src/customer-system.ts` | Runtime meshes: customer figure (sphere, boxes), order card and result icons drawn on canvas |
+| `src/cutting-system.ts` | Runtime mesh: cut guide line (primitive) |
+| `src/feedback.ts` | Runtime meshes: station highlight rings and frames (primitives) |
+| `src/sfx.ts` | Sounds synthesized with the Web Audio API at runtime (no audio files) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/debug-hud-system.ts` | Debug-only labels and status panel drawn on canvas with the browser default font (no font file) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 
 ## Removed assets

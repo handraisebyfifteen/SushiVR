@@ -1,7 +1,7 @@
-import { createSystem, type Entity, Grabbed, Vector3 } from '@iwsdk/core';
+import { createSystem, type Entity, Vector3 } from '@iwsdk/core';
 import { chef } from './game-state.js';
 import { hands } from './hands.js';
-import { Station, StationKind } from './sushi-components.js';
+import { Held, Station, StationKind } from './sushi-components.js';
 
 export type Kind = (typeof StationKind)[keyof typeof StationKind];
 
@@ -21,7 +21,9 @@ export const stations = new Map<Kind, StationInfo>();
 const ZONE_HEIGHT = 0.3;
 const ZONE_BELOW = 0.05;
 /** Bump the version when authored positions change, so old saved spots are ignored. */
-const STORAGE_PREFIX = 'sushi-vr.station.v2.';
+const STORAGE_PREFIX = 'sushi-vr.station.v3.';
+/** A pinch this close to a movable dish picks it up (closer than a saku pick). */
+const DISH_PICK_DISTANCE = 0.06;
 
 /** True when a hand point is above the station surface, inside its zone. */
 export function overStation(point: Vector3, kind: Kind): boolean {
@@ -38,24 +40,27 @@ export function overStation(point: Vector3, kind: Kind): boolean {
 }
 
 /**
- * Keeps the station table current and remembers where the player moved the
- * movable props (wasabi dish, tezu bowl) so they come back to the same spot.
+ * Keeps the station table current, lets the player pinch and move the
+ * movable props (wasabi dish, tezu bowl), and remembers where they were put
+ * so they come back to the same spot. Moving a dish is touching something
+ * that is not food, so that hand then needs washing.
  */
 export class StationSystem extends createSystem({
   stations: { required: [Station] },
-  held: { required: [Station, Grabbed] },
 }) {
+  private heldDish: Entity | null = null;
+  private heldSide = 0;
+
   init(): void {
     this.cleanupFuncs.push(
       this.queries.stations.subscribe('qualify', (entity) => this.restore(entity)),
-      this.queries.held.subscribe('disqualify', (entity) => this.remember(entity)),
-      this.queries.held.subscribe('qualify', (entity) => this.touched(entity)),
     );
     // Scene entities may already exist when this system starts.
     for (const entity of this.queries.stations.entities) this.restore(entity);
   }
 
   update(): void {
+    this.updateDish();
     for (const entity of this.queries.stations.entities) {
       const object = entity.object3D;
       if (!object) continue;
@@ -73,18 +78,38 @@ export class StationSystem extends createSystem({
     }
   }
 
-  /** Moving a dish is touching something that is not food: that hand needs washing. */
-  private touched(entity: Entity): void {
-    const object = entity.object3D;
-    if (!object || !entity.getValue(Station, 'movable')) return;
-    object.getWorldPosition(this.tmp);
-    const dl = hands.left?.tracked ? hands.left.grasp.distanceTo(this.tmp) : Infinity;
-    const dr = hands.right?.tracked ? hands.right.grasp.distanceTo(this.tmp) : Infinity;
-    if (dl === Infinity && dr === Infinity) return;
-    const side = dl <= dr ? 0 : 1;
-    if (!chef.hands[side].needsWash) {
-      chef.hands[side].needsWash = true;
-      console.log(`[Station] ${side === 0 ? 'left' : 'right'} hand touched a dish: needs washing`);
+  private updateDish(): void {
+    if (!this.heldDish) {
+      for (let i = 0; i < 2; i++) {
+        const hand = hands.all[i];
+        if (!hand?.tracked || !hand.pinchStart || chef.hands[i].holding !== Held.None) continue;
+        for (const entity of this.queries.stations.entities) {
+          if (!entity.getValue(Station, 'movable') || !entity.object3D) continue;
+          entity.object3D.getWorldPosition(this.tmp);
+          if (hand.grasp.distanceTo(this.tmp) > DISH_PICK_DISTANCE) continue;
+          this.heldDish = entity;
+          this.heldSide = i;
+          chef.hands[i].holding = Held.Dish;
+          if (!chef.hands[i].needsWash) {
+            chef.hands[i].needsWash = true;
+            console.log(`[Station] ${i === 0 ? 'left' : 'right'} hand touched a dish: needs washing`);
+          }
+          break;
+        }
+        if (this.heldDish) break;
+      }
+      return;
+    }
+    const hand = hands.all[this.heldSide];
+    const object = this.heldDish.object3D!;
+    if (hand.tracked) {
+      object.position.copy(hand.grasp);
+      object.position.y = Math.max(object.position.y - 0.03, 0.77);
+    }
+    if (hand.pinchEnd || !hand.tracked) {
+      this.remember(this.heldDish);
+      chef.hands[this.heldSide].holding = Held.None;
+      this.heldDish = null;
     }
   }
 

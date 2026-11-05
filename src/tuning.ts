@@ -29,8 +29,8 @@ export const RUB_WIPE_KNIFE = 0.08;
 /** Knife travel toward the chef, over the guide, that completes a cut. */
 export const CUT_STROKE = 0.1;
 /** Seconds after cutting during which a slice keeps full freshness, and when it reaches zero. */
-export const FRESH_SECONDS = 60;
-export const STALE_SECONDS = 180;
+export const FRESH_SECONDS = 90;
+export const STALE_SECONDS = 240;
 
 // --- nigiri gestures ---
 /** Palm-to-palm distance at which the rice is set onto the neta. */

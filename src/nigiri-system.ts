@@ -552,6 +552,10 @@ export class NigiriSystem extends createSystem({}) {
     e.setValue(Nigiri, 'judge1', Judge.None);
     e.setValue(Nigiri, 'judge2', Judge.None);
     e.setValue(Nigiri, 'judge3', Judge.None);
+    e.setValue(Nigiri, 'knifeUnwiped', false);
+    e.setValue(Nigiri, 'wrongFish', false);
+    e.setValue(Nigiri, 'boardWasDirty', false);
+    e.setValue(Nigiri, 'soapDuringService', false);
     this.setStage(NigiriStage.None);
   }
 
