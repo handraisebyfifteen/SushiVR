@@ -8,13 +8,12 @@ import {
 
 /**
  * Hand-washing station behind the chef (reached by turning around):
- * a back counter with a basin, a soap pump and a hand towel.
+ * a back counter with a sink (faucet), a soap pump and a hand towel.
  * Primitives only; origins at the contact point.
  */
 
 const darkWood = new MeshStandardMaterial({ color: '#4A3526', roughness: 0.8 });
-const lightWood = new MeshStandardMaterial({ color: '#D9B98A', roughness: 0.7 });
-const water = new MeshStandardMaterial({
+const waterMat = new MeshStandardMaterial({
   color: '#9CCBE0',
   roughness: 0.15,
   transparent: true,
@@ -47,17 +46,44 @@ export function createBackCounter(): Group {
   return root;
 }
 
-/** Hand-washing basin: a wooden tub with a water surface. */
-export function createBasin(): Group {
+const steel = new MeshStandardMaterial({ color: '#C9CDD2', roughness: 0.3, metalness: 0.8 });
+const steelDark = new MeshStandardMaterial({ color: '#8E949A', roughness: 0.45, metalness: 0.7 });
+
+/**
+ * Sink with a faucet: a steel basin set into the counter and a tap arching
+ * over it. Hands and the wet cloth are washed under the faucet.
+ */
+export function createSink(): Group {
   const root = new Group();
-  root.name = 'Basin';
-  const tub = new Mesh(new CylinderGeometry(0.13, 0.12, 0.09, 24, 1), lightWood);
-  tub.name = 'Tub';
-  tub.position.y = 0.045;
-  const surface = new Mesh(new CylinderGeometry(0.12, 0.12, 0.004, 24, 1), water);
-  surface.name = 'Water';
-  surface.position.y = 0.08;
-  root.add(tub, surface);
+  root.name = 'Sink';
+  const rim = box(0.40, 0.02, 0.32, steel, 'Rim');
+  rim.position.y = 0.01;
+  const bowl = box(0.34, 0.012, 0.26, steelDark, 'BowlFloor');
+  bowl.position.y = 0.004;
+  const wallBack = box(0.34, 0.1, 0.012, steel, 'WallBack');
+  wallBack.position.set(0, 0.06, -0.126);
+  const wallFront = box(0.34, 0.1, 0.012, steel, 'WallFront');
+  wallFront.position.set(0, 0.06, 0.126);
+  const wallL = box(0.012, 0.1, 0.26, steel, 'WallL');
+  wallL.position.set(-0.166, 0.06, 0);
+  const wallR = box(0.012, 0.1, 0.26, steel, 'WallR');
+  wallR.position.set(0.166, 0.06, 0);
+  const water = new Mesh(new CylinderGeometry(0.1, 0.1, 0.004, 20, 1), waterMat);
+  water.name = 'Water';
+  water.position.y = 0.012;
+  const riser = new Mesh(new CylinderGeometry(0.012, 0.014, 0.22, 10, 1), steel);
+  riser.name = 'FaucetRiser';
+  riser.position.set(0, 0.22, -0.15);
+  const arm = new Mesh(new CylinderGeometry(0.01, 0.01, 0.16, 10, 1), steel);
+  arm.name = 'FaucetArm';
+  arm.rotation.x = Math.PI / 2;
+  arm.position.set(0, 0.33, -0.07);
+  const spout = new Mesh(new CylinderGeometry(0.01, 0.012, 0.04, 10, 1), steel);
+  spout.name = 'FaucetSpout';
+  spout.position.set(0, 0.31, 0.0);
+  const handle = box(0.05, 0.012, 0.012, steelDark, 'FaucetHandle');
+  handle.position.set(0, 0.34, -0.15);
+  root.add(rim, bowl, wallBack, wallFront, wallL, wallR, water, riser, arm, spout, handle);
   return root;
 }
 

@@ -10,7 +10,10 @@ import {
   SpriteMaterial,
 } from '@iwsdk/core';
 import { debug, debugLines } from './debug.js';
+import { chef, service } from './game-state.js';
 import { hands } from './hands.js';
+import { HygieneSystem } from './hygiene-system.js';
+import { NigiriSystem } from './nigiri-system.js';
 import { Bar, Saku, Station } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
 
@@ -24,7 +27,7 @@ const STATION_LABELS: Record<string, string> = {
   Tezu: 'Tezu',
   Wasabi: 'Wasabi',
   RiceTub: 'Rice tub (ohitsu)',
-  Basin: 'Basin',
+  Sink: 'Sink',
   Soap: 'Hand soap',
   Towel: 'Hand towel',
 };
@@ -82,6 +85,15 @@ export class DebugHudSystem extends createSystem({
     if (import.meta.env.DEV) {
       const onKey = (e: KeyboardEvent) => {
         if (e.key === 'd' || e.key === 'D') this.setEnabled(!debug.enabled);
+        // Dev shortcut: open the bar with clean hands, skipping the opening wash.
+        if (e.key === 'o' || e.key === 'O') {
+          for (const h of chef.hands) {
+            h.needsWash = h.needsTowel = h.wet = false;
+            h.dirt = 0;
+          }
+          chef.open = true;
+          console.log('[Debug] bar opened by shortcut');
+        }
       };
       window.addEventListener('keydown', onKey);
       this.cleanupFuncs.push(() => window.removeEventListener('keydown', onKey));
@@ -104,17 +116,17 @@ export class DebugHudSystem extends createSystem({
     for (const entity of this.queries.saku.entities) labelSaku(entity);
 
     this.canvas = document.createElement('canvas');
-    this.canvas.width = 512;
-    this.canvas.height = 200;
+    this.canvas.width = 1024;
+    this.canvas.height = 300;
     this.ctx = this.canvas.getContext('2d')!;
     this.texture = new CanvasTexture(this.canvas);
     this.panel = new Mesh(
-      new PlaneGeometry(0.24, 0.094),
+      new PlaneGeometry(0.34, 0.2),
       new MeshBasicMaterial({ map: this.texture, transparent: true, depthTest: false, side: DoubleSide }),
     );
     this.panel.name = 'DebugPanel';
     this.panel.renderOrder = 950;
-    this.panel.position.set(-0.3, -0.2, -0.55);
+    this.panel.position.set(-0.3, -0.22, -0.55);
     this.panel.visible = debug.enabled;
     this.world.camera.add(this.panel);
 
@@ -125,15 +137,26 @@ export class DebugHudSystem extends createSystem({
         const back = bar?.getValue(Bar, 'facingBack') ? 'washing station' : 'bar';
         return `Facing: ${back}  head yaw ${turn ? turn.yawDeg.toFixed(0) : '?'} deg`;
       },
-      () => this.handLine('L', hands.left),
-      () => this.handLine('R', hands.right),
+      () => this.handLine('L', hands.left, 0),
+      () => this.handLine('R', hands.right, 1),
+      () => {
+        const hygiene = this.world.getSystem(HygieneSystem);
+        return `Open: ${chef.open ? 'yes' : 'no'}  board dirt ${chef.boardDirt.toFixed(2)}  cloth ${chef.clothDirty ? 'dirty' : 'clean'}  knife ${chef.knifeDirty ? 'dirty' : 'clean'}  rub ${hygiene ? (hygiene.rubProgress * 100).toFixed(0) : 0}%`;
+      },
+      () => {
+        const o = service.order;
+        return `Order: ${o ? `${o.fish} ${o.wasabi ? 'with' : 'no'} wasabi` : '-'}  customer ${service.customerLeftHanded ? 'left' : 'right'}-handed${service.customerHandKnown ? '' : ' (unknown)'} eaten ${service.eatenByCustomer}`;
+      },
+      () => this.world.getSystem(NigiriSystem)?.describe() ?? '',
     );
   }
 
-  private handLine(tag: string, h: typeof hands.left): string {
-    if (!h.tracked) return `${tag}: not tracked`;
+  private handLine(tag: string, h: typeof hands.left, side: 0 | 1): string {
+    const s = chef.hands[side];
+    const hygiene = s.needsWash ? 'needs wash' : s.needsTowel ? 'needs towel' : s.wet ? 'wet' : 'clean';
+    if (!h.tracked) return `${tag}: not tracked  ${hygiene} dirt ${s.dirt.toFixed(1)} holds ${s.holding}`;
     const g = h.fist ? 'fist' : h.pinch ? 'pinch' : 'open';
-    return `${tag}: ${g}  curl ${h.curl.toFixed(2)}`;
+    return `${tag}: ${g} curl ${h.curl.toFixed(2)} yaw ${h.yawDeg.toFixed(0)}  ${hygiene} dirt ${s.dirt.toFixed(1)} holds ${s.holding}`;
   }
 
   private addLabel(entity: Entity, text: string, lift: number): void {
@@ -166,10 +189,10 @@ export class DebugHudSystem extends createSystem({
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.font = '28px monospace';
+    ctx.font = '26px monospace';
     ctx.fillStyle = '#d8ffd8';
     ctx.textBaseline = 'top';
-    lines.forEach((line, i) => ctx.fillText(line, 12, 12 + i * 34));
+    lines.forEach((line, i) => ctx.fillText(line, 12, 10 + i * 32));
     this.texture.needsUpdate = true;
   }
 }

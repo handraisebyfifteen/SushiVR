@@ -30,6 +30,11 @@ export class HandReader {
   readonly grasp = new Vector3();
   /** Index fingertip: used to dab wasabi. */
   readonly indexTip = new Vector3();
+  readonly wrist = new Vector3();
+  /** Unit vector from the wrist toward the knuckles, projected flat. */
+  readonly fingerDir = new Vector3(0, 0, -1);
+  /** Heading of fingerDir in degrees: 0 = forward (-Z), +90 = left. */
+  yawDeg = 0;
   tracked = false;
   /** 0 = open hand, 1 = closed fist. */
   curl = 0;
@@ -86,6 +91,15 @@ export class HandReader {
     this.jointWorld('index-finger-tip', joints, grip.matrixWorld, this.b);
     this.grasp.addVectors(this.a, this.b).multiplyScalar(0.5);
     this.indexTip.copy(this.b);
+
+    this.jointWorld('wrist', joints, grip.matrixWorld, this.wrist);
+    this.jointWorld('middle-finger-phalanx-proximal', joints, grip.matrixWorld, this.a);
+    this.a.sub(this.wrist);
+    this.a.y = 0;
+    if (this.a.lengthSq() > 1e-6) {
+      this.fingerDir.copy(this.a).normalize();
+      this.yawDeg = (Math.atan2(-this.fingerDir.x, -this.fingerDir.z) * 180) / Math.PI;
+    }
 
     // Curl: how close the three outer fingertips are to their knuckles.
     let curl = 0;

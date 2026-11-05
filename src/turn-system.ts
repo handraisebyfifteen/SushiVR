@@ -8,12 +8,9 @@ import {
   SphereGeometry,
   Vector3,
 } from '@iwsdk/core';
+import { chef, holdingAnything } from './game-state.js';
 import { Bar } from './sushi-components.js';
-
-/** Head yaw to the left (degrees) that starts a turn. */
-export const TURN_YAW_DEG = 60;
-/** Seconds the head must stay turned before the bar rotates. */
-export const TURN_HOLD_SECONDS = 0.5;
+import { TURN_HOLD_SECONDS, TURN_YAW_DEG } from './tuning.js';
 /** The head must come back within this yaw (degrees) before another turn can start. */
 const REARM_YAW_DEG = 30;
 /** Blink: seconds to fade to black, to hold black, and to fade back in. */
@@ -28,7 +25,8 @@ type Phase = 'idle' | 'closing' | 'hold' | 'opening';
  * The view blinks to black and the whole bar is rotated 180 degrees around the
  * player's head, so the washing station behind the chef is now in front.
  * The same gesture turns back. Rotating the player rig instead of the scene
- * keeps every station where the scene authored it.
+ * keeps every station where the scene authored it. While the chef holds
+ * anything (saku, knife, neta, rice, sushi, cloth) no turn happens.
  */
 export class TurnSystem extends createSystem({
   bar: { required: [Bar] },
@@ -38,7 +36,7 @@ export class TurnSystem extends createSystem({
   private t = 0;
   private holdTime = 0;
   private armed = true;
-  private barEntity!: Entity;
+  barEntity!: Entity;
   /** Current head yaw relative to the rig, degrees; positive = left. */
   yawDeg = 0;
 
@@ -75,7 +73,8 @@ export class TurnSystem extends createSystem({
 
     if (this.phase === 'idle') {
       if (!this.armed && Math.abs(this.yawDeg) < REARM_YAW_DEG) this.armed = true;
-      const looking = this.armed && this.yawDeg > TURN_YAW_DEG;
+      // Nothing in the hands: a chef carrying fish, rice or the knife stays put.
+      const looking = this.armed && !holdingAnything() && this.yawDeg > TURN_YAW_DEG;
       this.holdTime = looking ? this.holdTime + delta : 0;
       if (this.holdTime >= TURN_HOLD_SECONDS) {
         this.holdTime = 0;
@@ -133,6 +132,7 @@ export class TurnSystem extends createSystem({
     this.player.updateMatrixWorld(true);
 
     const facingBack = !this.barEntity.getValue(Bar, 'facingBack');
+    chef.facingBack = facingBack;
     this.barEntity.setValue(Bar, 'facingBack', facingBack);
     this.barEntity.setValue(Bar, 'turns', (this.barEntity.getValue(Bar, 'turns') ?? 0) + 1);
     console.log(`[Turn] now facing ${facingBack ? 'the washing station' : 'the bar'}`);

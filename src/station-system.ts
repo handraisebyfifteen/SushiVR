@@ -1,4 +1,6 @@
 import { createSystem, type Entity, Grabbed, Vector3 } from '@iwsdk/core';
+import { chef } from './game-state.js';
+import { hands } from './hands.js';
 import { Station, StationKind } from './sushi-components.js';
 
 export type Kind = (typeof StationKind)[keyof typeof StationKind];
@@ -18,7 +20,8 @@ export const stations = new Map<Kind, StationInfo>();
 /** Vertical band (m) above a station surface in which a hand counts as over it. */
 const ZONE_HEIGHT = 0.3;
 const ZONE_BELOW = 0.05;
-const STORAGE_PREFIX = 'sushi-vr.station.';
+/** Bump the version when authored positions change, so old saved spots are ignored. */
+const STORAGE_PREFIX = 'sushi-vr.station.v2.';
 
 /** True when a hand point is above the station surface, inside its zone. */
 export function overStation(point: Vector3, kind: Kind): boolean {
@@ -46,6 +49,7 @@ export class StationSystem extends createSystem({
     this.cleanupFuncs.push(
       this.queries.stations.subscribe('qualify', (entity) => this.restore(entity)),
       this.queries.held.subscribe('disqualify', (entity) => this.remember(entity)),
+      this.queries.held.subscribe('qualify', (entity) => this.touched(entity)),
     );
     // Scene entities may already exist when this system starts.
     for (const entity of this.queries.stations.entities) this.restore(entity);
@@ -68,6 +72,23 @@ export class StationSystem extends createSystem({
       info.halfD = (entity.getValue(Station, 'depth') ?? 0) / 2;
     }
   }
+
+  /** Moving a dish is touching something that is not food: that hand needs washing. */
+  private touched(entity: Entity): void {
+    const object = entity.object3D;
+    if (!object || !entity.getValue(Station, 'movable')) return;
+    object.getWorldPosition(this.tmp);
+    const dl = hands.left?.tracked ? hands.left.grasp.distanceTo(this.tmp) : Infinity;
+    const dr = hands.right?.tracked ? hands.right.grasp.distanceTo(this.tmp) : Infinity;
+    if (dl === Infinity && dr === Infinity) return;
+    const side = dl <= dr ? 0 : 1;
+    if (!chef.hands[side].needsWash) {
+      chef.hands[side].needsWash = true;
+      console.log(`[Station] ${side === 0 ? 'left' : 'right'} hand touched a dish: needs washing`);
+    }
+  }
+
+  private readonly tmp = new Vector3();
 
   private key(entity: Entity): string | null {
     if (!entity.getValue(Station, 'movable')) return null;

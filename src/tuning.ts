@@ -1,0 +1,61 @@
+/**
+ * Every gameplay number that may need adjusting on a real headset lives here.
+ * Distances are meters, times are seconds unless the name says ms.
+ */
+
+/** Swap the rice hand and the neta hand for a left-handed chef. */
+export const CHEF_LEFT_HANDED = false;
+
+// --- customers ---
+export const LEFT_HANDED_CUSTOMER_RATIO = 0.3;
+export const PIECES_PER_CUSTOMER = 3;
+/** Seconds the result stays above the customer after a piece is eaten. */
+export const RESULT_SECONDS = 4;
+
+// --- hygiene ---
+/** Pieces made before the hands need washing (dirt reaches 1). */
+export const PIECES_PER_WASH = 5;
+/** Board dirt added by one cut and by one nigiri (board needs a wipe at 1). */
+export const BOARD_DIRT_PER_CUT = 0.35;
+export const BOARD_DIRT_PER_NIGIRI = 0.35;
+/** Rub distance (total palm travel) needed for each cleaning action. */
+export const RUB_WASH_HANDS = 0.5;
+export const RUB_TOWEL = 0.25;
+export const RUB_WASH_CLOTH = 0.4;
+export const RUB_WIPE_BOARD = 0.4;
+export const RUB_WIPE_KNIFE = 0.08;
+
+// --- cutting ---
+/** Knife travel toward the chef, over the guide, that completes a cut. */
+export const CUT_STROKE = 0.1;
+/** Seconds after cutting during which a slice keeps full freshness, and when it reaches zero. */
+export const FRESH_SECONDS = 60;
+export const STALE_SECONDS = 180;
+
+// --- nigiri gestures ---
+/** Palm-to-palm distance at which the rice is set onto the neta. */
+export const JOIN_DISTANCE = 0.1;
+/** Pinch distance to the piece for shaping touches and picking it up. */
+export const TOUCH_DISTANCE = 0.09;
+/** Flip: the neta hand pushes forward this far while its fingers curl this much more. */
+export const FLIP_PUSH_DISTANCE = 0.04;
+export const FLIP_CURL_DELTA = 0.2;
+export const FLIP_WINDOW_SECONDS = 0.5;
+/** Turn: clockwise hand rotation (degrees) while pinching that spins the piece. */
+export const ROTATE_DEG = 60;
+export const SERVE_HOLD_SECONDS = 1.0;
+
+// --- rhythm ---
+export const TEMPO_MS = 1000;
+export const JUDGE_EXCELLENT_MS = 150;
+export const JUDGE_GOOD_MS = 300;
+export const JUDGE_POOR_MS = 450;
+
+// --- orientation and hospitality ---
+export const ORIENTATION_TOLERANCE_DEG = 20;
+/** Diagonal (degrees of yaw) for a right-handed customer; mirrored for left-handed. */
+export const DIAGONAL_DEG = 45;
+
+// --- turning around ---
+export const TURN_YAW_DEG = 75;
+export const TURN_HOLD_SECONDS = 1.0;
