@@ -40,9 +40,10 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 
 **Around you** (a Showa-era sushi bar): the kitchen floor is one step above
 the customer side. You sit in the middle of a 1 m chef's aisle. In front of
-you is the 1 m cutting board (36 cm deep), with the wasabi dish and tezu bowl
-(vinegar water) at its right-back corner (pinch to move them; the spot is
-remembered) and the knife and wet cloth on the right. Beyond the board the
+you is the 1 m cutting board (36 cm deep), with the tezu bowl (vinegar
+water) at its right-back corner and the wasabi dish just in front of it
+(pinch to move either; the spot is remembered) and the knife and wet cloth
+on the right. Beyond the board the
 raised tsukedai (30 cm) carries the long glass neta case with three fish
 blocks (saku) and, in front of the case, the serving stand (geta); the lower
 customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
@@ -79,8 +80,9 @@ wasabi is wanted):
 4. Right hand: dip in the tezu bowl (beat 1), reach down to the rice tub on
    your right and come back up (beat 2, judged). Without tezu nothing comes
    back. A fist rounds the rice.
-5. If wasabi is ordered: touch the wasabi dish with the right index finger,
-   then the slice.
+5. If wasabi is ordered: on the way up from the tub, keep the rice in your
+   other fingers and bring the right index finger down to the wasabi dish,
+   then touch the slice. Wasabi can only be taken while holding the rice.
 6. Bring the palms together: the rice settles on the neta. A ring now
    shrinks to a target ring on every beat.
 7. Touch 1: right fist on the beat.

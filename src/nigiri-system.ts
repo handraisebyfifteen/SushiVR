@@ -338,7 +338,9 @@ export class NigiriSystem extends createSystem({}) {
   private updateWasabi(riceHand: typeof hands.left): void {
     if (!riceHand.tracked) return;
     if (this.wasabi === 'none') {
-      // The fingertip has to come down to the dish, not just pass over it.
+      // Taken on the way up from the rice tub: the rice sits in the other
+      // fingers while the index finger comes down to the dish (not just over it).
+      if (!this.hasRice) return;
       const dish = stations.get(StationKind.Wasabi);
       const low = !!dish && riceHand.indexTip.y < dish.pos.y + WASABI_TOUCH_HEIGHT;
       if (low && overStation(riceHand.indexTip, StationKind.Wasabi)) {

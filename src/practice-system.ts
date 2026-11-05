@@ -658,6 +658,7 @@ export class PracticeSystem extends createSystem({
   private wasabi(): void {
     const side = chef.riceSide;
     if (!progress.netaHeld) return this.say('Take the neta first (N)');
+    if (!progress.hasRice) return this.say('Take rice first: wasabi comes on the way up (J, then hold L)');
     if (this.driver[side].busy) return this.say('Rice hand is busy');
     const dish = this.reachable(StationKind.Wasabi);
     if (!dish) return;

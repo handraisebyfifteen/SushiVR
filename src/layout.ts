@@ -165,7 +165,8 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
     position: [0, WORK_COUNTER_TOP, MANAITA_Z],
     station: { width: MANAITA_WIDTH, depth: MANAITA_DEPTH - 0.02, height: MANAITA_THICKNESS },
   },
-  'wasabi-dish': { position: [0.24, MANAITA_TOP, DISH_Z] },
+  // Halfway between the board's right-front and the tezu bowl: on the way up from the rice tub.
+  'wasabi-dish': { position: [0.33, MANAITA_TOP, MANAITA_Z + 0.02] },
   'tezu-bowl': { position: [0.4, MANAITA_TOP, DISH_Z] },
   knife: { position: [0.57, WORK_COUNTER_TOP, MANAITA_Z + 0.03] },
   'wet-cloth': { position: [0.66, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
