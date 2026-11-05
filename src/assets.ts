@@ -5,13 +5,14 @@ import {
   createCuttingBoard,
   createGeta,
   createKnife,
+  createLedge,
   createNetaCase,
   createSaku,
   createTezuBowl,
   createWasabiDish,
   createWetCloth,
 } from './scene-assets/counter.scene-asset.js';
-import { createRoomFloor } from './scene-assets/room.scene-asset.js';
+import { createChefPlatform, createRoomFloor } from './scene-assets/room.scene-asset.js';
 import {
   createSinkUnit,
   createSoap,
@@ -26,7 +27,9 @@ import {
  */
 export default defineAssets({
   'room-floor': createRoomFloor(),
+  'chef-platform': createChefPlatform(),
   counter: createCounter(),
+  ledge: createLedge(),
   'customer-counter': createCustomerCounter(),
   'cutting-board': createCuttingBoard(),
   geta: createGeta(),

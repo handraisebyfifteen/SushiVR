@@ -21,7 +21,8 @@ import { TurnSystem } from './turn-system.js';
 const REACH_SECONDS = 0.8;
 const RETURN_SECONDS = 0.6;
 const LEAVE_SECONDS = 1.0;
-const SEAT = new Vector3(0, 0, -1.2);
+/** Customer floor is one step (0.2 m) below the chef's platform. */
+const SEAT = new Vector3(0, -0.2, -1.25);
 const HAND_REST_X = 0.17;
 const ALL_ICONS: IconKind[] = ['rhythm', 'fish', 'wasabi', 'orientation', 'hand', 'fresh', 'hygiene', 'board', 'soap', 'knife'];
 
@@ -69,10 +70,10 @@ export class CustomerSystem extends createSystem({}) {
     torso.position.y = 0.95;
     this.handL = new Mesh(new BoxGeometry(0.06, 0.04, 0.08), skin);
     this.handL.name = 'HandLeft'; // the customer's left is the chef's right (+x)
-    this.handL.position.set(HAND_REST_X, 0.78, 0.22);
+    this.handL.position.set(HAND_REST_X, 0.77, 0.25);
     this.handR = new Mesh(new BoxGeometry(0.06, 0.04, 0.08), skin);
     this.handR.name = 'HandRight';
-    this.handR.position.set(-HAND_REST_X, 0.78, 0.22);
+    this.handR.position.set(-HAND_REST_X, 0.77, 0.25);
     this.figure.add(head, torso, this.handL, this.handR);
     this.figure.position.copy(SEAT);
     this.resultGroup = new Group();
@@ -188,7 +189,7 @@ export class CustomerSystem extends createSystem({}) {
       if (this.resultTime <= 0) this.resultGroup.visible = false;
     }
     const hand = this.dominantHand();
-    this.handRest.set(hand === this.handL ? HAND_REST_X : -HAND_REST_X, 0.78, 0.22);
+    this.handRest.set(hand === this.handL ? HAND_REST_X : -HAND_REST_X, 0.77, 0.25);
     this.t += delta;
     switch (this.phase) {
       case 'reaching': {

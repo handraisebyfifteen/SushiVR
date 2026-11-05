@@ -136,9 +136,9 @@ export function createSinkUnit(): Group {
 
   // Upper dish cabinet over the far half of the sink: a simple wooden box
   // with two sliding glass doors and two shelves.
-  const cabY = 1.4;
-  const cabH = 0.65;
-  const cabD = 0.32;
+  const cabY = 1.5;
+  const cabH = 0.6;
+  const cabD = 0.25;
   const cabZ = D / 2 - cabD / 2;
   const cabSideL = box(0.04, cabH, cabD, wood, 'CabSideL');
   cabSideL.position.set(-W / 2 + 0.02, cabY + cabH / 2, cabZ);

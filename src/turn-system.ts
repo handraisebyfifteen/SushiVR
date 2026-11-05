@@ -44,7 +44,6 @@ export class TurnSystem extends createSystem({
   private readonly qRig = new Quaternion();
   private readonly fwd = new Vector3();
   private readonly headBefore = new Vector3();
-  private readonly headAfter = new Vector3();
 
   init(): void {
     this.blink = new Mesh(
@@ -112,8 +111,8 @@ export class TurnSystem extends createSystem({
 
   /** Head direction in rig space, as a yaw angle: 0 = forward, +90 = left. */
   private headYawDeg(): number {
-    const cam = this.world.camera;
-    cam.getWorldQuaternion(this.q);
+    // The rig's head group follows the viewer pose; it is the reliable source.
+    this.player.head.getWorldQuaternion(this.q);
     this.fwd.set(0, 0, -1).applyQuaternion(this.q);
     this.player.getWorldQuaternion(this.qRig);
     this.fwd.applyQuaternion(this.qRig.invert());
@@ -122,14 +121,18 @@ export class TurnSystem extends createSystem({
 
   /** Rotate the rig half a turn around the head, so the head stays in place. */
   private rotateBar(): void {
-    const cam = this.world.camera;
-    cam.getWorldPosition(this.headBefore);
+    this.player.head.getWorldPosition(this.headBefore);
+    if (!Number.isFinite(this.headBefore.x) || !Number.isFinite(this.headBefore.z)) {
+      console.warn('[Turn] head position unavailable; turn skipped');
+      return;
+    }
+    // A half turn about Y negates the head's horizontal offset from the rig
+    // origin, so shifting the rig by twice that offset keeps the head put.
+    // (Computed directly: forcing updateMatrixWorld here would also update
+    // the audio listener mid-frame, which can throw.)
     this.player.rotateY(Math.PI);
-    this.player.updateMatrixWorld(true);
-    cam.getWorldPosition(this.headAfter);
-    this.player.position.x += this.headBefore.x - this.headAfter.x;
-    this.player.position.z += this.headBefore.z - this.headAfter.z;
-    this.player.updateMatrixWorld(true);
+    this.player.position.x += 2 * (this.headBefore.x - this.player.position.x);
+    this.player.position.z += 2 * (this.headBefore.z - this.player.position.z);
 
     const facingBack = !this.barEntity.getValue(Bar, 'facingBack');
     chef.facingBack = facingBack;

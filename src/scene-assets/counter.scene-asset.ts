@@ -61,17 +61,33 @@ function box(
 export function createCounter(): Group {
   const root = new Group();
   root.name = 'Counter';
-  const top = box(1.8, 0.04, 0.5, darkWood, 'CounterTop');
+  const top = box(1.8, 0.04, 0.34, darkWood, 'CounterTop');
   top.position.set(0, 0.73, 0);
-  const legL = box(0.06, 0.71, 0.46, darkWood, 'LegL');
+  const legL = box(0.06, 0.71, 0.3, darkWood, 'LegL');
   legL.position.set(-0.87, 0.355, 0);
-  const legR = box(0.06, 0.71, 0.46, darkWood, 'LegR');
+  const legR = box(0.06, 0.71, 0.3, darkWood, 'LegR');
   legR.position.set(0.87, 0.355, 0);
   root.add(top, legL, legR);
   return root;
 }
 
-/** Customer side of the bar: a solid counter block with a lighter top. */
+/**
+ * Raised ledge between the chef's counter and the customer counter: the neta
+ * case sits on its chef side, and the strip in front of the case is where
+ * the geta (or a leaf, or the sushi itself) is placed for the customer.
+ */
+export function createLedge(): Group {
+  const root = new Group();
+  root.name = 'Ledge';
+  const body = box(1.8, 0.74, 0.34, darkWood, 'Body');
+  body.position.set(0, 0.37, 0);
+  const top = box(1.8, 0.04, 0.34, lightWood, 'Top');
+  top.position.set(0, 0.76, 0);
+  root.add(body, top);
+  return root;
+}
+
+/** Customer side of the bar: a solid counter block with a lighter top, one step lower. */
 export function createCustomerCounter(): Group {
   const root = new Group();
   root.name = 'CustomerCounter';
@@ -112,7 +128,7 @@ const caseDark = new MeshStandardMaterial({ color: '#2A2D30', roughness: 0.5 });
 
 /** Inside width of the neta case; saku are placed along it. */
 export const NETA_CASE_WIDTH = 1.2;
-export const NETA_CASE_DEPTH = 0.24;
+export const NETA_CASE_DEPTH = 0.22;
 
 /**
  * Neta case: a long, low refrigerated showcase between chef and customer,

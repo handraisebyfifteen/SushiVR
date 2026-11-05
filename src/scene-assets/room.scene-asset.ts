@@ -1,6 +1,8 @@
 import {
+  BoxGeometry,
   createScenePrimitiveObject,
   Group,
+  Mesh,
   MeshStandardMaterial,
 } from '@iwsdk/core';
 
@@ -23,5 +25,22 @@ export function createRoomFloor(size = 12): Group {
   floor.rotation.x = -Math.PI / 2;
   const root = new Group();
   root.add(floor);
+  return root;
+}
+
+const platformMaterial = new MeshStandardMaterial({ color: '#6B5B4A', roughness: 0.9 });
+
+/**
+ * Raised chef platform: the kitchen floor is one step above the customer
+ * floor, as in a real sushi bar. The player stands on its top (y = 0).
+ * Origin at the top surface center; the block extends downward.
+ */
+export function createChefPlatform(width = 3.6, depth = 2.5, height = 0.2): Group {
+  const root = new Group();
+  root.name = 'ChefPlatform';
+  const block = new Mesh(new BoxGeometry(width, height, depth), platformMaterial);
+  block.name = 'Platform';
+  block.position.y = -height / 2;
+  root.add(block);
   return root;
 }
