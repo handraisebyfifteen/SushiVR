@@ -26,6 +26,7 @@ Column meanings:
 | `src/scene-assets/counter.scene-asset.ts` | `cutting-board` (procedural 1 m manaita) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `geta` (procedural serving stand) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `neta-case` (procedural refrigerated showcase: stainless base, green floor, front and top glass sloped for a view in, LED strip, compressor housing, three chef-side sliding glass doors with pull handles on rails) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `rice-tub` (procedural ohitsu: cypress tub with two copper hoops, rice, a lid with a handle, on a low dark-wood stand) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `saku-tuna`, `saku-white`, `saku-silver` (procedural fish blocks) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `knife` (procedural yanagiba) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `wet-cloth` (procedural fukin) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |

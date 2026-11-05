@@ -40,16 +40,16 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 
 **Around you** (a Showa-era sushi bar): the kitchen floor is one step above
 the customer side. You sit in the middle of a 1 m chef's aisle. In front of
-you is the 1 m cutting board (36 cm deep), with the tezu bowl (vinegar
-water) at its right-back corner and the wasabi dish just in front of it
-(pinch to move either; the spot is remembered) and the knife and wet cloth
-on the right. Beyond the board the
+you is the 1 m cutting board (36 cm deep), with the wasabi dish and tezu bowl
+(vinegar water) side by side at its right-back corner (pinch to move either;
+the spot is remembered) and the knife and wet cloth on the right. Beyond the board the
 raised tsukedai (30 cm) carries the long glass neta case with three fish
 blocks (saku) and, in front of the case, the serving stand (geta); the lower
 customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
 eave on timber posts, left over from the sushi-stall days, carries a short
-plain noren and four paper lanterns. The rice tub is low on your right, out
-of sight. Behind you are the prep sink with its faucet, the soap and a hand
+plain noren and four paper lanterns. The rice tub (ohitsu) sits low on your
+right, out of your usual view; its lid slides aside as your hand reaches in
+and closes once you have the rice. Behind you are the prep sink with its faucet, the soap and a hand
 towel hanging on a bar under the sink's front edge; on the sink's right
 stand a stainless work table and a four-burner gas range with an oven, and
 on its left a glass-door dish cabinet against the back wall. The kitchen

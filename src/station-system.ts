@@ -25,7 +25,7 @@ export const stations = new Map<Kind, StationInfo>();
 /** Vertical band (m) above a station surface in which a hand counts as over it. */
 const ZONE_HEIGHT = 0.3;
 /** Bump the version when authored positions change, so old saved spots are ignored. */
-const STORAGE_PREFIX = 'sushi-vr.station.v5.';
+const STORAGE_PREFIX = 'sushi-vr.station.v6.';
 /** A pinch this close to a movable dish picks it up (closer than a saku pick). */
 const DISH_PICK_DISTANCE = 0.06;
 

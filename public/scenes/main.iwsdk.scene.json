@@ -149,9 +149,9 @@
       },
       "transform": {
         "position": [
-          0.33,
+          0.24,
           0.77,
-          -0.3
+          -0.42
         ]
       },
       "components": {
@@ -393,7 +393,13 @@
     },
     {
       "id": "rice-tub",
-      "name": "Rice Tub (ohitsu, unseen)",
+      "name": "Rice Tub (ohitsu)",
+      "content": {
+        "type": "asset",
+        "asset": "rice-tub",
+        "castShadow": false,
+        "receiveShadow": true
+      },
       "transform": {
         "position": [
           0.48,

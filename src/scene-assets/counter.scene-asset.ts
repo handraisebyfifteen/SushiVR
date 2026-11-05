@@ -1,10 +1,13 @@
 import {
   BoxGeometry,
   CylinderGeometry,
+  DoubleSide,
   Group,
+  Matrix4,
   Mesh,
   MeshStandardMaterial,
   SphereGeometry,
+  TorusGeometry,
 } from '@iwsdk/core';
 import {
   BAR_LENGTH,
@@ -22,7 +25,7 @@ import {
   WORK_COUNTER_DEPTH,
   WORK_COUNTER_TOP,
 } from '../layout.js';
-import { mergeBoxes } from './lib/batch.js';
+import { mergeBoxes, mergeGeometries } from './lib/batch.js';
 
 /**
  * Sushi bar front: the chef's counter and everything on it, built from
@@ -323,5 +326,53 @@ export function createWasabiDish(): Group {
   mound.scale.set(1, 0.6, 1);
   mound.position.y = 0.015;
   root.add(dish, mound);
+  return root;
+}
+
+const tubWood = new MeshStandardMaterial({ color: '#E2C9A0', roughness: 0.7, side: DoubleSide });
+const copper = new MeshStandardMaterial({ color: '#B87333', roughness: 0.4, metalness: 0.6 });
+const riceWhite = new MeshStandardMaterial({ color: '#F2EFE6', roughness: 0.9 });
+
+/**
+ * Ohitsu: the rice tub low on the chef's right, a cypress tub with two copper
+ * hoops on a low stand, and a wooden lid (`Lid`) that RiceTubSystem slides
+ * aside while the rice hand reaches in. Origin: the rice surface (the rice
+ * tub station's height); the stand reaches down to the floor, which is
+ * standHeight + 0.12 below it.
+ */
+export function createRiceTub(standHeight = 0.28): Group {
+  const root = new Group();
+  root.name = 'RiceTub';
+  const R = 0.16;
+  const m = (x: number, y: number, z: number, rx = 0) => new Matrix4().makeRotationX(rx).setPosition(x, y, z);
+  const tub = new Mesh(
+    mergeGeometries([
+      [new CylinderGeometry(R, R - 0.01, 0.12, 24, 1, false), m(0, -0.06, 0)],
+      [new CylinderGeometry(R, R, 0.05, 24, 1, true), m(0, 0.025, 0)],
+    ]),
+    tubWood,
+  );
+  tub.name = 'Tub';
+  const rice = new Mesh(new CylinderGeometry(R - 0.008, R - 0.008, 0.01, 24, 1), riceWhite);
+  rice.name = 'Rice';
+  rice.position.y = 0.005;
+  const hoop = new TorusGeometry(R + 0.003, 0.005, 6, 32);
+  const hoops = new Mesh(mergeGeometries([[hoop, m(0, -0.09, 0, Math.PI / 2)], [hoop, m(0, 0.03, 0, Math.PI / 2)]]), copper);
+  hoops.name = 'Hoops';
+  const stand = box(0.34, standHeight, 0.34, darkWood, 'Stand');
+  stand.position.y = -0.12 - standHeight / 2;
+  // Lid: a board disc with a handle across it, resting on the rim.
+  const lid = new Group();
+  lid.name = 'Lid';
+  const lidBody = new Mesh(
+    mergeGeometries([
+      [new CylinderGeometry(R + 0.012, R + 0.012, 0.018, 24, 1), m(0, 0.059, 0)],
+      [new BoxGeometry(0.2, 0.018, 0.03), m(0, 0.077, 0)],
+    ]),
+    tubWood,
+  );
+  lidBody.name = 'LidBody';
+  lid.add(lidBody);
+  root.add(stand, tub, rice, hoops, lid);
   return root;
 }
