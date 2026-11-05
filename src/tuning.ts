@@ -9,8 +9,8 @@ import type { PieceKind } from './menu.js';
 export const CHEF_LEFT_HANDED = false;
 
 // --- menu ---
-/** Kinds of piece the customers order (gunkan, inari and maki follow in later steps). */
-export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri'];
+/** Kinds of piece the customers order (inari and maki follow in later steps). */
+export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri', 'gunkan'];
 
 // --- customers ---
 export const LEFT_HANDED_CUSTOMER_RATIO = 0.3;

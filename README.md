@@ -42,7 +42,8 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 the customer side. You sit in the middle of a 1 m chef's aisle. In front of
 you is the 1 m cutting board (36 cm deep) on a stainless cold table, with the wasabi dish and tezu bowl
 (vinegar water) side by side at its right-back corner (pinch to move either;
-the spot is remembered) and the knife and wet cloth on the right. Beyond the board the
+the spot is remembered), the nori box at its left-back corner, and the knife
+and wet cloth on the right. Beyond the board the
 raised tsukedai (30 cm) carries the 1.5 m glass neta case (see below) and,
 in front of the case, the serving stand (geta); the lower
 customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
@@ -63,8 +64,10 @@ squid, flounder, striped jack, young yellowtail, bonito, lean / medium fatty
 sweet shrimp, scallop, ark shell, egg cockle, sea eel and the inari pouches,
 then, at the right end, sea urchin, salmon roe and the roll fillings (tuna
 sticks, cucumber, gourd strips, pickled radish, plum paste, shiso). The left
-(neta) hand takes the neta; the right-end items are the right hand's (they
-come into use with gunkan and rolls). Five sliding doors open by themselves
+(neta) hand takes the neta; the right-end items are the right hand's (the
+uni, its lobes laid in overlapping rows on a white-wood ori with a small
+wooden spatula, and the salmon roe in a small rustic stoneware bowl with a spoon,
+for gunkan; the fillings come into use with rolls). Five sliding doors open by themselves
 for either hand. As a hand reaches in, the item nearest the fingers glows
 with its name (amber if it is the other hand's), and the items behind the
 open door float twice life size above the case, each named, so the close
@@ -130,6 +133,21 @@ an excellent piece, or shakes his head with "Again." for a bad one. Once you
 have done a step three times he stays quiet about it. The timings are in
 `src/tuning.ts` (`MASTER_*`).
 
+**A gunkan** (sea urchin or salmon roe):
+
+1. Right hand: tezu and rice as for a nigiri (steps 4).
+2. Left hand: pinch a nori strip from the nori box; it lies on your fingers.
+3. Bring the palms together: the nori wraps the rice.
+4. If wasabi is ordered: the right index finger to the wasabi dish, then onto
+   the rice.
+5. Right hand: reach to the case's right end and pinch the tool (the
+   wooden spatula on the uni's ori, the spoon in the roe bowl); let go over
+   the gunkan and the topping is on (three uni lobes laid lengthwise, or a
+   spoonful of roe). A wrong topping is not taken.
+6. Pinch it onto the geta and hold a fist to serve, as for a nigiri. The
+   nori softens, so freshness runs from the wrap; a gunkan has no head end,
+   so any heading is fine.
+
 **Serving etiquette**: the first piece for a new customer goes straight
 across the geta; the customer reaches for it and shows which hand they use.
 From then on place pieces diagonally, head end (the thick end of the slice)
@@ -163,7 +181,8 @@ step of the work, from the opening wash through the saku, the knife and the
 nigiri to serving; the keys are listed on a small panel in view. For the
 case: 4 takes what was ordered, 5 takes the selected neta, 6 (Shift+6 back)
 steps through the neta, 7 makes the customer order the selected one, and 8
-restocks the whole case. A key only
+restocks the whole case. For a gunkan, Z takes a nori strip, H wraps, and 4
+on a sea urchin or salmon roe order puts the topping on. A key only
 moves the emulated hands to a place and makes the gesture there; the game
 judges it exactly as it judges real hands, so mistakes still count. The timed
 gestures happen when you act: hold L to reach into the rice tub and let go on

@@ -8,7 +8,7 @@ import { HandsSystem } from './hands.js';
 import { HygieneSystem } from './hygiene-system.js';
 import { MasterSystem } from './master-system.js';
 import { NetaCaseSystem } from './neta-case-system.js';
-import { NigiriSystem } from './nigiri-system.js';
+import { PieceSystem } from './piece-system.js';
 import { RiceTubSystem } from './rice-tub-system.js';
 import { StationSystem } from './station-system.js';
 import { TurnSystem } from './turn-system.js';
@@ -26,7 +26,7 @@ World.create(
   world.registerSystem(NetaCaseSystem);
   world.registerSystem(RiceTubSystem);
   world.registerSystem(CuttingSystem);
-  world.registerSystem(NigiriSystem);
+  world.registerSystem(PieceSystem);
   world.registerSystem(MasterSystem);
   world.registerSystem(FeedbackSystem);
   world.registerSystem(DebugHudSystem);

@@ -1,4 +1,4 @@
-import { Color, MeshStandardMaterial, Vector3 } from '@iwsdk/core';
+import { Color, DoubleSide, FrontSide, MeshStandardMaterial, Vector3 } from '@iwsdk/core';
 
 /**
  * The neta material: a standard material whose colour is worked out per
@@ -39,6 +39,10 @@ export const NetaPattern = {
   Cucumber: 22,
   Stick: 23,
   Leaf: 24,
+  /** Nori: near-black green with a fine fibrous sheet texture. */
+  Nori: 25,
+  /** Rustic white stoneware (kohiki-like): speckled glaze, bare rim and foot. */
+  Stoneware: 26,
 } as const;
 
 const GLSL = /* glsl */ `
@@ -191,10 +195,20 @@ vec3 netaColor(vec3 p, vec3 n) {
     return mix(c, c2, nUp(0.6, 0.75, nNoise(p * 1100.0 + ph))) * (0.93 + 0.1 * fine);
   }
   if (pat == 20) {
-    return mix(c, c * 0.72, 0.6 * nUp(0.5, 0.9, sin(p.x * 1100.0 + 2.0 * nNoise(p * 500.0)))) * (0.95 + 0.08 * fine);
+    // A uni lobe (length along x): fine granules, a shallow crease along its
+    // middle on top, paler toward its sides.
+    float g = nNoise(p * 2600.0 + ph);
+    float g2 = nNoise(p * 1200.0 + ph * 1.7);
+    c *= 0.8 + 0.24 * g + 0.1 * g2;
+    if (n.y > 0.2) c = mix(c, c * 0.68, 0.55 * nLine(p.z + 0.0006 * sin(p.x * 400.0), 0.0011));
+    return mix(c, vec3(0.98, 0.72, 0.36), 0.3 * nUp(0.55, 1.0, abs(p.z) / max(W * 0.5, 0.001)));
   }
   if (pat == 21) {
-    return mix(c, vec3(1.0, 0.75, 0.5), 0.3 * nUp(0.5, 1.0, n.y));
+    // A salmon roe bead: clear and glossy, deeper at its edge, brighter in
+    // the middle, a white glint from the work lights above.
+    vec3 col = mix(c * 0.6, c * 1.15, clamp(n.y * 0.5 + 0.5, 0.0, 1.0));
+    float glint = pow(max(dot(n, normalize(vec3(-0.35, 0.85, 0.4))), 0.0), 36.0);
+    return col + vec3(0.85 * glint);
   }
   if (pat == 22) {
     if (abs(n.z) > 0.5) return mix(c2, c, nUp(0.0035, 0.0048, max(abs(p.x), abs(p.y - 0.0045))));
@@ -202,6 +216,19 @@ vec3 netaColor(vec3 p, vec3 n) {
   }
   if (pat == 23) {
     return c * (0.9 + 0.12 * fibre);
+  }
+  if (pat == 25) {
+    float f = nNoise(vec3(p.x * 900.0, p.y * 3000.0, p.z * 900.0) + ph);
+    float speck = nUp(0.82, 0.9, nNoise(p * 2200.0 + ph));
+    return c * (0.75 + 0.45 * f) + vec3(0.05, 0.07, 0.05) * speck;
+  }
+  if (pat == 26) {
+    // x/z radius from the bowl's axis (dims: rim radius, height); bare clay at the rim and foot.
+    float speck = nUp(0.86, 0.92, nNoise(p * 1800.0 + ph));
+    c = mix(c, c2 * 0.7, 0.8 * speck);
+    c *= 0.94 + 0.08 * fine;
+    if (p.y > H - 0.0012 || p.y < 0.0035) c = mix(c, c2, 0.75);
+    return c;
   }
   if (pat == 24) {
     c *= 0.9 + 0.12 * fine;
@@ -244,7 +271,8 @@ export class NetaMaterial extends MeshStandardMaterial {
       .replace('#include <common>', `#include <common>\n${GLSL}`)
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\nif (vNetaFlat < 0.5) diffuseColor.rgb = netaColor(vNetaPos, normalize(vNetaNormal));',
+        // vColor carries any per-instance tint (white on patterned parts otherwise).
+        '#include <color_fragment>\nif (vNetaFlat < 0.5) diffuseColor.rgb = netaColor(vNetaPos, normalize(vNetaNormal)) * vColor.rgb;',
       );
   }
 
@@ -265,8 +293,9 @@ export function makeNetaMaterial(
   dims: [number, number, number],
   phase: number,
   gloss: number,
+  doubleSided = false,
 ): NetaMaterial {
-  const m = new NetaMaterial({ vertexColors: true, roughness: 0.85 - gloss * 0.6, metalness: 0 });
+  const m = new NetaMaterial({ vertexColors: true, roughness: 0.85 - gloss * 0.6, metalness: 0, side: doubleSided ? DoubleSide : FrontSide });
   m.name = `Neta_${name}`;
   const a = new Color(color);
   const b = new Color(color2);

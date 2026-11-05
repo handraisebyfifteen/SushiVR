@@ -18,7 +18,7 @@ const CLOSE_DELAY = 0.25;
  * The ohitsu's lid works by itself, like the neta case doors: it slides
  * aside as the empty rice hand reaches down to the tub, and closes the
  * moment the rice is taken (or the hand goes away), keeping the rice warm
- * and moist. Purely a look: the rice rule itself is in NigiriSystem.
+ * and moist. Purely a look: the rice rule itself is in PieceSystem.
  */
 export class RiceTubSystem extends createSystem({}) {
   private lid: Object3D | null = null;

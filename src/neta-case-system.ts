@@ -59,8 +59,12 @@ const TICKET_Y = NETA_CASE_HEIGHT * 0.6;
 const N = NETA_DOOR_COUNT;
 /** Block items that are sliced (they shorten); the rest show one instance per piece. */
 const BLOCK_PREP = 'saku';
-/** The rice hand's items (uni, fillings) come into use with gunkan and rolls. */
-const RICE_ITEMS_LIVE = ENABLED_KINDS.includes('gunkan') || ENABLED_KINDS.includes('maki');
+/** Whether the rice hand's items are in use yet: uni and roe with gunkan, the fillings with rolls. */
+function itemLive(prep: string): boolean {
+  if (prep === 'scoop') return ENABLED_KINDS.includes('gunkan');
+  if (prep === 'filling') return ENABLED_KINDS.includes('maki');
+  return true;
+}
 
 const tmp = new Vector3();
 
@@ -103,6 +107,10 @@ export const caseApi = {
   wrongHand: [false, false],
   neta(entity: Entity): NetaId {
     return entity.getValue(CaseItem, 'neta') as NetaId;
+  },
+  /** Units left (slices, pieces, servings). */
+  stock(entity: Entity): number {
+    return entity.getValue(CaseItem, 'remaining') ?? 0;
   },
   /** Takes n units (slices, pieces, servings). False, and nothing taken, if fewer are left. */
   consume(entity: Entity, n: number): boolean {
@@ -261,6 +269,8 @@ export class NetaCaseSystem extends createSystem({
 
   /** The item this hand hovered PINCH_LATCH ago (if it hovered one then), else what it hovers now. */
   private chosen(side: number): Entity | null {
+    // Only a hand that is at the case takes from it (a pinch elsewhere is something else).
+    if (!this.reaching[side]) return null;
     const times = this.historyTime[side];
     const items = this.historyItem[side];
     for (let k = 0; k < HISTORY; k++) {
@@ -354,7 +364,7 @@ export class NetaCaseSystem extends createSystem({
       const object = entity.object3D;
       if (!object?.visible) continue;
       const def = NETA[caseApi.neta(entity)];
-      if (def.hand === 'rice' && !RICE_ITEMS_LIVE) continue;
+      if (!itemLive(def.prep)) continue;
       if ((entity.getValue(CaseItem, 'remaining') ?? 0) < def.perPiece) continue;
       object.getWorldPosition(this.itemPos);
       caseDoors.object!.worldToLocal(this.itemPos);

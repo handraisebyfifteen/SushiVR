@@ -4,7 +4,8 @@ import type { JudgeKind } from './game-state.js';
 
 /** Everything known about one served piece, judged together at serving time. */
 export interface PieceResult {
-  judges: [JudgeKind, JudgeKind, JudgeKind, JudgeKind];
+  /** Every timed beat of this piece (the rice, then the kind's own touches). */
+  judges: readonly JudgeKind[];
   itemOk: boolean;
   wasabiOk: boolean;
   headOk: boolean;
@@ -42,7 +43,7 @@ const JUDGE_POINTS: Record<JudgeKind, number> = {
 export function scorePiece(r: PieceResult): Score {
   const penalties: IconKind[] = [];
   let score = 0;
-  const rhythm = r.judges.reduce((sum, j) => sum + JUDGE_POINTS[j], 0) / r.judges.length;
+  const rhythm = r.judges.length ? r.judges.reduce((sum, j) => sum + JUDGE_POINTS[j], 0) / r.judges.length : 100;
   score += (rhythm / 100) * 30;
   if (rhythm < 70) penalties.push('rhythm');
   if (r.itemOk) score += 15;

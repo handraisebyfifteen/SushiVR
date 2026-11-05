@@ -349,6 +349,41 @@ export function createWasabiDish(): Group {
   return root;
 }
 
+const noriSheet = new MeshStandardMaterial({ color: '#1B2A1F', roughness: 0.55 });
+
+/**
+ * Nori box: a low open wooden box with a stack of nori cut into strips for
+ * gunkan. Origin: its bottom centre. About 10 x 7.5 cm.
+ */
+export function createNoriBox(): Group {
+  const root = new Group();
+  root.name = 'NoriBox';
+  const W = 0.1;
+  const D = 0.075;
+  const H = 0.035;
+  const t = 0.005;
+  const wood = new Mesh(
+    mergeBoxes([
+      { w: W, h: t, d: D, x: 0, y: t / 2, z: 0 },
+      { w: W, h: H, d: t, x: 0, y: H / 2, z: D / 2 - t / 2 },
+      { w: W, h: H, d: t, x: 0, y: H / 2, z: -D / 2 + t / 2 },
+      { w: t, h: H, d: D, x: W / 2 - t / 2, y: H / 2, z: 0 },
+      { w: t, h: H, d: D, x: -W / 2 + t / 2, y: H / 2, z: 0 },
+    ]),
+    lightWood,
+  );
+  wood.name = 'Box';
+  // Strips lying side by side across the box, slightly fanned.
+  const strips: Parameters<typeof mergeBoxes>[0] = [];
+  for (let i = 0; i < 5; i++) {
+    strips.push({ w: 0.017, h: 0.012, d: D - 2 * t - 0.004, x: -0.036 + i * 0.018, y: t + 0.006 + (i % 2) * 0.001, z: 0, ry: (i - 2) * 0.02 });
+  }
+  const nori = new Mesh(mergeBoxes(strips), noriSheet);
+  nori.name = 'Nori';
+  root.add(wood, nori);
+  return root;
+}
+
 const tubWood = new MeshStandardMaterial({ color: '#E2C9A0', roughness: 0.7, side: DoubleSide });
 const copper = new MeshStandardMaterial({ color: '#B87333', roughness: 0.4, metalness: 0.6 });
 const riceWhite = new MeshStandardMaterial({ color: '#F2EFE6', roughness: 0.9 });

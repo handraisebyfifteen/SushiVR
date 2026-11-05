@@ -1,11 +1,11 @@
 import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, orderNeta, progress, service } from './game-state.js';
+import { chef, orderKind, orderNeta, progress, service } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
-import { pieceApi } from './nigiri-system.js';
+import { pieceApi } from './piece-system.js';
 import { blockLength } from './scene-assets/lib/neta-look.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { CaseItem, Held, StationKind } from './sushi-components.js';
@@ -337,7 +337,7 @@ export class CuttingSystem extends createSystem({
   private updateHints(): void {
     if (!chef.open) return;
     if (this.held) return;
-    if (service.order && !this.onBoard && !pieceApi.hasNeta()) feedback.hints.add(StationKind.NetaCase);
+    if (orderKind() === 'nigiri' && !this.onBoard && !pieceApi.hasNeta()) feedback.hints.add(StationKind.NetaCase);
     if (this.onBoard && !this.knifeHeld && !pieceApi.hasNeta()) feedback.hints.add(StationKind.Knife);
     if (this.onBoard && this.knifeHeld && !pieceApi.hasNeta()) feedback.hints.add(StationKind.CuttingBoard);
     if (this.knifeHeld && chef.knifeDirty) feedback.hints.add(StationKind.WetCloth);

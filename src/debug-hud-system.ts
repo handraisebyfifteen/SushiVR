@@ -13,7 +13,7 @@ import { debug, debugLines } from './debug.js';
 import { chef, service } from './game-state.js';
 import { hands } from './hands.js';
 import { HygieneSystem } from './hygiene-system.js';
-import { NigiriSystem } from './nigiri-system.js';
+import { PieceSystem } from './piece-system.js';
 import { MENU, NETA } from './menu.js';
 import { caseApi } from './neta-case-system.js';
 import { Bar, CaseItem, Station } from './sushi-components.js';
@@ -32,6 +32,7 @@ const STATION_LABELS: Record<string, string> = {
   Sink: 'Sink',
   Soap: 'Hand soap',
   Towel: 'Hand towel',
+  NoriBox: 'Nori',
 };
 const LABEL_LIFT = 0.1;
 const PANEL_REFRESH_SECONDS = 0.2;
@@ -139,7 +140,7 @@ export class DebugHudSystem extends createSystem({
         const o = service.order;
         return `Order: ${o ? `${MENU[o.item].name} ${o.wasabi ? 'with' : 'no'} wasabi` : '-'}  customer ${service.customerLeftHanded ? 'left' : 'right'}-handed${service.customerHandKnown ? '' : ' (unknown)'} eaten ${service.eatenByCustomer}`;
       },
-      () => this.world.getSystem(NigiriSystem)?.describe() ?? '',
+      () => this.world.getSystem(PieceSystem)?.describe() ?? '',
       () => {
         // The case: what each hand is about to take and how many are left (case items are too close to label).
         const part = (side: number) => {

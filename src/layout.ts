@@ -204,6 +204,8 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   // Back row of the board, just left of the tezu bowl: easy to see in VR.
   'wasabi-dish': { position: [0.24, MANAITA_TOP, DISH_Z] },
   'tezu-bowl': { position: [0.4, MANAITA_TOP, DISH_Z] },
+  // Back-left corner of the board, for the neta hand (gunkan nori).
+  'nori-box': { position: [-0.38, MANAITA_TOP, DISH_Z] },
   knife: { position: [0.57, WORK_COUNTER_TOP, MANAITA_Z + 0.03] },
   'wet-cloth': { position: [0.66, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
   ledge: { position: [0, 0, TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2] },

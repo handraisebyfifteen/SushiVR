@@ -3,9 +3,11 @@ import {
   type BufferGeometry,
   CylinderGeometry,
   Euler,
+  LatheGeometry,
   Matrix4,
   Quaternion,
   SphereGeometry,
+  Vector2,
   Vector3,
 } from '@iwsdk/core';
 import { NETA, type NetaId, type Pattern } from '../../menu.js';
@@ -171,12 +173,27 @@ function pouchPiece(): BufferGeometry {
   return patterned(new SphereGeometry(1, 12, 8).scale(0.021, 0.0095, 0.013).translate(0, 0.0095, 0));
 }
 
+/** Uni lobe length, width and height: a soft tongue, about three times as long as it is wide. */
+export const UNI_LOBE: Dims = [0.024, 0.0078, 0.0125];
+
+/** One uni lobe: a slightly curved, tapering tongue lying along X, centred, resting at y = 0. */
 function uniLobe(): BufferGeometry {
-  return patterned(new SphereGeometry(1, 10, 5).scale(0.0105, 0.005, 0.0068).translate(0, 0.005, 0));
+  const [L, H, W] = UNI_LOBE;
+  const path: Vector3[] = [];
+  const radii: number[] = [];
+  const steps = 10;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    // Plump all along, rounding off at both ends.
+    const r = (W / 2) * (0.35 + 0.65 * Math.sin(Math.PI * t) ** 0.35);
+    path.push(new Vector3(-L / 2 + t * L, (H / 2) * 0.9, Math.sin(Math.PI * t) * 0.0012));
+    radii.push(r);
+  }
+  return patterned(taperedTube(path, radii, 10, H / W));
 }
 
 function roeBead(): BufferGeometry {
-  return patterned(new SphereGeometry(0.0034, 7, 4).translate(0, 0.0034, 0));
+  return patterned(new SphereGeometry(0.003, 8, 6).translate(0, 0.003, 0));
 }
 
 function stickPiece(): BufferGeometry {
@@ -224,20 +241,80 @@ function leafPiece(): BufferGeometry {
 // ---------------------------------------------------------------- containers
 
 /** A shallow wooden tray (uni, ikura), front edge at z = 0. */
+/** The uni's ori: a thin white-wood board with a low rim all round, front edge at z = 0. */
 function trayGeometry(id: NetaId, depth: number): BufferGeometry {
   const wood = NETA[id].look.color2;
   const w = NETA[id].look.width - 0.004;
+  const rim = 0.007;
   const box = (bw: number, bh: number, bd: number, x: number, y: number, z: number): [BufferGeometry, Matrix4] => [
     flat(new BoxGeometry(bw, bh, bd), wood),
     new Matrix4().makeTranslation(x, y, z),
   ];
   return weld([
-    box(w, 0.004, depth, 0, 0.002, -depth / 2),
-    box(w, 0.012, 0.003, 0, 0.006, -0.0015),
-    box(w, 0.012, 0.003, 0, 0.006, -depth + 0.0015),
-    box(0.003, 0.012, depth, -w / 2 + 0.0015, 0.006, -depth / 2),
-    box(0.003, 0.012, depth, w / 2 - 0.0015, 0.006, -depth / 2),
+    box(w, 0.003, depth, 0, 0.0015, -depth / 2),
+    box(w, rim, 0.0025, 0, rim / 2, -0.00125),
+    box(w, rim, 0.0025, 0, rim / 2, -depth + 0.00125),
+    box(0.0025, rim, depth, -w / 2 + 0.00125, rim / 2, -depth / 2),
+    box(0.0025, rim, depth, w / 2 - 0.00125, rim / 2, -depth / 2),
   ]);
+}
+
+/**
+ * Salmon roe's bowl: a small, wide, shallow bowl of rustic white stoneware
+ * (speckled glaze, bare rim and foot), centred at z = ROE_BOWL_Z. It has its
+ * own material (containerMaterial).
+ */
+export const ROE_BOWL_Z = -0.045;
+const ROE_BOWL_TOP = 0.0225;
+/** The bowl's inside as (height, radius), bottom to rim. */
+const ROE_BOWL_INSIDE: Array<[number, number]> = [[0.006, 0], [0.0068, 0.011], [0.013, 0.0195], [0.0212, 0.0258], [ROE_BOWL_TOP, 0.0272]];
+function roeBowlInside(y: number): number {
+  for (let i = 1; i < ROE_BOWL_INSIDE.length; i++) {
+    const [y0, r0] = ROE_BOWL_INSIDE[i - 1];
+    const [y1, r1] = ROE_BOWL_INSIDE[i];
+    if (y <= y1) return r0 + ((r1 - r0) * Math.max(0, y - y0)) / (y1 - y0);
+  }
+  return ROE_BOWL_INSIDE[ROE_BOWL_INSIDE.length - 1][1];
+}
+function roeBowl(): BufferGeometry {
+  // Up the outside from the foot, over the rim, down the inside, so every face looks outward.
+  const profile = [
+    [0.0, 0.0], [0.009, 0.0], [0.0095, 0.0028], [0.0125, 0.004], [0.02, 0.0095], [0.0262, 0.0175], [0.0278, 0.0215],
+    [0.0272, ROE_BOWL_TOP], [0.0258, 0.0212], [0.0195, 0.013], [0.011, 0.0068], [0.0, 0.006],
+  ].map(([r, y]) => new Vector2(r, y));
+  const g = new LatheGeometry(profile, 32);
+  g.computeVertexNormals();
+  return patterned(g).translate(0, 0, ROE_BOWL_Z);
+}
+
+/**
+ * The tool that goes with a topping: a small wooden spatula for uni, a
+ * spoon for salmon roe. Bowl or blade at the origin, handle toward +Z.
+ */
+export function toolGeometry(id: NetaId): BufferGeometry | null {
+  const wood = '#D8B98A';
+  if (id === 'Uni') {
+    const blade = new BoxGeometry(0.018, 0.0018, 0.034, 2, 1, 4);
+    const pos = blade.getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      // Narrower toward the handle.
+      const t = pos.getZ(i) / 0.034 + 0.5;
+      pos.setX(i, pos.getX(i) * (1 - 0.55 * t));
+    }
+    blade.computeVertexNormals();
+    return weld([
+      flat(blade, wood),
+      [flat(new BoxGeometry(0.006, 0.0035, 0.06), '#C9A56B'), new Matrix4().makeTranslation(0, 0.001, 0.046)],
+    ]);
+  }
+  if (id === 'Ikura') {
+    const bowl = new SphereGeometry(1, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(0.012, 0.0055, 0.0095);
+    return weld([
+      flat(bowl, wood),
+      [flat(new BoxGeometry(0.005, 0.003, 0.05), '#C9A56B'), new Matrix4().makeTranslation(0, 0.002, 0.034)],
+    ]);
+  }
+  return null;
 }
 
 function plumDish(id: NetaId): BufferGeometry {
@@ -287,6 +364,8 @@ export interface CaseLook {
   perUnit: number;
   /** Tray or dish under the pieces, if any. */
   container: BufferGeometry | null;
+  /** The spatula or spoon resting in the tray, if any (taken out while in use). */
+  tool: BufferGeometry | null;
   /** Shader pattern and the sizes it is drawn to. */
   pattern: number;
   dims: Dims;
@@ -295,7 +374,7 @@ export interface CaseLook {
 const looks = new Map<NetaId, CaseLook>();
 
 function pieces(geometry: BufferGeometry, matrices: Matrix4[], pattern: number, dims: Dims, perUnit = 1, container: BufferGeometry | null = null): CaseLook {
-  return { geometry, matrices, perUnit, container, pattern, dims };
+  return { geometry, matrices, perUnit, container, pattern, dims, tool: null };
 }
 
 export function caseLook(id: NetaId): CaseLook {
@@ -306,11 +385,11 @@ export function caseLook(id: NetaId): CaseLook {
   const rnd = seeded(`${id}-arrange`);
   let look: CaseLook;
   switch (def.look.shape) {
-    case 'saku': look = { ...sakuBody(id), matrices: null, perUnit: 1, container: null }; break;
-    case 'sheet': look = { ...sheetBody(id), matrices: null, perUnit: 1, container: null }; break;
-    case 'tentacle': look = { ...tentacleBody(), matrices: null, perUnit: 1, container: null }; break;
-    case 'shell': look = { ...shellBody(id), matrices: null, perUnit: 1, container: null }; break;
-    case 'block': look = { ...blockBody(id), matrices: null, perUnit: 1, container: null }; break;
+    case 'saku': look = { ...sakuBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
+    case 'sheet': look = { ...sheetBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
+    case 'tentacle': look = { ...tentacleBody(), matrices: null, perUnit: 1, container: null, tool: null }; break;
+    case 'shell': look = { ...shellBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
+    case 'block': look = { ...blockBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
     case 'fillets':
       look = pieces(filletPiece(id), shingle(n, 0.072, 0.0085), def.look.pattern === 'spots' ? NetaPattern.Kohada : NetaPattern.Aji, [0.072, 0.006, 0.028]);
       break;
@@ -328,24 +407,50 @@ export function caseLook(id: NetaId): CaseLook {
       break;
     }
     case 'urchin': {
+      // Lobes laid the same way in two columns across the ori, each row
+      // overlapping the one behind like scales; three lobes a gunkan.
       const m: Matrix4[] = [];
-      for (let i = 0; i < n * 2; i++) {
+      const perUnit = 3;
+      const count = n * perUnit;
+      const rows = Math.ceil(count / 2);
+      const pitch = 0.088 / rows;
+      for (let i = 0; i < count; i++) {
         const row = Math.floor(i / 2);
-        m.push(place(((i % 2) - 0.5) * 0.022, 0.004, -0.013 - (n - 1 - row) * 0.0105, 0, (rnd() - 0.5) * 0.3));
+        const col = i % 2;
+        m.push(place((col - 0.5) * 0.026, 0.004 + row * 0.0004, -0.009 - (rows - 1 - row) * pitch, 0.18, 0.35 + (rnd() - 0.5) * 0.12));
       }
-      look = pieces(uniLobe(), m, NetaPattern.Uni, [0.014, 0.01, 0.021], 2, trayGeometry(id, 0.1));
+      look = pieces(uniLobe(), m, NetaPattern.Uni, UNI_LOBE, perUnit, trayGeometry(id, 0.1));
+      look.tool = toolGeometry(id);
       break;
     }
     case 'roe': {
+      // In the bowl almost to the rim, nearly level: bottom layer first, each
+      // layer filled from the middle out, so servings come off the top.
       const m: Matrix4[] = [];
       const count = n * 10;
-      const rows = Math.ceil(count / 6);
-      for (let i = 0; i < count; i++) {
-        const row = Math.floor(i / 6);
-        const col = i % 6;
-        m.push(place((col - 2.5) * 0.0069 + (row % 2) * 0.002, 0.004 + ((row + col) % 2) * 0.0015, -0.006 - (rows - 1 - row) * 0.0062));
+      const ring: Array<[number, number]> = [];
+      for (let layer = 0, k = 0; k < count && layer < 8; layer++) {
+        const y = 0.009 + layer * 0.005;
+        const radius = y < ROE_BOWL_TOP ? roeBowlInside(y) - 0.0034 : roeBowlInside(ROE_BOWL_TOP) - 0.0034 - (y - ROE_BOWL_TOP) * 2.2;
+        if (radius <= 0) break;
+        const shift = (layer % 2) * 0.003;
+        ring.length = 0;
+        for (let x = -radius - 0.006; x <= radius + 0.006; x += 0.006) {
+          for (let z = -radius - 0.006; z <= radius + 0.006; z += 0.006) {
+            const bx = x + shift + (rnd() - 0.5) * 0.001;
+            const bz = z + shift + (rnd() - 0.5) * 0.001;
+            if (bx * bx + bz * bz <= radius * radius) ring.push([bx, bz]);
+          }
+        }
+        ring.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]));
+        for (const [bx, bz] of ring) {
+          if (k >= count) break;
+          m.push(place(bx, y, ROE_BOWL_Z + bz));
+          k++;
+        }
       }
-      look = pieces(roeBead(), m, NetaPattern.Roe, [0.007, 0.007, 0.007], 10, trayGeometry(id, 0.092));
+      look = pieces(roeBead(), m, NetaPattern.Roe, [0.006, 0.006, 0.006], 10, roeBowl());
+      look.tool = toolGeometry(id);
       break;
     }
     case 'sticks':
@@ -373,6 +478,21 @@ export function caseLook(id: NetaId): CaseLook {
 }
 
 const materials = new Map<NetaId, NetaMaterial>();
+let nori: NetaMaterial | null = null;
+let stoneware: NetaMaterial | null = null;
+
+/** Nori (gunkan band and strip), seen from both sides. */
+export function noriMaterial(): NetaMaterial {
+  nori ??= makeNetaMaterial('Nori', NetaPattern.Nori, '#16241B', '#16241B', [0, 0, 0], 3.1, 0.45, true);
+  return nori;
+}
+
+/** The material for an item's container when it is not the item's own (the roe's stoneware bowl). */
+export function containerMaterial(id: NetaId): NetaMaterial | null {
+  if (id !== 'Ikura') return null;
+  stoneware ??= makeNetaMaterial('Stoneware', NetaPattern.Stoneware, '#ECE6DA', '#9E8C74', [0.0278, ROE_BOWL_TOP, 0], 7.3, 0.35);
+  return stoneware;
+}
 
 /** The one material of a neta (case item, slices and served pieces share it). */
 export function lookMaterial(id: NetaId): NetaMaterial {

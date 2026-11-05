@@ -20,6 +20,8 @@ export const StationKind = {
   Sink: 'Sink',
   Soap: 'Soap',
   Towel: 'Towel',
+  /** Nori for gunkan (and later rolls), on the board's back-left corner. */
+  NoriBox: 'NoriBox',
 } as const;
 
 /**
@@ -68,6 +70,10 @@ export const Held = {
   Rice: 'Rice',
   Sushi: 'Sushi',
   Dish: 'Dish',
+  /** A nori strip on the neta hand's fingers (a gunkan in the making). */
+  Nori: 'Nori',
+  /** The topping spoon, uni or salmon roe on it. */
+  Spoon: 'Spoon',
 } as const;
 
 /** The chef's hands and tools, mirrored from the game state for inspection. */
@@ -124,6 +130,22 @@ export const NigiriStage = {
   Placed: 'Placed',
 } as const;
 
+/** A gunkan's own stages; None, Done, Carried and Placed are shared with the nigiri. */
+export const GunkanStage = {
+  /** A nori strip on the neta hand's fingers. */
+  Nori: 'Nori',
+  /** The rice wrapped in the nori, on the neta hand. */
+  Wrapped: 'Wrapped',
+} as const;
+
+export const PieceKindValue = {
+  None: 'None',
+  Nigiri: 'nigiri',
+  Gunkan: 'gunkan',
+  Inari: 'inari',
+  Maki: 'maki',
+} as const;
+
 export const Judge = {
   None: 'None',
   Excellent: 'Excellent',
@@ -132,11 +154,14 @@ export const Judge = {
   Bad: 'Bad',
 } as const;
 
-/** The piece being made, on one runtime entity named `Nigiri`. */
-export const Nigiri = createComponent('Nigiri', {
-  stage: { type: Types.Enum, enum: NigiriStage, default: NigiriStage.None },
+/** The piece being made (nigiri, gunkan...), on one runtime entity named `Piece`. */
+export const Piece = createComponent('Piece', {
+  /** What kind of piece is in progress ('None' until its first ingredient). */
+  kind: { type: Types.Enum, enum: PieceKindValue, default: PieceKindValue.None },
+  /** NigiriStage or GunkanStage value. */
+  stage: { type: Types.String, default: NigiriStage.None },
   neta: { type: Types.Enum, enum: Neta, default: Neta.LeanTuna },
-  /** True while a cut slice exists (on the board or in hand). */
+  /** True while a cut slice exists (on the board or in hand), or a gunkan is wrapped. */
   hasNeta: { type: Types.Boolean, default: false },
   /** Seconds since the slice was cut (freshness). Writable for testing. */
   cutAge: { type: Types.Float32, default: 0 },

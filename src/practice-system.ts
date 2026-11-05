@@ -15,7 +15,7 @@ import { SEATED_EYE_HEIGHT } from './layout.js';
 import { CASE_ORDER, menuFor, NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
 import { type Kind, stations } from './station-system.js';
-import { CaseItem, Customer, Held, Nigiri, NigiriStage, StationKind } from './sushi-components.js';
+import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sushi-components.js';
 
 /**
  * Practice mode (development only): play the bar from the keyboard in the
@@ -150,8 +150,8 @@ const LOOK_PITCH_DEG = -22;
 const HEAD_TURN_RATE_DEG = 320;
 const TURN_LOOK_DEG = 88;
 const HEADING_STEP_DEG = 45;
-/** The neta a nigiri can be made from, in case order (what 6 steps through). */
-const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => NETA[id].prep === 'saku' || NETA[id].prep === 'piece');
+/** What can be ordered from the case, in case order (what 6 steps through): nigiri neta and gunkan toppings. */
+const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => ['saku', 'piece', 'scoop'].includes(NETA[id].prep));
 
 class DriverHand {
   steps: Step[] = [];
@@ -192,7 +192,7 @@ class DriverHand {
 export class PracticeSystem extends createSystem({
   items: { required: [CaseItem] },
   customer: { required: [Customer] },
-  nigiri: { required: [Nigiri] },
+  nigiri: { required: [Piece] },
 }) {
   private on = false;
   /** Index into NIGIRI_NETA of the neta 5 takes and 7 orders. */
@@ -338,6 +338,7 @@ export class PracticeSystem extends createSystem({
       KeyJ: () => this.tezu(),
       KeyY: () => this.wasabi(),
       KeyH: () => this.join(),
+      KeyZ: () => this.takeNori(),
       Space: () => this.touch(),
       KeyF: () => this.flip(),
       KeyG: () => this.halfTurn(),
@@ -506,6 +507,43 @@ export class PracticeSystem extends createSystem({
 
   // ---- verbs: saku and knife -------------------------------------------------------
 
+  /** Z: the neta hand takes a nori strip from the nori box (a gunkan begins). */
+  private takeNori(): void {
+    const side = chef.netaSide;
+    if (!this.ready(side, Held.None)) return;
+    const box = this.reachable(StationKind.NoriBox);
+    if (!box) return;
+    this.run(side, 'A nori strip (then H to wrap the rice)', [
+      move(box, v(0, 0.1, 0.02), 'grasp', 0.35),
+      move(box, v(0, 0.02, 0), 'grasp', 0.2),
+      pinch(1),
+      wait(0.12),
+      pinch(0),
+      this.rest(side),
+    ]);
+  }
+
+  /** 4 / 5 for uni or roe: the rice hand spoons it from the tray onto the gunkan on the neta hand. */
+  private spoonTopping(neta: NetaId, at: Vector3): void {
+    const side = chef.riceSide;
+    if (!progress.wrapped) return this.say('Wrap the rice in nori first (Z, J, L, H)');
+    if (this.driver[side].busy || chef.hands[side].holding !== Held.None) return this.say('Rice hand is busy');
+    const piece = progress.pieceAt.clone();
+    this.run(side, `Spooning the ${NETA[neta].name.toLowerCase()}`, [
+      move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
+      move(at, v(0, 0.015, -0.015), 'grasp', 0.2),
+      wait(0.2),
+      pinch(1),
+      wait(0.12),
+      move(at, v(0, 0.12, 0.03), 'grasp', 0.2),
+      move(piece, v(0, 0.08, 0), 'grasp', 0.35),
+      move(piece, v(0, 0.04, 0), 'grasp', 0.15),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
   /** 6 / Shift+6: the next or previous neta for 5 and 7. */
   private select(step: number): void {
     this.selected = (this.selected + step + NIGIRI_NETA.length) % NIGIRI_NETA.length;
@@ -516,7 +554,7 @@ export class PracticeSystem extends createSystem({
   /** 7: the customer orders the selected neta (to try every one). */
   private orderSelected(): void {
     const neta = NIGIRI_NETA[this.selected];
-    const item = menuFor('nigiri', [neta]);
+    const item = menuFor(NETA[neta].prep === 'scoop' ? 'gunkan' : 'nigiri', [neta]);
     const customer = this.queries.customer.entities.values().next().value;
     if (!item || !customer) return;
     customer.setValue(Customer, 'item', item);
@@ -536,6 +574,11 @@ export class PracticeSystem extends createSystem({
    * on the board, a ready-cut piece comes straight onto the fingers.
    */
   private takeSaku(neta: NetaId): void {
+    if (NETA[neta].prep === 'scoop') {
+      const at = this.sakuAt(neta);
+      if (at) this.spoonTopping(neta, at);
+      return;
+    }
     const side = chef.netaSide;
     if (!this.ready(side, Held.None)) return;
     const at = this.sakuAt(neta);
@@ -747,7 +790,7 @@ export class PracticeSystem extends createSystem({
     if (!progress.hasRice) return this.say('Take rice first (J, then hold L)');
     if (this.driver[side].busy) return this.say('Rice hand is busy');
     const at = progress.pieceAt.clone();
-    this.run(side, 'Hands together: touch on the beat (Space)', [
+    this.run(side, progress.noriHeld ? 'Hands together: the nori wraps the rice' : 'Hands together: touch on the beat (Space)', [
       move(at, v(0, 0.12, 0), 'palm', 0.3),
       move(at, v(0, 0.045, 0), 'palm', 0.2),
     ]);
@@ -769,7 +812,10 @@ export class PracticeSystem extends createSystem({
       ]);
     } else if (stage === NigiriStage.Flipped || stage === NigiriStage.Rotated) {
       if (d.busy) return this.say('Rice hand is busy');
+      // The roll moved the piece forward: a quick step onto it first (80 ms), then the pinch.
+      const at = progress.pieceAt.clone();
       this.run(side, stage === NigiriStage.Flipped ? 'Touch 2: now the half turn (G)' : 'Touch 3: done, carry it (M)', [
+        move(at, v(0, 0.012, 0), 'grasp', 0.08),
         pinch(1),
         wait(0.15),
         pinch(0),
@@ -968,7 +1014,7 @@ export class PracticeSystem extends createSystem({
     const reader = hands.all[chef.riceSide];
     if (carried && !this.carried) {
       const entity = this.queries.nigiri.entities.values().next().value;
-      this.headingAtPickup = entity ? (entity.getValue(Nigiri, 'yawDeg') ?? 0) : 0;
+      this.headingAtPickup = entity ? (entity.getValue(Piece, 'yawDeg') ?? 0) : 0;
       this.handYawAtPickup = reader?.yawDeg ?? 0;
     }
     this.carried = carried;
@@ -1164,7 +1210,7 @@ export class PracticeSystem extends createSystem({
       '4 take the order  5 selected  6 next  7 order it  8 restock  R back',
       'K knife   X cut   W wipe the blade',
       'N neta   J tezu   L hold, let go on the beat: rice',
-      'Y wasabi   H hands together',
+      'Y wasabi   H hands together   Z nori (gunkan)',
       'Space touch on the beat   F flip   G half turn',
       'M carry / let go   Q E turn 45   S serve',
       `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}`,

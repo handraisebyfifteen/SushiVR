@@ -1,5 +1,5 @@
 import { Vector3 } from '@iwsdk/core';
-import { MENU, type MenuId, NETA, type NetaId } from './menu.js';
+import { MENU, type MenuId, NETA, type NetaId, type PieceKind } from './menu.js';
 import { Held, Judge } from './sushi-components.js';
 import { CHEF_LEFT_HANDED } from './tuning.js';
 
@@ -66,9 +66,15 @@ export const progress = {
   sakuWrong: false,
   knifeHeld: false,
   clothHeld: false,
+  /** The kind of piece in progress, null until its first ingredient (a slice, a nori strip...). */
+  kind: null as PieceKind | null,
   stage: 'None' as string,
   hasNeta: false,
   netaHeld: false,
+  /** Gunkan: a nori strip is on the neta hand, the rice is wrapped, the topping is on. */
+  noriHeld: false,
+  wrapped: false,
+  topped: false,
   hasRice: false,
   wasabi: 'none' as 'none' | 'finger' | 'neta',
   /** performance.now() of the current metronome's first beat, 0 when none. */
@@ -79,6 +85,11 @@ export const progress = {
   sliceAt: new Vector3(),
   pieceAt: new Vector3(),
 };
+
+/** The kind of the current order (nigiri, gunkan...), or null. */
+export function orderKind(): PieceKind | null {
+  return service.order ? MENU[service.order.item].kind : null;
+}
 
 /** The neta of the current order's first ingredient (the topping of a nigiri). */
 export function orderNeta(): NetaId | null {

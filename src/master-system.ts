@@ -16,7 +16,7 @@ import {
 } from '@iwsdk/core';
 import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
 import { debugLines } from './debug.js';
-import { chef, holdingAnything, orderNeta, progress, service } from './game-state.js';
+import { chef, holdingAnything, orderKind, orderNeta, progress, service } from './game-state.js';
 import { hands } from './hands.js';
 import { NETA } from './menu.js';
 import { playClack } from './sfx.js';
@@ -62,6 +62,9 @@ const STEP_WORDS: Record<StepKey, string> = {
   touch3: 'Pinch on the beat',
   place: 'Geta: on the diagonal',
   serve: 'Hold a fist',
+  takeNori: 'Take a nori strip',
+  wrapNori: 'Hands together: wrap',
+  spoonTopping: 'Spoon it on',
 };
 
 const MISTAKE_WORDS: Record<MistakeKey, string> = {
@@ -74,7 +77,7 @@ const MISTAKE_WORDS: Record<MistakeKey, string> = {
 };
 
 /** Steps that happen on the piece in the chef's hands: words go above the piece. */
-const PIECE_STEPS = new Set<StepKey>(['join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi']);
+const PIECE_STEPS = new Set<StepKey>(['join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi', 'wrapNori']);
 const TURN_STEPS = new Set<StepKey>(['turnBack', 'turnFront']);
 
 const GESTURE_SECONDS = 0.9;
@@ -391,6 +394,7 @@ export class MasterSystem extends createSystem({
       if (progress.hasNeta) return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
       return progress.sakuOnBoard && !progress.sakuWrong ? 'cut' : 'putKnife';
     }
+    if ((progress.kind ?? orderKind()) === 'gunkan') return this.gunkanStep();
     if (!progress.hasNeta) {
       if (progress.sakuOnBoard) return progress.sakuWrong ? 'returnSaku' : 'holdKnife';
       if (chef.boardDirt > 0 && progress.stage === 'None' && !progress.hasRice) return 'wipeBoard';
@@ -423,6 +427,19 @@ export class MasterSystem extends createSystem({
     return null;
   }
 
+  /** A gunkan: rice, a nori strip, wrap, wasabi if ordered, the topping, then the geta. */
+  private gunkanStep(): StepKey | null {
+    if (progress.sakuOnBoard) return 'returnSaku';
+    if (progress.stage === 'Done' || progress.stage === 'Carried') return 'place';
+    if (progress.stage === 'Placed') return 'serve';
+    if (!progress.wrapped) {
+      if (!progress.hasRice) return chef.hands[chef.riceSide].wet ? 'rice' : 'tezu';
+      return progress.noriHeld ? 'wrapNori' : 'takeNori';
+    }
+    if (service.order?.wasabi && progress.wasabi !== 'neta') return 'wasabi';
+    return progress.topped ? null : 'spoonTopping';
+  }
+
   private learned(step: StepKey): boolean {
     return (this.successes.get(this.learnKey(step)) ?? 0) >= MASTER_LEARNED_COUNT;
   }
@@ -437,6 +454,8 @@ export class MasterSystem extends createSystem({
   private stepWord(step: StepKey): string {
     const neta = orderNeta();
     if (step === 'takeSaku' && neta) return `Take the ${NETA[neta].name.toLowerCase()}`;
+    if (step === 'spoonTopping' && neta) return `${neta === 'Uni' ? 'Spatula' : 'Spoon'} on the ${NETA[neta].name.toLowerCase()}`;
+    if (step === 'place' && (progress.kind ?? orderKind()) !== 'nigiri') return 'Onto the geta';
     if (step === 'place') return service.customerHandKnown ? 'Geta: on the diagonal' : 'Geta: straight across';
     return STEP_WORDS[step];
   }
@@ -460,7 +479,10 @@ export class MasterSystem extends createSystem({
         return StationKind.CuttingBoard;
       case 'takeSaku':
       case 'returnSaku':
+      case 'spoonTopping':
         return StationKind.NetaCase;
+      case 'takeNori':
+        return StationKind.NoriBox;
       case 'holdKnife':
       case 'putKnife':
         return StationKind.Knife;
@@ -490,6 +512,7 @@ export class MasterSystem extends createSystem({
     }
     switch (step) {
       case 'takeSaku':
+      case 'spoonTopping':
         if (this.orderedSakuAt(out)) {
           out.y += 0.15;
           return;
@@ -831,6 +854,37 @@ export class MasterSystem extends createSystem({
         neta.pose(this.netaHold(c), yaw, 0, 0);
         return true;
       }
+      case 'takeNori': {
+        const box = this.stationPos(StationKind.NoriBox);
+        if (!box) return false;
+        const k = this.phase(1.8);
+        a.copy(box).add(off.set(0, 0.1, 0));
+        b.copy(box).add(off.set(0, 0.02, 0));
+        if (k < 0.45) neta.pose(this.go(k / 0.45, a, b), yaw, 0, k > 0.35 ? 1 : 0);
+        else neta.pose(this.go((k - 0.45) / 0.55, b, this.netaHold(c)), yaw, 0, k < 0.85 ? 1 : 0);
+        return true;
+      }
+      case 'spoonTopping': {
+        // The rice hand: pinch the spoon in the tray, carry it over the gunkan, let go.
+        if (!this.orderedSakuAt(a)) return false;
+        a.y += 0.04;
+        b.copy(progress.pieceAt).add(off.set(0, 0.05, 0));
+        const k = this.phase(2.4);
+        if (k < 0.3) {
+          c.copy(a).add(off.set(0, 0.08, 0));
+          rice.pose(this.go(k / 0.3, c, a), yaw, 0, k > 0.22 ? 1 : 0);
+        } else if (k < 0.8) {
+          c.copy(a).lerp(b, 0.5);
+          c.y += 0.1;
+          const kk = (k - 0.3) / 0.5;
+          rice.pose(kk < 0.5 ? this.go(kk * 2, a, c) : this.go((kk - 0.5) * 2, c, b), yaw, 0, 1);
+        } else {
+          rice.pose(b, yaw, 0, 0);
+        }
+        neta.pose(this.netaHold(c), yaw, 0, 0);
+        return true;
+      }
+      case 'wrapNori':
       case 'join': {
         this.netaHold(a);
         neta.pose(a, yaw, 0, 0);

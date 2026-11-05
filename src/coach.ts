@@ -33,7 +33,11 @@ export type StepKey =
   | 'rotate'
   | 'touch3'
   | 'place'
-  | 'serve';
+  | 'serve'
+  // gunkan
+  | 'takeNori'
+  | 'wrapNori'
+  | 'spoonTopping';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
 export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';
