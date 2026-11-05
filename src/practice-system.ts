@@ -8,12 +8,12 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { chef } from './game-state.js';
+import { chef, type FishKind, progress } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { hands } from './hands.js';
 import { SEATED_EYE_HEIGHT } from './layout.js';
 import { type Kind, stations } from './station-system.js';
-import { Held, StationKind } from './sushi-components.js';
+import { Fish, Held, Nigiri, NigiriStage, Saku, StationKind } from './sushi-components.js';
 
 /**
  * Practice mode (development only): play the bar from the keyboard in the
@@ -21,7 +21,9 @@ import { Held, StationKind } from './sushi-components.js';
  * system drives the emulated headset and hands directly, the same way the
  * emulator's remote control does, so every game rule runs unchanged: a key
  * only moves a hand to a place and makes a gesture there, and the game judges
- * that motion as it would judge a real hand.
+ * that motion as it would judge a real hand. Timed gestures (the rice, the
+ * three touches) happen the moment the key is pressed or let go, so the
+ * rhythm is still the player's.
  *
  * Hands are pinned by the wrist; each frame the wrist target is corrected by
  * the measured offset from the wrist to the point that matters (palm, pinch
@@ -38,9 +40,12 @@ interface EmuVector {
 interface EmuQuaternion {
   set(x: number, y: number, z: number, w: number): unknown;
 }
+type EmuFinger = 'thumb' | 'index' | 'middle' | 'ring' | 'pinky';
 interface EmuHand {
   poseId: string;
   updatePinchValue(value: number): void;
+  setFingerPose(finger: EmuFinger, poseId: string, weight?: number): void;
+  clearFingerPoses(finger?: EmuFinger): void;
   setPin(pin: { anchor: string; target: ArrayLike<number>; wristRotation?: ArrayLike<number> } | null): void;
 }
 interface EmuDevice {
@@ -61,17 +66,25 @@ function emulatedDevice(): EmuDevice | null {
 type Anchor = 'palm' | 'grasp' | 'tip';
 
 interface Step {
-  kind: 'move' | 'rub' | 'pinch' | 'pose' | 'wait';
-  /** move/rub: a world point (a station), or null for the hand's rest spot. */
-  at?: Vector3 | null;
-  /** Added to `at` in the chef's frame (x right, y up, z forward is -z). */
+  kind: 'move' | 'rub' | 'pinch' | 'pose' | 'wait' | 'hold';
+  /** move/rub: a world point, captured when the key is pressed. */
+  at?: Vector3;
+  /** move/rub: a point in the chef's frame instead (x right, y up, -z forward). */
+  local?: Vector3;
+  /** Added to the point in the chef's frame. */
   offset?: Vector3;
   anchor?: Anchor;
   seconds?: number;
   /** pinch: 0..1. */
   value?: number;
-  /** pose: an emulator hand pose id ('default', 'fist', ...). */
+  /** pose: an emulator hand pose id ('default', 'open', 'fist', 'point'). */
   pose?: string;
+  /** move: turn the hand to this heading (degrees, 0 = fingers forward, + = left); null = natural. */
+  yaw?: number | null;
+  /** move: turn the hand by this many degrees (negative = clockwise seen from above). */
+  yawBy?: number;
+  /** move: curl the middle, ring and little fingers this far toward a fist (0..1). */
+  curl?: number;
   /** rub: side-to-side amplitude (m), frequency (Hz) and phase (rad). */
   amp?: number;
   hz?: number;
@@ -83,11 +96,17 @@ interface Step {
   until?: () => boolean;
 }
 
+type MoveOptions = Pick<Step, 'yaw' | 'yawBy' | 'curl'>;
+
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
-const move = (at: Vector3 | null, offset: Vector3, anchor: Anchor, seconds: number): Step => ({
-  kind: 'move', at, offset, anchor, seconds,
+const ZERO = v(0, 0, 0);
+const move = (at: Vector3, offset: Vector3, anchor: Anchor, seconds: number, options: MoveOptions = {}): Step => ({
+  kind: 'move', at, offset, anchor, seconds, ...options,
 });
-const rest = (seconds = 0.35): Step => ({ kind: 'move', at: null, offset: v(0, 0, 0), anchor: 'grasp', seconds });
+/** Move to a point in the chef's frame. */
+const moveLocal = (local: Vector3, anchor: Anchor, seconds: number, options: MoveOptions = {}): Step => ({
+  kind: 'move', local, offset: ZERO, anchor, seconds, ...options,
+});
 const rub = (
   at: Vector3,
   offset: Vector3,
@@ -99,12 +118,23 @@ const rub = (
   phase = 0,
 ): Step => ({ kind: 'rub', at, offset, anchor, seconds, amp, hz, phase, until });
 const pinch = (value: number): Step => ({ kind: 'pinch', value });
+const pose = (id: string): Step => ({ kind: 'pose', pose: id });
 const wait = (seconds: number): Step => ({ kind: 'wait', seconds });
+/** Stay put until the key is let go (the verb then replaces the steps). */
+const hold = (): Step => ({ kind: 'hold' });
 /** Washing (hands, or the cloth with them) leaves both hands clean and waiting for the towel. */
 const washedJustNow = () => chef.hands.every((h) => h.needsTowel && !h.needsWash);
 
 /** Where each hand waits, in the chef's frame (grasp point): low, in front, off the board. */
 const REST: [Vector3, Vector3] = [v(-0.15, 0.98, -0.2), v(0.15, 0.98, -0.2)];
+/** Where the neta hand holds the slice while the piece is made (palm, chef's frame). */
+const WORK = v(-0.06, 1.0, -0.27);
+/** Where the rice hand holds the knife between cuts (palm, chef's frame). */
+const KNIFE_READY = v(0.22, 0.93, -0.18);
+/** The rice tub, low on the right (world, facing the bar): down in it, and back up out of it. */
+const TUB_DOWN = v(0.4, 0.55, 0.02);
+const TUB_WAY = v(0.36, 0.8, -0.06);
+const TUB_UP = v(0.3, 0.88, -0.14);
 const SHOULDER_X = 0.18;
 /** Pinch point offsets from the wrist before the hand is first measured (chef's frame). */
 const DEFAULT_OFFSET: Record<Anchor, Vector3> = {
@@ -112,10 +142,13 @@ const DEFAULT_OFFSET: Record<Anchor, Vector3> = {
   grasp: v(0, -0.03, -0.11),
   tip: v(0, -0.03, -0.17),
 };
+const CURL_FINGERS: EmuFinger[] = ['middle', 'ring', 'pinky'];
 const FINGER_PITCH = -0.35;
 const LOOK_PITCH_DEG = -22;
 const HEAD_TURN_RATE_DEG = 320;
 const TURN_LOOK_DEG = 88;
+const HEADING_STEP_DEG = 45;
+const SAKU_KEYS: Record<string, FishKind> = { Digit4: Fish.Tuna, Digit5: Fish.White, Digit6: Fish.Silver };
 
 class DriverHand {
   steps: Step[] = [];
@@ -127,10 +160,18 @@ class DriverHand {
   /** Rig-space point of the current anchor, now and where the current move began. */
   readonly point = new Vector3();
   readonly start = new Vector3();
+  /** Heading of the fingers (degrees, chef's frame); `yawFixed` holds it, else it follows the reach. */
+  yawDeg = 0;
+  yawStart = 0;
+  yawFixed = false;
+  /** Finger curl toward a fist (0..1), now and where the current move began. */
+  curl = 0;
+  curlStart = 0;
   readonly sentWrist = new Vector3(Number.NaN, 0, 0);
   sentYaw = Number.NaN;
   sentPinch = -1;
   sentPose = '';
+  sentCurl = 0;
   /** The verb's `until` value when the key was pressed (true: rub the full time). */
   untilAtStart = false;
 
@@ -139,9 +180,16 @@ class DriverHand {
   get busy(): boolean {
     return this.index < this.steps.length;
   }
+
+  get holding(): boolean {
+    return this.steps[this.index]?.kind === 'hold';
+  }
 }
 
-export class PracticeSystem extends createSystem({}) {
+export class PracticeSystem extends createSystem({
+  saku: { required: [Saku] },
+  nigiri: { required: [Nigiri] },
+}) {
   private on = false;
   private device: EmuDevice | null = null;
   private driver: [DriverHand, DriverHand] = [new DriverHand(0), new DriverHand(1)];
@@ -157,6 +205,11 @@ export class PracticeSystem extends createSystem({}) {
   private canvas!: HTMLCanvasElement;
   private texture!: CanvasTexture;
   private drawn = '';
+  /** Piece heading while it is carried: the game's heading at pick-up plus the hand's turn since. */
+  private carried = false;
+  private headingAtPickup = 0;
+  private handYawAtPickup = 0;
+  private heading = 0;
 
   private readonly euler = new Euler(0, 0, 0, 'YXZ');
   private readonly q = new Quaternion();
@@ -219,6 +272,7 @@ export class PracticeSystem extends createSystem({}) {
     device.quaternion.set(this.q.x, this.q.y, this.q.z, this.q.w);
 
     for (const d of this.driver) this.updateHand(d, delta, d.side === 0 ? device.hands.left : device.hands.right);
+    this.trackHeading();
     this.drawPanel();
   }
 
@@ -236,29 +290,45 @@ export class PracticeSystem extends createSystem({}) {
       if (down && !e.repeat) this.status = 'Looking far left: hold to turn around';
       return;
     }
-    if (!down || e.repeat) return;
-    switch (e.code) {
-      case 'Digit1':
-        this.soap();
-        break;
-      case 'Digit2':
-        this.washHands();
-        break;
-      case 'Digit3':
-        this.towel();
-        break;
-      case 'KeyC':
-        this.cloth();
-        break;
-      case 'KeyV':
-        this.wipeBoard();
-        break;
-      case 'KeyB':
-        this.rinseCloth();
-        break;
-      default:
-        return;
+    if (e.code === 'KeyL') {
+      // Held: down in the rice tub. Let go: back up (beat 2 is judged then).
+      if (!e.repeat) (down ? this.riceDown() : this.riceUp());
+      e.preventDefault();
+      return;
     }
+    if (!down || e.repeat) return;
+    const fish = SAKU_KEYS[e.code];
+    if (fish) {
+      this.takeSaku(fish);
+      e.preventDefault();
+      return;
+    }
+    const verbs: Record<string, () => void> = {
+      Digit1: () => this.soap(),
+      Digit2: () => this.washHands(),
+      Digit3: () => this.towel(),
+      KeyC: () => this.cloth(),
+      KeyV: () => this.wipeBoard(),
+      KeyB: () => this.rinseCloth(),
+      KeyR: () => this.returnSaku(),
+      KeyK: () => this.knife(),
+      KeyX: () => this.cut(),
+      KeyW: () => this.wipeBlade(),
+      KeyN: () => this.takeNeta(),
+      KeyJ: () => this.tezu(),
+      KeyY: () => this.wasabi(),
+      KeyH: () => this.join(),
+      Space: () => this.touch(),
+      KeyF: () => this.flip(),
+      KeyG: () => this.halfTurn(),
+      KeyM: () => this.carry(),
+      KeyQ: () => this.turnPiece(HEADING_STEP_DEG),
+      KeyE: () => this.turnPiece(-HEADING_STEP_DEG),
+      KeyS: () => this.serve(),
+    };
+    const verb = verbs[e.code];
+    if (!verb) return;
+    verb();
     e.preventDefault();
   }
 
@@ -285,8 +355,11 @@ export class PracticeSystem extends createSystem({}) {
         d.point.copy(REST[d.side]);
         d.pinch = 0;
         d.pose = 'default';
+        d.curl = 0;
+        d.yawFixed = false;
         d.sentPinch = -1;
         d.sentPose = '';
+        d.sentCurl = 0;
         d.sentWrist.set(Number.NaN, 0, 0);
       }
       this.status = 'Practice mode on';
@@ -303,7 +376,7 @@ export class PracticeSystem extends createSystem({}) {
     }
   }
 
-  // ---- verbs (each queues one motion; the game judges it) ------------------------
+  // ---- verbs: hygiene ----------------------------------------------------------
 
   private soap(): void {
     const side = this.freeHand();
@@ -317,7 +390,7 @@ export class PracticeSystem extends createSystem({}) {
       pinch(0),
       wait(0.05),
       move(at, v(0, 0.12, 0), 'palm', 0.15),
-      rest(),
+      this.rest(side),
     ]);
   }
 
@@ -335,7 +408,7 @@ export class PracticeSystem extends createSystem({}) {
         move(at, v(x, 0.12, 0), 'palm', 0.2),
         rub(at, v(x, 0.12, 0), 'palm', 1.0, 0.035, 2.5, washedJustNow, side * Math.PI),
         move(at, v(x, 0.36, 0), 'palm', 0.2),
-        rest(),
+        this.rest(side),
       ]);
     }
   }
@@ -349,7 +422,7 @@ export class PracticeSystem extends createSystem({}) {
       move(at, v(0, 0.04, 0), 'palm', 0.2),
       rub(at, v(0, 0.04, 0), 'palm', 1.1, 0.035, 2.5, () => !chef.hands[0].needsTowel && !chef.hands[1].needsTowel),
       move(at, v(0, 0.36, 0), 'palm', 0.2),
-      rest(),
+      this.rest(side),
     ]);
   }
 
@@ -358,7 +431,7 @@ export class PracticeSystem extends createSystem({}) {
     const d = this.driver[1];
     if (d.busy) return this.say('Right hand is busy');
     if (chef.hands[1].holding === Held.Cloth) {
-      this.run(1, 'Cloth put back', [pinch(0), wait(0.1), rest()]);
+      this.run(1, 'Cloth put back', [pinch(0), wait(0.1), this.rest(1)]);
       return;
     }
     if (chef.hands[1].holding !== Held.None) return this.say('Right hand is holding something');
@@ -370,7 +443,7 @@ export class PracticeSystem extends createSystem({}) {
       pinch(1),
       wait(0.15),
       move(at, v(0, 0.12, 0), 'grasp', 0.2),
-      rest(),
+      this.rest(1),
     ]);
   }
 
@@ -383,7 +456,7 @@ export class PracticeSystem extends createSystem({}) {
       move(at, v(0.15, 0.04, 0), 'grasp', 0.15),
       rub(at, v(0.15, 0.04, 0), 'grasp', 1.0, 0.12, 1.4, () => chef.boardDirt === 0),
       move(at, v(0.15, 0.1, 0), 'grasp', 0.2),
-      rest(),
+      this.rest(1),
     ]);
   }
 
@@ -396,7 +469,328 @@ export class PracticeSystem extends createSystem({}) {
       move(at, v(0.05, 0.1, 0), 'grasp', 0.2),
       rub(at, v(0.05, 0.1, 0), 'grasp', 1.1, 0.04, 2.5, washedJustNow),
       move(at, v(0.05, 0.36, 0), 'grasp', 0.2),
-      rest(),
+      this.rest(1),
+    ]);
+  }
+
+  // ---- verbs: saku and knife -------------------------------------------------------
+
+  /** 4 / 5 / 6: the neta hand takes that saku from the case and lays it on the board. */
+  private takeSaku(fish: FishKind): void {
+    const side = chef.netaSide;
+    if (!this.ready(side, Held.None)) return;
+    const at = this.sakuAt(fish);
+    const board = this.reachable(StationKind.CuttingBoard);
+    if (!at || !board) return;
+    this.run(side, `Taking the ${fish === Fish.White ? 'white fish' : fish === Fish.Silver ? 'silver fish' : 'tuna'}`, [
+      move(at, v(0, 0.12, 0), 'grasp', 0.35),
+      move(at, v(0, 0.01, 0), 'grasp', 0.15),
+      pinch(1),
+      wait(0.12),
+      move(at, v(0, 0.14, 0), 'grasp', 0.2),
+      move(board, v(-0.12, 0.12, 0), 'grasp', 0.35),
+      move(board, v(-0.12, 0.05, 0), 'grasp', 0.15),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
+  /** R: the neta hand puts the saku on the board back in its slot in the case. */
+  private returnSaku(): void {
+    const side = chef.netaSide;
+    if (!progress.sakuOnBoard) return this.say('No saku on the board');
+    if (!this.ready(side, Held.None)) return;
+    const at = progress.sakuAt.clone();
+    const home = progress.sakuHome.clone();
+    this.run(side, 'Saku back in the case', [
+      move(at, v(0, 0.1, 0), 'grasp', 0.3),
+      move(at, v(0, 0.01, 0), 'grasp', 0.15),
+      pinch(1),
+      wait(0.12),
+      move(at, v(0, 0.14, 0), 'grasp', 0.2),
+      move(home, v(0, 0.12, 0), 'grasp', 0.35),
+      move(home, v(0, 0.06, 0), 'grasp', 0.15),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
+  /** K: the rice hand closes on the knife handle, or opens to put the knife down. */
+  private knife(): void {
+    const side = chef.riceSide;
+    const d = this.driver[side];
+    if (d.busy) return this.say('Rice hand is busy');
+    if (chef.hands[side].holding === Held.Knife) {
+      this.run(side, chef.knifeDirty ? 'Knife put down (not wiped!)' : 'Knife put down', [
+        pose('default'),
+        wait(0.1),
+        this.rest(side, null),
+      ]);
+      return;
+    }
+    if (chef.hands[side].holding !== Held.None) return this.say('Rice hand is holding something');
+    const at = this.reachable(StationKind.Knife);
+    if (!at) return;
+    this.run(side, 'Knife in hand', [
+      move(at, v(0, 0.12, 0.02), 'palm', 0.35, { yaw: 0 }),
+      move(at, v(0, 0.04, 0.02), 'palm', 0.15),
+      pose('fist'),
+      wait(0.12),
+      moveLocal(KNIFE_READY, 'palm', 0.3),
+    ]);
+  }
+
+  /** X: neta hand on the saku, blade drawn toward the chef along the guide line. */
+  private cut(): void {
+    const rice = chef.riceSide;
+    const neta = chef.netaSide;
+    if (chef.hands[rice].holding !== Held.Knife) return this.say('Hold the knife first (K)');
+    if (!progress.sakuOnBoard) return this.say('Put a saku on the board first (4 5 6)');
+    if (progress.hasNeta) return this.say('A slice is already cut');
+    if (this.driver[rice].busy || !this.ready(neta, Held.None)) return;
+    const saku = progress.sakuAt.clone();
+    // The blade runs 0.15 m ahead of the palm; draw it from just beyond the saku to past its near edge.
+    const guide = v(saku.x + 0.075, saku.y, saku.z);
+    this.run(neta, 'Hand on the saku', [
+      move(saku, v(0, 0.06, 0), 'palm', 0.3),
+      wait(1.25),
+      this.rest(neta),
+    ]);
+    this.run(rice, 'Cutting', [
+      wait(0.3),
+      move(guide, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
+      move(guide, v(0, 0.06, 0.09), 'palm', 0.15),
+      move(guide, v(0, 0.06, 0.23), 'palm', 0.5),
+      move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
+      moveLocal(KNIFE_READY, 'palm', 0.3),
+    ]);
+  }
+
+  /** W: wipe the blade on the wet cloth before putting the knife down. */
+  private wipeBlade(): void {
+    const side = chef.riceSide;
+    if (chef.hands[side].holding !== Held.Knife) return this.say('Hold the knife first (K)');
+    if (this.driver[side].busy) return this.say('Rice hand is busy');
+    const at = this.reachable(StationKind.WetCloth);
+    if (!at) return;
+    this.run(side, 'Wiping the blade', [
+      move(at, v(0, 0.16, 0.1), 'palm', 0.3, { yaw: 0 }),
+      move(at, v(0, 0.08, 0.1), 'palm', 0.15),
+      rub(at, v(0, 0.08, 0.1), 'palm', 0.8, 0.04, 2, () => !chef.knifeDirty),
+      move(at, v(0, 0.16, 0.1), 'palm', 0.15),
+      moveLocal(KNIFE_READY, 'palm', 0.3),
+    ]);
+  }
+
+  // ---- verbs: the nigiri ------------------------------------------------------------
+
+  /** N: the neta hand picks the slice up; it rests on the fingers in front of the chef. */
+  private takeNeta(): void {
+    const side = chef.netaSide;
+    if (!progress.hasNeta || progress.netaHeld) return this.say('Cut a slice first (X)');
+    if (!this.ready(side, Held.None)) return;
+    const at = progress.sliceAt.clone();
+    this.run(side, 'Neta on the hand', [
+      move(at, v(0, 0.1, 0), 'grasp', 0.3),
+      move(at, v(0, 0.02, 0), 'grasp', 0.15),
+      pinch(1),
+      wait(0.12),
+      pinch(0),
+      moveLocal(WORK, 'palm', 0.35),
+    ]);
+  }
+
+  /** J: the rice hand dips in the tezu (beat 1 starts here). */
+  private tezu(): void {
+    const side = chef.riceSide;
+    if (!this.ready(side, Held.None)) return;
+    const at = this.reachable(StationKind.Tezu);
+    if (!at) return;
+    // Come in from the right and in front, so the fingertip never passes over
+    // the wasabi dish beside the bowl (that would pick wasabi up).
+    this.run(side, 'Tezu', [
+      pose('open'),
+      move(at, v(0.13, 0.16, 0.12), 'palm', 0.25),
+      move(at, v(0, 0.12, 0), 'palm', 0.15),
+      move(at, v(0, 0.03, 0), 'palm', 0.15),
+      wait(0.1),
+      move(at, v(0, 0.12, 0), 'palm', 0.15),
+      move(at, v(0.13, 0.16, 0.12), 'palm', 0.15),
+      pose('default'),
+      this.rest(side),
+    ]);
+  }
+
+  /** L down: the rice hand reaches into the tub and stays there. */
+  private riceDown(): void {
+    const side = chef.riceSide;
+    if (chef.facingBack) return this.say('Turn back to the bar first (hold T)');
+    if (!this.ready(side, Held.None)) return;
+    this.run(side, 'In the rice tub: let go of L on the beat', [
+      move(TUB_WAY, ZERO, 'palm', 0.2),
+      move(TUB_DOWN, ZERO, 'palm', 0.2),
+      hold(),
+    ]);
+  }
+
+  /** L up: back out of the tub at once (judged on this beat). */
+  private riceUp(): void {
+    const side = chef.riceSide;
+    const d = this.driver[side];
+    if (!d.busy || !d.steps.some((s) => s.kind === 'hold')) return;
+    this.run(side, 'Rice', [move(TUB_UP, ZERO, 'palm', 0.05), this.rest(side)]);
+  }
+
+  /** Y: the rice hand's index finger takes wasabi from the dish and dabs it on the neta. */
+  private wasabi(): void {
+    const side = chef.riceSide;
+    if (!progress.netaHeld) return this.say('Take the neta first (N)');
+    if (this.driver[side].busy) return this.say('Rice hand is busy');
+    const dish = this.reachable(StationKind.Wasabi);
+    if (!dish) return;
+    const neta = progress.pieceAt.clone();
+    this.run(side, 'Wasabi', [
+      pose('point'),
+      move(dish, v(0, 0.1, 0), 'tip', 0.3),
+      move(dish, v(0, 0.01, 0), 'tip', 0.15),
+      wait(0.1),
+      move(dish, v(0, 0.1, 0), 'tip', 0.15),
+      move(neta, v(0, 0.07, 0), 'tip', 0.3),
+      move(neta, v(0, 0.012, 0), 'tip', 0.15),
+      wait(0.1),
+      move(neta, v(0, 0.07, 0), 'tip', 0.15),
+      pose('default'),
+      this.rest(side),
+    ]);
+  }
+
+  /** H: palms together: the rice goes onto the neta. The rice hand stays for the touches. */
+  private join(): void {
+    const side = chef.riceSide;
+    if (!progress.netaHeld) return this.say('Take the neta first (N)');
+    if (!progress.hasRice) return this.say('Take rice first (J, then hold L)');
+    if (this.driver[side].busy) return this.say('Rice hand is busy');
+    const at = progress.pieceAt.clone();
+    this.run(side, 'Hands together: touch on the beat (Space)', [
+      move(at, v(0, 0.12, 0), 'palm', 0.3),
+      move(at, v(0, 0.045, 0), 'palm', 0.2),
+    ]);
+  }
+
+  /** Space: the timed touch for this moment of the piece (fist, then two pinches). */
+  private touch(): void {
+    const side = chef.riceSide;
+    const stage = progress.stage;
+    const d = this.driver[side];
+    if (stage === NigiriStage.Joined) {
+      if (d.busy) return this.say('Rice hand is busy');
+      const at = progress.pieceAt.clone();
+      this.run(side, 'Touch 1: now flip (F)', [
+        pose('fist'),
+        wait(0.2),
+        pose('default'),
+        move(at, v(0.02, 0.045, 0), 'grasp', 0.25),
+      ]);
+    } else if (stage === NigiriStage.Flipped || stage === NigiriStage.Rotated) {
+      if (d.busy) return this.say('Rice hand is busy');
+      this.run(side, stage === NigiriStage.Flipped ? 'Touch 2: now the half turn (G)' : 'Touch 3: done, carry it (M)', [
+        pinch(1),
+        wait(0.15),
+        pinch(0),
+      ]);
+    } else {
+      this.say('Nothing to touch now');
+    }
+  }
+
+  /** F: the neta hand pushes forward while the fingers curl: the piece rolls over. */
+  private flip(): void {
+    const side = chef.netaSide;
+    if (progress.stage !== NigiriStage.Touched1) return this.say('Flip comes after touch 1');
+    if (this.driver[side].busy) return this.say('Neta hand is busy');
+    this.run(side, 'Flip: touch on the beat (Space)', [
+      pose('open'),
+      wait(0.08),
+      moveLocal(v(WORK.x, WORK.y, WORK.z - 0.06), 'palm', 0.25, { curl: 0.55 }),
+      moveLocal(WORK, 'palm', 0.3, { curl: 0 }),
+      pose('default'),
+    ]);
+  }
+
+  /** G: pinch the piece and turn the hand clockwise: it spins half a turn. */
+  private halfTurn(): void {
+    const side = chef.riceSide;
+    if (progress.stage !== NigiriStage.Touched2) return this.say('The half turn comes after touch 2');
+    if (this.driver[side].busy) return this.say('Rice hand is busy');
+    const at = progress.pieceAt.clone();
+    this.run(side, 'Half turn: touch on the beat (Space)', [
+      move(at, v(0.02, 0.045, 0), 'grasp', 0.1),
+      pinch(1),
+      wait(0.08),
+      move(at, v(0.02, 0.045, 0), 'grasp', 0.45, { yawBy: -80 }),
+      pinch(0),
+      wait(0.1),
+      move(at, v(0.02, 0.045, 0), 'grasp', 0.25, { yaw: null }),
+    ]);
+  }
+
+  /** M: pick the finished piece up and hold it over the geta; press again to let go. */
+  private carry(): void {
+    const rice = chef.riceSide;
+    const d = this.driver[rice];
+    if (d.busy) return this.say('Rice hand is busy');
+    const geta = this.reachable(StationKind.Geta);
+    if (!geta) return;
+    if (chef.hands[rice].holding === Held.Sushi) {
+      this.run(rice, 'On the geta: serve with S', [
+        pinch(0),
+        wait(0.1),
+        move(geta, v(0, 0.15, 0.08), 'grasp', 0.2),
+        this.rest(rice, null),
+      ]);
+      return;
+    }
+    if (progress.stage !== NigiriStage.Done) return this.say('Finish the piece first (touch 3)');
+    const at = progress.pieceAt.clone();
+    this.run(rice, 'Carrying: Q / E to turn it, M to let go', [
+      move(at, v(0, 0.02, 0), 'grasp', 0.15, { yawBy: 0 }),
+      pinch(1),
+      wait(0.12),
+      move(at, v(0, 0.12, 0), 'grasp', 0.25),
+      move(geta, v(0, 0.3, 0.1), 'grasp', 0.4),
+      move(geta, v(0, 0.07, 0), 'grasp', 0.3),
+    ]);
+    // The neta hand is free once the piece is lifted off it.
+    this.run(chef.netaSide, 'Carrying: Q / E to turn it, M to let go', [wait(0.35), this.rest(chef.netaSide)]);
+  }
+
+  /** Q / E: turn the carried piece 45 degrees left or right. */
+  private turnPiece(by: number): void {
+    const rice = chef.riceSide;
+    if (chef.hands[rice].holding !== Held.Sushi) return this.say('Carry the piece first (M)');
+    const d = this.driver[rice];
+    if (d.busy) return this.say('Rice hand is busy');
+    const geta = this.reachable(StationKind.Geta);
+    if (!geta) return;
+    this.run(rice, by > 0 ? 'Turned left' : 'Turned right', [move(geta, v(0, 0.07, 0), 'grasp', 0.2, { yawBy: by })]);
+  }
+
+  /** S: hold a fist over the geta for a moment to serve. */
+  private serve(): void {
+    const side = chef.riceSide;
+    if (progress.stage !== NigiriStage.Placed) return this.say('Put the piece on the geta first (M)');
+    if (!this.ready(side, Held.None)) return;
+    const geta = this.reachable(StationKind.Geta);
+    if (!geta) return;
+    this.run(side, 'Serving', [
+      move(geta, v(0, 0.08, 0.02), 'palm', 0.3),
+      pose('fist'),
+      wait(1.3),
+      pose('default'),
+      move(geta, v(0, 0.2, 0.05), 'palm', 0.2),
+      this.rest(side),
     ]);
   }
 
@@ -406,14 +800,34 @@ export class PracticeSystem extends createSystem({}) {
     this.status = text;
   }
 
+  /** Back to the rest spot; `yaw` null also lets the heading follow the reach again. */
+  private rest(side: 0 | 1, yaw?: null): Step {
+    return moveLocal(REST[side], 'grasp', 0.35, yaw === null ? { yaw: null } : {});
+  }
+
   private run(side: 0 | 1, label: string, steps: Step[]): void {
     const d = this.driver[side];
     d.steps = steps;
     d.index = 0;
     d.t = 0;
     d.start.copy(d.point);
+    d.yawStart = d.yawDeg;
+    d.curlStart = d.curl;
     d.untilAtStart = !!steps.find((step) => step.until)?.until?.();
     this.status = label;
+  }
+
+  /** True when that hand is idle and holds `holding`; otherwise says why not. */
+  private ready(side: 0 | 1, holding: string): boolean {
+    if (this.driver[side].busy) {
+      this.say(`${side === chef.riceSide ? 'Rice' : 'Neta'} hand is busy`);
+      return false;
+    }
+    if (chef.hands[side].holding !== holding) {
+      this.say(`${side === chef.riceSide ? 'Rice' : 'Neta'} hand is holding ${chef.hands[side].holding}`);
+      return false;
+    }
+    return true;
   }
 
   /** The right hand if it is idle and empty, else the left, else none. */
@@ -444,13 +858,48 @@ export class PracticeSystem extends createSystem({}) {
       this.say(`No ${kind} in this scene`);
       return null;
     }
-    this.a.copy(info.pos);
+    if (!this.inFront(info.pos)) return null;
+    return info.pos.clone();
+  }
+
+  private inFront(point: Vector3): boolean {
+    this.a.copy(point);
     this.player.worldToLocal(this.a);
     if (this.a.z > 0.1) {
       this.say('Out of reach: turn around first (hold T)');
-      return null;
+      return false;
     }
-    return info.pos.clone();
+    return true;
+  }
+
+  /** Where that fish's saku is now (in the case or on the board). */
+  private sakuAt(fish: FishKind): Vector3 | null {
+    for (const entity of this.queries.saku.entities) {
+      if (entity.getValue(Saku, 'fish') !== fish || !entity.object3D) continue;
+      const at = new Vector3();
+      entity.object3D.getWorldPosition(at);
+      return this.inFront(at) ? at : null;
+    }
+    this.say(`No ${fish} saku in this scene`);
+    return null;
+  }
+
+  /** While the piece is carried, its heading follows the hand from where it was picked up. */
+  private trackHeading(): void {
+    const carried = progress.stage === NigiriStage.Carried;
+    const reader = hands.all[chef.riceSide];
+    if (carried && !this.carried) {
+      const entity = this.queries.nigiri.entities.values().next().value;
+      this.headingAtPickup = entity ? (entity.getValue(Nigiri, 'yawDeg') ?? 0) : 0;
+      this.handYawAtPickup = reader?.yawDeg ?? 0;
+    }
+    this.carried = carried;
+    if (carried && reader) {
+      let h = (this.headingAtPickup + reader.yawDeg - this.handYawAtPickup) % 360;
+      if (h > 180) h -= 360;
+      if (h <= -180) h += 360;
+      this.heading = Math.round(h);
+    }
   }
 
   // ---- per-frame hand driving -----------------------------------------------------
@@ -466,9 +915,11 @@ export class PracticeSystem extends createSystem({}) {
       }
       if (s.kind === 'pose') {
         d.pose = s.pose ?? 'default';
+        d.curl = d.curlStart = 0; // a pose resets the finger blends
         this.nextStep(d);
         continue;
       }
+      if (s.kind === 'hold') break;
       d.t += delta;
       const seconds = s.seconds ?? 0;
       // A rub that the game has already counted (even on the way in) ends now.
@@ -486,8 +937,19 @@ export class PracticeSystem extends createSystem({}) {
         }
         this.stepGoal(d, s, this.goal);
         if (s.kind === 'move') {
-          const k = Math.min(1, d.t / Math.max(seconds, 1e-3));
-          d.point.lerpVectors(d.start, this.goal, k * k * (3 - 2 * k));
+          const k0 = Math.min(1, d.t / Math.max(seconds, 1e-3));
+          const k = k0 * k0 * (3 - 2 * k0);
+          d.point.lerpVectors(d.start, this.goal, k);
+          if (s.yawBy !== undefined) {
+            d.yawFixed = true;
+            d.yawDeg = d.yawStart + s.yawBy * k;
+          } else if (typeof s.yaw === 'number') {
+            d.yawFixed = true;
+            d.yawDeg = d.yawStart + (s.yaw - d.yawStart) * k;
+          } else if (s.yaw === null) {
+            d.yawFixed = false;
+          }
+          if (s.curl !== undefined) d.curl = d.curlStart + (s.curl - d.curlStart) * k;
         } else {
           const swing = Math.sin(d.t * (s.hz ?? 2) * Math.PI * 2 + (s.phase ?? 0)) * (s.amp ?? 0.03);
           d.point.copy(this.goal);
@@ -498,18 +960,28 @@ export class PracticeSystem extends createSystem({}) {
       this.nextStep(d);
     }
 
+    if (d.pose !== d.sentPose) {
+      hand.poseId = d.pose;
+      d.sentPose = d.pose;
+      d.sentCurl = 0;
+    }
+    if (Math.abs(d.curl - d.sentCurl) > 0.02 || (d.curl === 0 && d.sentCurl !== 0)) {
+      if (d.curl === 0) hand.clearFingerPoses();
+      else for (const finger of CURL_FINGERS) hand.setFingerPose(finger, 'fist', d.curl);
+      d.sentCurl = d.curl;
+    }
     if (d.pinch !== d.sentPinch) {
       hand.updatePinchValue(d.pinch);
       d.sentPinch = d.pinch;
     }
-    if (d.pose !== d.sentPose) {
-      hand.poseId = d.pose;
-      d.sentPose = d.pose;
-    }
 
-    // Fingers point from the shoulder toward the work, tipped a little down.
-    const sx = d.side === 0 ? -SHOULDER_X : SHOULDER_X;
-    const yaw = Math.max(-1.4, Math.min(1.4, Math.atan2(-(d.point.x - sx), -(d.point.z - 0.06))));
+    // Fingers point from the shoulder toward the work, tipped a little down,
+    // unless a step has set the heading (the knife, the half turn, the carry).
+    if (!d.yawFixed) {
+      const sx = d.side === 0 ? -SHOULDER_X : SHOULDER_X;
+      d.yawDeg = (Math.max(-1.4, Math.min(1.4, Math.atan2(-(d.point.x - sx), -(d.point.z - 0.06)))) * 180) / Math.PI;
+    }
+    const yaw = (d.yawDeg * Math.PI) / 180;
     this.euler.set(FINGER_PITCH, yaw, 0, 'YXZ');
     this.q.setFromEuler(this.euler);
 
@@ -545,16 +1017,18 @@ export class PracticeSystem extends createSystem({}) {
     d.index++;
     d.t = 0;
     d.start.copy(d.point);
+    d.yawStart = d.yawDeg;
+    d.curlStart = d.curl;
   }
 
   /** The rig-space goal of a move/rub step. */
-  private stepGoal(d: DriverHand, s: Step, out: Vector3): void {
-    if (!s.at) {
-      out.copy(REST[d.side]);
-      return;
+  private stepGoal(_d: DriverHand, s: Step, out: Vector3): void {
+    if (s.local) {
+      out.copy(s.local);
+    } else if (s.at) {
+      out.copy(s.at);
+      this.player.worldToLocal(out);
     }
-    out.copy(s.at);
-    this.player.worldToLocal(out);
     if (s.offset) out.add(s.offset);
   }
 
@@ -577,16 +1051,16 @@ export class PracticeSystem extends createSystem({}) {
 
   private buildPanel(): void {
     this.canvas = document.createElement('canvas');
-    this.canvas.width = 640;
-    this.canvas.height = 360;
+    this.canvas.width = 720;
+    this.canvas.height = 540;
     this.texture = new CanvasTexture(this.canvas);
     this.panel = new Mesh(
-      new PlaneGeometry(0.26, 0.14625),
+      new PlaneGeometry(0.27, 0.2025),
       new MeshBasicMaterial({ map: this.texture, transparent: true, depthTest: false, depthWrite: false }),
     );
     this.panel.name = 'PracticePanel';
     this.panel.renderOrder = 950;
-    this.panel.position.set(-0.2, -0.17, -0.42);
+    this.panel.position.set(-0.24, 0.1, -0.42);
     this.panel.visible = false;
     this.world.camera.add(this.panel);
   }
@@ -594,7 +1068,8 @@ export class PracticeSystem extends createSystem({}) {
   private drawPanel(): void {
     const left = chef.hands[0].holding;
     const right = chef.hands[1].holding;
-    const key = `${this.status}|${left}|${right}|${chef.open}`;
+    const heading = progress.stage === NigiriStage.Carried ? `   Heading ${this.heading}` : '';
+    const key = `${this.status}|${left}|${right}|${chef.open}|${progress.stage}|${heading}`;
     if (key === this.drawn) return;
     this.drawn = key;
     const ctx = this.canvas.getContext('2d')!;
@@ -602,20 +1077,24 @@ export class PracticeSystem extends createSystem({}) {
     ctx.fillStyle = 'rgba(20,18,16,0.82)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.fillStyle = '#FFF6E0';
-    ctx.font = 'bold 34px sans-serif';
+    ctx.font = 'bold 32px sans-serif';
     ctx.fillText('PRACTICE  (P: exit)', 20, 42);
-    ctx.font = 'bold 27px sans-serif';
+    ctx.font = 'bold 24px sans-serif';
     const lines = [
-      'Drag: look    T (hold): turn around',
-      '1 soap    2 wash hands    3 towel',
-      'C wet cloth (take / put back)',
-      'V wipe the board    B rinse the cloth',
-      `L: ${left}   R: ${right}   Bar ${chef.open ? 'open' : 'closed'}`,
+      'Drag: look     T (hold): turn around',
+      '1 soap  2 wash  3 towel  C cloth  V wipe  B rinse',
+      '4 tuna  5 white  6 silver   R saku back',
+      'K knife   X cut   W wipe the blade',
+      'N neta   J tezu   L hold, let go on the beat: rice',
+      'Y wasabi   H hands together',
+      'Space touch on the beat   F flip   G half turn',
+      'M carry / let go   Q E turn 45   S serve',
+      `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}`,
     ];
-    lines.forEach((line, i) => ctx.fillText(line, 20, 92 + i * 40));
+    lines.forEach((line, i) => ctx.fillText(line, 20, 90 + i * 44));
     ctx.fillStyle = '#8fd3ff';
-    ctx.font = 'bold 27px sans-serif';
-    ctx.fillText(`> ${this.status}`, 20, 92 + lines.length * 40 + 10);
+    ctx.font = 'bold 25px sans-serif';
+    ctx.fillText(`> ${this.status}`, 20, 90 + lines.length * 44 + 8);
     this.texture.needsUpdate = true;
   }
 }
