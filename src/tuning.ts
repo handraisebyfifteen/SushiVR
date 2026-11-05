@@ -3,8 +3,14 @@
  * Distances are meters, times are seconds unless the name says ms.
  */
 
+import type { PieceKind } from './menu.js';
+
 /** Swap the rice hand and the neta hand for a left-handed chef. */
 export const CHEF_LEFT_HANDED = false;
+
+// --- menu ---
+/** Kinds of piece the customers order (gunkan, inari and maki follow in later steps). */
+export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri'];
 
 // --- customers ---
 export const LEFT_HANDED_CUSTOMER_RATIO = 0.3;

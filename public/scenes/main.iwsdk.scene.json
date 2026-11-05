@@ -270,7 +270,7 @@
       },
       "transform": {
         "position": [
-          0,
+          -0.06,
           0.78,
           -0.595
         ]
@@ -278,75 +278,736 @@
       "components": {
         "Station": {
           "kind": "NetaCase",
-          "width": 1.2,
+          "width": 1.5,
           "depth": 0.19,
           "height": 0.05
         }
       }
     },
     {
-      "id": "saku-tuna",
-      "name": "Saku: Tuna",
+      "id": "case-tamago",
+      "name": "Case: Sweet omelette",
       "content": {
         "type": "asset",
-        "asset": "saku-tuna",
-        "castShadow": true,
+        "asset": "case-tamago",
+        "castShadow": false,
         "receiveShadow": true
       },
       "transform": {
         "position": [
-          -0.28,
-          0.835,
-          -0.565
-        ]
-      },
-      "components": {
-        "Saku": {
-          "fish": "Tuna"
-        }
-      }
-    },
-    {
-      "id": "saku-white",
-      "name": "Saku: White fish",
-      "content": {
-        "type": "asset",
-        "asset": "saku-white",
-        "castShadow": true,
-        "receiveShadow": true
-      },
-      "transform": {
-        "position": [
+          -0.656,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
           0,
-          0.835,
-          -0.565
+          90,
+          0
         ]
       },
       "components": {
-        "Saku": {
-          "fish": "White"
+        "CaseItem": {
+          "neta": "Tamago",
+          "remaining": 10
         }
       }
     },
     {
-      "id": "saku-silver",
-      "name": "Saku: Silver-skinned fish",
+      "id": "case-abalone",
+      "name": "Case: Abalone",
       "content": {
         "type": "asset",
-        "asset": "saku-silver",
-        "castShadow": true,
+        "asset": "case-abalone",
+        "castShadow": false,
         "receiveShadow": true
       },
       "transform": {
         "position": [
-          0.28,
-          0.835,
-          -0.565
+          -0.6074,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
         ]
       },
       "components": {
-        "Saku": {
-          "fish": "Silver"
+        "CaseItem": {
+          "neta": "Abalone",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-octopus",
+      "name": "Case: Octopus",
+      "content": {
+        "type": "asset",
+        "asset": "case-octopus",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.5577,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Octopus",
+          "remaining": 10
+        }
+      }
+    },
+    {
+      "id": "case-squid",
+      "name": "Case: Squid",
+      "content": {
+        "type": "asset",
+        "asset": "case-squid",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.5111,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Squid",
+          "remaining": 10
+        }
+      }
+    },
+    {
+      "id": "case-flounder",
+      "name": "Case: Flounder",
+      "content": {
+        "type": "asset",
+        "asset": "case-flounder",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.4664,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Flounder",
+          "remaining": 12
+        }
+      }
+    },
+    {
+      "id": "case-striped-jack",
+      "name": "Case: Striped jack",
+      "content": {
+        "type": "asset",
+        "asset": "case-striped-jack",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.4228,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "StripedJack",
+          "remaining": 10
+        }
+      }
+    },
+    {
+      "id": "case-yellowtail",
+      "name": "Case: Young yellowtail",
+      "content": {
+        "type": "asset",
+        "asset": "case-yellowtail",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.3791,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Yellowtail",
+          "remaining": 12
+        }
+      }
+    },
+    {
+      "id": "case-bonito",
+      "name": "Case: Bonito",
+      "content": {
+        "type": "asset",
+        "asset": "case-bonito",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.3355,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Bonito",
+          "remaining": 10
+        }
+      }
+    },
+    {
+      "id": "case-lean-tuna",
+      "name": "Case: Lean tuna",
+      "content": {
+        "type": "asset",
+        "asset": "case-lean-tuna",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.2919,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "LeanTuna",
+          "remaining": 15
+        }
+      }
+    },
+    {
+      "id": "case-medium-fatty-tuna",
+      "name": "Case: Medium fatty tuna",
+      "content": {
+        "type": "asset",
+        "asset": "case-medium-fatty-tuna",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.2482,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "MediumFattyTuna",
+          "remaining": 12
+        }
+      }
+    },
+    {
+      "id": "case-fatty-tuna",
+      "name": "Case: Fatty tuna",
+      "content": {
+        "type": "asset",
+        "asset": "case-fatty-tuna",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.2046,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "FattyTuna",
+          "remaining": 10
+        }
+      }
+    },
+    {
+      "id": "case-kohada",
+      "name": "Case: Gizzard shad",
+      "content": {
+        "type": "asset",
+        "asset": "case-kohada",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.1609,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Kohada",
+          "remaining": 8
+        }
+      }
+    },
+    {
+      "id": "case-horse-mackerel",
+      "name": "Case: Horse mackerel",
+      "content": {
+        "type": "asset",
+        "asset": "case-horse-mackerel",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.1173,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "HorseMackerel",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-cured-mackerel",
+      "name": "Case: Cured mackerel",
+      "content": {
+        "type": "asset",
+        "asset": "case-cured-mackerel",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.0736,
+          0.834,
+          -0.525
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "CuredMackerel",
+          "remaining": 8
+        }
+      }
+    },
+    {
+      "id": "case-prawn",
+      "name": "Case: Prawn",
+      "content": {
+        "type": "asset",
+        "asset": "case-prawn",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.027,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Prawn",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-sweet-shrimp",
+      "name": "Case: Sweet shrimp",
+      "content": {
+        "type": "asset",
+        "asset": "case-sweet-shrimp",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.0196,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "SweetShrimp",
+          "remaining": 12
+        }
+      }
+    },
+    {
+      "id": "case-scallop",
+      "name": "Case: Scallop",
+      "content": {
+        "type": "asset",
+        "asset": "case-scallop",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.0663,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Scallop",
+          "remaining": 8
+        }
+      }
+    },
+    {
+      "id": "case-ark-shell",
+      "name": "Case: Ark shell",
+      "content": {
+        "type": "asset",
+        "asset": "case-ark-shell",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.1149,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "ArkShell",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-cockle",
+      "name": "Case: Egg cockle",
+      "content": {
+        "type": "asset",
+        "asset": "case-cockle",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.1606,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Cockle",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-sea-eel",
+      "name": "Case: Sea eel",
+      "content": {
+        "type": "asset",
+        "asset": "case-sea-eel",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.2062,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "SeaEel",
+          "remaining": 8
+        }
+      }
+    },
+    {
+      "id": "case-inari-age",
+      "name": "Case: Inari pouch",
+      "content": {
+        "type": "asset",
+        "asset": "case-inari-age",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.2559,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "InariAge",
+          "remaining": 10
+        }
+      }
+    },
+    {
+      "id": "case-uni",
+      "name": "Case: Sea urchin",
+      "content": {
+        "type": "asset",
+        "asset": "case-uni",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.33,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Uni",
+          "remaining": 8
+        }
+      }
+    },
+    {
+      "id": "case-ikura",
+      "name": "Case: Salmon roe",
+      "content": {
+        "type": "asset",
+        "asset": "case-ikura",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.3866,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Ikura",
+          "remaining": 8
+        }
+      }
+    },
+    {
+      "id": "case-tuna-stick",
+      "name": "Case: Tuna stick",
+      "content": {
+        "type": "asset",
+        "asset": "case-tuna-stick",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.4358,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "TunaStick",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-cucumber",
+      "name": "Case: Cucumber",
+      "content": {
+        "type": "asset",
+        "asset": "case-cucumber",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.4774,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Cucumber",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-kanpyo",
+      "name": "Case: Gourd strips",
+      "content": {
+        "type": "asset",
+        "asset": "case-kanpyo",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.5211,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Kanpyo",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-takuan",
+      "name": "Case: Pickled radish",
+      "content": {
+        "type": "asset",
+        "asset": "case-takuan",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.5647,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Takuan",
+          "remaining": 6
+        }
+      }
+    },
+    {
+      "id": "case-ume-paste",
+      "name": "Case: Plum paste",
+      "content": {
+        "type": "asset",
+        "asset": "case-ume-paste",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.6084,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "UmePaste",
+          "remaining": 8
+        }
+      }
+    },
+    {
+      "id": "case-shiso",
+      "name": "Case: Shiso leaf",
+      "content": {
+        "type": "asset",
+        "asset": "case-shiso",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.655,
+          0.834,
+          -0.525
+        ]
+      },
+      "components": {
+        "CaseItem": {
+          "neta": "Shiso",
+          "remaining": 10
         }
       }
     },

@@ -1,4 +1,5 @@
 import { createComponent, Types } from '@iwsdk/core';
+import { Menu, Neta } from './menu.js';
 
 /**
  * Component declarations shared by the app runtime and the editor.
@@ -38,15 +39,13 @@ export const Station = createComponent('Station', {
   movable: { type: Types.Boolean, default: false },
 });
 
-export const Fish = {
-  Tuna: 'Tuna',
-  White: 'White',
-  Silver: 'Silver',
-} as const;
-
-/** A fish block in the neta case; slices are cut from it to order. */
-export const Saku = createComponent('Saku', {
-  fish: { type: Types.Enum, enum: Fish, default: Fish.Tuna },
+/**
+ * One item in the neta case (a saku, a tray of ready-cut pieces, a box of
+ * uni...). `remaining` is the slices, pieces or servings left; 0 = sold out.
+ */
+export const CaseItem = createComponent('CaseItem', {
+  neta: { type: Types.Enum, enum: Neta, default: Neta.LeanTuna },
+  remaining: { type: Types.Int32, default: 0, min: 0, max: 200 },
 });
 
 /** Bar-wide state, on one runtime entity named `Bar`. */
@@ -100,7 +99,8 @@ export const CustomerState = {
 
 /** One customer at the counter (an abstract figure) and their current order. */
 export const Customer = createComponent('Customer', {
-  fish: { type: Types.Enum, enum: Fish, default: Fish.Tuna },
+  /** What the customer ordered (src/menu.ts). */
+  item: { type: Types.Enum, enum: Menu, default: Menu.LeanTunaNigiri },
   wasabi: { type: Types.Boolean, default: true },
   leftHanded: { type: Types.Boolean, default: false },
   /** True after the customer has reached for a piece, revealing their hand. */
@@ -135,7 +135,7 @@ export const Judge = {
 /** The piece being made, on one runtime entity named `Nigiri`. */
 export const Nigiri = createComponent('Nigiri', {
   stage: { type: Types.Enum, enum: NigiriStage, default: NigiriStage.None },
-  fish: { type: Types.Enum, enum: Fish, default: Fish.Tuna },
+  neta: { type: Types.Enum, enum: Neta, default: Neta.LeanTuna },
   /** True while a cut slice exists (on the board or in hand). */
   hasNeta: { type: Types.Boolean, default: false },
   /** Seconds since the slice was cut (freshness). Writable for testing. */
@@ -150,7 +150,7 @@ export const Nigiri = createComponent('Nigiri', {
   /** Heading of the head (thick) end in degrees: 0 = toward the customer. */
   yawDeg: { type: Types.Float32, default: 0 },
   knifeUnwiped: { type: Types.Boolean, default: false },
-  wrongFish: { type: Types.Boolean, default: false },
+  wrongItem: { type: Types.Boolean, default: false },
   boardWasDirty: { type: Types.Boolean, default: false },
   soapDuringService: { type: Types.Boolean, default: false },
 });

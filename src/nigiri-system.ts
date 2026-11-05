@@ -1,10 +1,11 @@
 import {
   BoxGeometry,
-  type BufferAttribute,
+  type BufferGeometry,
   Color,
   createSystem,
   type Entity,
   Group,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -16,13 +17,15 @@ import {
 import { coach, type Grade } from './coach.js';
 import { customerApi } from './customer-system.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { chef, FISH_COLOR, type FishKind, type JudgeKind, progress, service } from './game-state.js';
+import { chef, type JudgeKind, progress, service } from './game-state.js';
 import { hands } from './hands.js';
 import { addPieceDirt } from './hygiene-system.js';
+import { menuFor, NETA, type NetaId } from './menu.js';
 import { type PieceResult, scorePiece } from './scoring.js';
 import { playRustle, playTone } from './sfx.js';
 import { overStation, stations } from './station-system.js';
-import { Fish, Held, Judge, Nigiri, NigiriStage, StationKind } from './sushi-components.js';
+import { sliceLook } from './scene-assets/lib/neta-look.js';
+import { Held, Judge, Nigiri, NigiriStage, StationKind } from './sushi-components.js';
 import { makeTextSprite } from './text-sprites.js';
 import {
   BOARD_DIRT_PER_NIGIRI,
@@ -60,21 +63,11 @@ const RICE_SHAPED = new Vector3(1.15, 0.55, 0.8);
 /** Let the cutting system create the slice without importing this class. */
 export const pieceApi = {
   hasNeta: (): boolean => false,
-  cut: (_fish: FishKind, _skinRight: boolean, _at: Vector3): void => undefined,
+  /** A slice was cut from a saku and lies on the board at `at`. */
+  cut: (_neta: NetaId, _skinRight: boolean, _at: Vector3): void => undefined,
+  /** A ready-cut piece was taken from the case straight onto the neta hand. */
+  take: (_neta: NetaId): void => undefined,
 };
-
-/** A slice of fish: thick at the head end (local -Z), thinner toward the tail. */
-function makeNetaGeometry(): BoxGeometry {
-  const geometry = new BoxGeometry(0.03, 0.012, 0.08);
-  const position = geometry.getAttribute('position') as BufferAttribute;
-  for (let i = 0; i < position.count; i++) {
-    const z = position.getZ(i);
-    if (z > 0) position.setY(i, position.getY(i) * 0.4);
-  }
-  position.needsUpdate = true;
-  geometry.computeVertexNormals();
-  return geometry;
-}
 
 /**
  * The nigiri itself, from the slice on the board to the piece on the geta.
@@ -96,8 +89,7 @@ export class NigiriSystem extends createSystem({}) {
   private entity!: Entity;
   private piece!: Group;
   private rice!: Mesh<SphereGeometry, MeshStandardMaterial>;
-  private neta!: Mesh<BoxGeometry, MeshStandardMaterial>;
-  private skin!: Mesh<BoxGeometry, MeshStandardMaterial>;
+  private neta!: Mesh<BufferGeometry, Material>;
   private wasabiBlob!: Mesh<SphereGeometry, MeshStandardMaterial>;
   private beatRing!: Mesh<RingGeometry, MeshBasicMaterial>;
   private targetRing!: Mesh<RingGeometry, MeshBasicMaterial>;
@@ -110,7 +102,7 @@ export class NigiriSystem extends createSystem({}) {
   private hasNeta = false;
   private netaHeld = false;
   private hasRice = false;
-  private fish: FishKind = Fish.Tuna;
+  private netaId: NetaId = 'LeanTuna';
   private skinRight = true;
   private cutAge = 0;
   private wasabi: 'none' | 'finger' | 'neta' = 'none';
@@ -142,14 +134,9 @@ export class NigiriSystem extends createSystem({}) {
       new MeshStandardMaterial({ color: '#F6F2EA', roughness: 0.9 }),
     );
     this.rice.name = 'Shari';
-    this.neta = new Mesh(makeNetaGeometry(), new MeshStandardMaterial({ color: FISH_COLOR.Tuna, roughness: 0.5 }));
+    const first = sliceLook(this.netaId);
+    this.neta = new Mesh(first.geometry, first.material);
     this.neta.name = 'Neta';
-    this.skin = new Mesh(
-      new BoxGeometry(0.004, 0.003, 0.08),
-      new MeshStandardMaterial({ color: '#4F5F73', roughness: 0.4, metalness: 0.3 }),
-    );
-    this.skin.name = 'NetaSkin';
-    this.neta.add(this.skin);
     this.wasabiBlob = new Mesh(
       new SphereGeometry(0.008, 10, 8),
       new MeshStandardMaterial({ color: '#6B9E3A', roughness: 0.8 }),
@@ -192,25 +179,48 @@ export class NigiriSystem extends createSystem({}) {
     this.world.createTransformEntity(this.holdBar);
 
     pieceApi.hasNeta = () => this.hasNeta;
-    pieceApi.cut = (fish, skinRight, at) => this.cut(fish, skinRight, at);
+    pieceApi.cut = (neta, skinRight, at) => this.cut(neta, skinRight, at);
+    pieceApi.take = (neta) => this.take(neta);
   }
 
   // ---- slice ------------------------------------------------------------
 
-  private cut(fish: FishKind, skinRight: boolean, at: Vector3): void {
-    this.fish = fish;
+  private cut(neta: NetaId, skinRight: boolean, at: Vector3): void {
+    this.setNeta(neta, skinRight);
+    this.netaHeld = false;
+    this.netaOnBoard.copy(at);
+    this.layout();
+  }
+
+  /** A ready-cut piece onto the neta hand's fingers: as if the slice had just been picked up. */
+  private take(neta: NetaId): void {
+    this.setNeta(neta, true);
+    this.netaHeld = true;
+    chef.hands[chef.netaSide].holding = Held.Neta;
+    this.setStage(this.hasRice ? NigiriStage.Rice : NigiriStage.Neta);
+    this.layout();
+    console.log(`[Nigiri] ${neta} on the palm`);
+  }
+
+  /**
+   * The topping's shape and material for this neta. Its material is the
+   * neta's own (shared, never recoloured), so a served piece keeps its look.
+   * A saku slice is turned a quarter turn onto the rice and mirrored so its
+   * skin edge lands on the side the cut left it (-X when skinRight).
+   */
+  private setNeta(neta: NetaId, skinRight: boolean): void {
+    const look = sliceLook(neta);
+    this.netaId = neta;
     this.skinRight = skinRight;
     this.hasNeta = true;
-    this.netaHeld = false;
     this.cutAge = 0;
-    this.netaOnBoard.copy(at);
-    this.neta.material.color.set(FISH_COLOR[fish]);
-    this.skin.visible = fish === Fish.Silver;
-    this.skin.position.set(skinRight ? -0.013 : 0.013, 0.0075, 0);
+    this.neta.geometry = look.geometry;
+    this.neta.material = look.material;
+    this.neta.rotation.set(0, look.blockAxes ? -Math.PI / 2 : 0, 0);
+    this.neta.scale.set(1, 1, look.blockAxes && !skinRight ? -1 : 1);
     this.neta.visible = true;
     this.pieceYaw = 0;
-    this.layout();
-    this.entity.setValue(Nigiri, 'fish', fish);
+    this.entity.setValue(Nigiri, 'neta', neta);
     this.entity.setValue(Nigiri, 'hasNeta', true);
     this.entity.setValue(Nigiri, 'skinRight', skinRight);
     this.entity.setValue(Nigiri, 'cutAge', 0);
@@ -515,11 +525,11 @@ export class NigiriSystem extends createSystem({}) {
     }
     const result: PieceResult = {
       judges: [...this.judges] as PieceResult['judges'],
-      fishOk: !!order && order.fish === this.fish,
+      itemOk: !!order && order.item === menuFor('nigiri', [this.netaId]),
       wasabiOk: !!order && order.wasabi === (this.wasabi === 'neta'),
       headOk,
       angleOk,
-      skinOk: this.fish !== Fish.Silver || this.skinRight,
+      skinOk: !NETA[this.netaId].skinEdge || this.skinRight,
       hospitalityOk: angleOk,
       freshness:
         this.cutAge <= FRESH_SECONDS ? 1 : Math.max(0, 1 - (this.cutAge - FRESH_SECONDS) / (STALE_SECONDS - FRESH_SECONDS)),
@@ -531,7 +541,7 @@ export class NigiriSystem extends createSystem({}) {
     chef.soapDuringService = false;
     chef.knifeUnwiped = false;
     const score = scorePiece(result);
-    this.entity.setValue(Nigiri, 'wrongFish', !result.fishOk);
+    this.entity.setValue(Nigiri, 'wrongItem', !result.itemOk);
     this.entity.setValue(Nigiri, 'boardWasDirty', result.boardDirty);
     this.entity.setValue(Nigiri, 'knifeUnwiped', result.knifeUnwiped);
     this.entity.setValue(Nigiri, 'soapDuringService', result.soapDuringService);
@@ -539,8 +549,7 @@ export class NigiriSystem extends createSystem({}) {
     // Hand a copy of the piece to the customer; it disappears when taken.
     const served = this.piece.clone();
     served.name = 'ServedPiece';
-    this.world.createTransformEntity(served);
-    customerApi.serve(score, served);
+    customerApi.serve(score, this.world.createTransformEntity(served));
 
     addPieceDirt();
     chef.hands[chef.riceSide].wet = false;
@@ -573,7 +582,7 @@ export class NigiriSystem extends createSystem({}) {
     e.setValue(Nigiri, 'judge2', Judge.None);
     e.setValue(Nigiri, 'judge3', Judge.None);
     e.setValue(Nigiri, 'knifeUnwiped', false);
-    e.setValue(Nigiri, 'wrongFish', false);
+    e.setValue(Nigiri, 'wrongItem', false);
     e.setValue(Nigiri, 'boardWasDirty', false);
     e.setValue(Nigiri, 'soapDuringService', false);
     this.setStage(NigiriStage.None);
@@ -757,6 +766,6 @@ export class NigiriSystem extends createSystem({}) {
   /** For the debug panel. */
   describe(): string {
     const j = this.judges.map((x) => (x === Judge.None ? '-' : x[0])).join('');
-    return `Piece: ${this.stage} fish=${this.hasNeta ? this.fish : '-'} rice=${this.hasRice ? 'y' : 'n'} wasabi=${this.wasabi} judges=${j} age=${this.cutAge.toFixed(0)}s yaw=${this.normYaw(this.pieceYaw).toFixed(0)}`;
+    return `Piece: ${this.stage} neta=${this.hasNeta ? this.netaId : '-'} rice=${this.hasRice ? 'y' : 'n'} wasabi=${this.wasabi} judges=${j} age=${this.cutAge.toFixed(0)}s yaw=${this.normYaw(this.pieceYaw).toFixed(0)}`;
   }
 }

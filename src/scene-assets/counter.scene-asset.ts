@@ -19,7 +19,10 @@ import {
   MANAITA_WIDTH,
   NETA_CASE_DEPTH,
   NETA_CASE_HEIGHT,
-  NETA_SLOT_PITCH,
+  NETA_CASE_WIDTH,
+  NETA_DOOR_COUNT,
+  NETA_DOOR_PITCH,
+  NETA_HOUSING_WIDTH,
   TSUKEDAI_DEPTH,
   TSUKEDAI_TOP,
   WORK_COUNTER_DEPTH,
@@ -62,10 +65,6 @@ const water = new MeshStandardMaterial({
 const wetCloth = new MeshStandardMaterial({ color: '#CFD8DC', roughness: 1.0 });
 const ceramic = new MeshStandardMaterial({ color: '#E8E4DA', roughness: 0.4 });
 const wasabi = new MeshStandardMaterial({ color: '#6B9E3A', roughness: 0.8 });
-const tunaFlesh = new MeshStandardMaterial({ color: '#C8333A', roughness: 0.5 });
-const whiteFlesh = new MeshStandardMaterial({ color: '#F3DDD6', roughness: 0.55 });
-const silverFlesh = new MeshStandardMaterial({ color: '#8FA3B8', roughness: 0.35, metalness: 0.2 });
-const silverSkin = new MeshStandardMaterial({ color: '#4F5F73', roughness: 0.4, metalness: 0.3 });
 
 function box(
   w: number,
@@ -79,18 +78,66 @@ function box(
   return mesh;
 }
 
-/** Chef's work counter: a slab with a leg at each end (knees go under it). */
+const stainless = new MeshStandardMaterial({ color: '#C4C9CE', roughness: 0.38, metalness: 0.7 });
+const coldDark = new MeshStandardMaterial({ color: '#25282B', roughness: 0.6 });
+const coldDisplay = new MeshStandardMaterial({ color: '#0E1A12', emissive: '#3BD16F', emissiveIntensity: 0.5, roughness: 0.3 });
+
+/**
+ * Chef's work counter: a stainless cold table (under-counter refrigerator)
+ * the manaita sits on. Its front faces the chef (+Z): a machine compartment
+ * with a louvred vent and a small temperature display at the left end, then
+ * three hinged doors with a bar pull along the top of each, all over a dark
+ * recessed plinth. Origin: floor, centred on the table.
+ */
 export function createCounter(): Group {
   const root = new Group();
   root.name = 'Counter';
-  const legH = WORK_COUNTER_TOP - 0.04;
-  const top = box(BAR_LENGTH, 0.04, WORK_COUNTER_DEPTH, darkWood, 'CounterTop');
-  top.position.set(0, WORK_COUNTER_TOP - 0.02, 0);
-  const legL = box(0.06, legH, WORK_COUNTER_DEPTH - 0.04, darkWood, 'LegL');
-  legL.position.set(-BAR_LENGTH / 2 + 0.03, legH / 2, 0);
-  const legR = box(0.06, legH, WORK_COUNTER_DEPTH - 0.04, darkWood, 'LegR');
-  legR.position.set(BAR_LENGTH / 2 - 0.03, legH / 2, 0);
-  root.add(top, legL, legR);
+  const W = BAR_LENGTH;
+  const D = WORK_COUNTER_DEPTH;
+  const topT = 0.035;
+  const plinthH = 0.09;
+  const bodyTop = WORK_COUNTER_TOP - topT;
+  const bodyH = bodyTop - plinthH;
+  const front = D / 2;
+  const machineW = 0.36;
+  const doorCount = 3;
+  const doorW = (W - machineW) / doorCount;
+  const panel: Parameters<typeof mergeBoxes>[0] = [
+    // Top with a rounded-looking front nose, the cabinet shell and its ends.
+    { w: W, h: topT, d: D, x: 0, y: bodyTop + topT / 2, z: 0 },
+    { w: W, h: 0.012, d: 0.018, x: 0, y: bodyTop - 0.004, z: front - 0.009 },
+    { w: W - 0.01, h: bodyH, d: D - 0.03, x: 0, y: plinthH + bodyH / 2, z: -0.012 },
+    // Machine compartment front.
+    { w: machineW - 0.006, h: bodyH - 0.02, d: 0.012, x: -W / 2 + machineW / 2, y: plinthH + bodyH / 2, z: front - 0.022 },
+  ];
+  const dark: Parameters<typeof mergeBoxes>[0] = [
+    // Recessed plinth.
+    { w: W - 0.04, h: plinthH, d: D - 0.08, x: 0, y: plinthH / 2, z: -0.02 },
+  ];
+  const pulls: Parameters<typeof mergeBoxes>[0] = [];
+  // Louvred vent on the machine compartment, and the temperature display above it.
+  for (let i = 0; i < 9; i++) {
+    dark.push({ w: machineW - 0.08, h: 0.008, d: 0.006, x: -W / 2 + machineW / 2, y: plinthH + 0.06 + i * 0.026, z: front - 0.014 });
+  }
+  dark.push({ w: 0.09, h: 0.04, d: 0.006, x: -W / 2 + machineW / 2, y: bodyTop - 0.07, z: front - 0.014 });
+  for (let i = 0; i < doorCount; i++) {
+    const x = -W / 2 + machineW + (i + 0.5) * doorW;
+    // Door leaf, its gasket line, and a bar pull on two standoffs near the top.
+    panel.push({ w: doorW - 0.012, h: bodyH - 0.02, d: 0.02, x, y: plinthH + bodyH / 2, z: front - 0.02 });
+    dark.push({ w: doorW - 0.004, h: bodyH - 0.012, d: 0.004, x, y: plinthH + bodyH / 2, z: front - 0.031 });
+    pulls.push({ w: doorW - 0.12, h: 0.014, d: 0.014, x, y: bodyTop - 0.06, z: front + 0.022 });
+    pulls.push({ w: 0.012, h: 0.012, d: 0.024, x: x - doorW / 2 + 0.07, y: bodyTop - 0.06, z: front + 0.006 });
+    pulls.push({ w: 0.012, h: 0.012, d: 0.024, x: x + doorW / 2 - 0.07, y: bodyTop - 0.06, z: front + 0.006 });
+  }
+  const body = new Mesh(mergeBoxes(panel), stainless);
+  body.name = 'ColdTableBody';
+  const trim = new Mesh(mergeBoxes(dark), coldDark);
+  trim.name = 'ColdTableTrim';
+  const bars = new Mesh(mergeBoxes(pulls), steel);
+  bars.name = 'ColdTablePulls';
+  const display = box(0.07, 0.022, 0.004, coldDisplay, 'ColdTableDisplay');
+  display.position.set(-W / 2 + machineW / 2, bodyTop - 0.07, front - 0.0095);
+  root.add(body, trim, bars, display);
   return root;
 }
 
@@ -152,9 +199,7 @@ export function createGeta(): Group {
 const caseFloor = new MeshStandardMaterial({ color: '#3F8C5B', roughness: 0.8 });
 const caseDark = new MeshStandardMaterial({ color: '#2A2D30', roughness: 0.5 });
 
-/** Inside width of the neta case; saku are placed along it. */
-export const NETA_CASE_WIDTH = 1.2;
-/** Door track offsets from the case's chef-side edge (outer doors front, middle door back). */
+/** Door track offsets from the case's chef-side edge (even doors on the front track, odd on the back). */
 export const NETA_DOOR_FRONT = 0.006;
 export const NETA_DOOR_BACK = 0.017;
 export { NETA_CASE_DEPTH };
@@ -163,8 +208,8 @@ export { NETA_CASE_DEPTH };
  * Neta case: a long, low refrigerated showcase between chef and customer,
  * like the stainless counter-top cases in sushi bars. Stainless base, green
  * floor inside, a sloped glass front on the customer side, a glass top and a
- * glass end; the chef side (+Z) is open so a hand can reach in. The
- * compressor housing sits at the left end.
+ * glass end. The compressor housing sits at the left end; the glass part to
+ * its right is closed on the chef side (+Z) by sliding glass doors.
  */
 export function createNetaCase(): Group {
   const root = new Group();
@@ -172,19 +217,20 @@ export function createNetaCase(): Group {
   const W = NETA_CASE_WIDTH;
   const D = NETA_CASE_DEPTH;
   const H = NETA_CASE_HEIGHT;
+  const glassW = W - NETA_HOUSING_WIDTH;
+  const glassX = NETA_HOUSING_WIDTH / 2;
+  const glassLeft = -W / 2 + NETA_HOUSING_WIDTH;
   const base = box(W, 0.05, D, steel, 'Base');
   base.position.y = 0.025;
-  const floor = box(W - 0.2, 0.004, D - 0.04, caseFloor, 'Floor');
-  floor.position.set(0.08, 0.052, 0);
+  const floor = box(glassW - 0.03, 0.004, D - 0.04, caseFloor, 'Floor');
+  floor.position.set(glassX, 0.052, 0);
   // Compressor housing at the left end.
-  const housing = box(0.16, H, D, steel, 'Housing');
-  housing.position.set(-W / 2 + 0.08, H / 2, 0);
+  const housing = box(NETA_HOUSING_WIDTH, H, D, steel, 'Housing');
+  housing.position.set(-W / 2 + NETA_HOUSING_WIDTH / 2, H / 2, 0);
   const panel = box(0.004, 0.05, 0.1, caseDark, 'HousingPanel');
-  panel.position.set(-W / 2 + 0.162, 0.14, 0);
+  panel.position.set(glassLeft + 0.002, 0.14, 0);
   // Glass, sloped for a view in: the customer-side front leans back toward
   // the chef, and the top falls gently toward the customer. Right end glass.
-  const glassW = W - 0.16;
-  const glassX = 0.08;
   const frontBottom = { y: 0.05, z: -D / 2 + 0.005 };
   const frontTop = { y: H - 0.02, z: -D / 2 + 0.07 };
   const frontLen = Math.hypot(frontTop.y - frontBottom.y, frontTop.z - frontBottom.z);
@@ -207,33 +253,31 @@ export function createNetaCase(): Group {
   railBottom.position.set(glassX, 0.055, -D / 2 + 0.005);
   root.add(base, floor, housing, panel, front, top, end, railTop, railBottom, led);
 
-  // Chef side (+Z): one sliding glass door per saku slot, on two tracks so an
-  // open door slides over its neighbour; NetaCaseSystem opens them as the
-  // neta hand comes near. A fixed pane closes the right end.
+  // Chef side (+Z): sliding glass doors side by side, alternating between two
+  // tracks so an open door slides over its neighbour; NetaCaseSystem opens
+  // them as a hand comes near. A pull on each stile, since a door may slide
+  // either way.
   const doorH = H - 0.075;
   const doorY = 0.058 + doorH / 2;
-  for (let i = 0; i < 3; i++) {
+  const P = NETA_DOOR_PITCH;
+  const stiles = mergeBoxes([
+    { w: 0.008, h: doorH, d: 0.008, x: -P / 2 + 0.004, y: 0, z: 0 },
+    { w: 0.008, h: doorH, d: 0.008, x: P / 2 - 0.004, y: 0, z: 0 },
+    { w: 0.01, h: 0.06, d: 0.01, x: -P / 2 + 0.03, y: 0, z: 0.007 },
+    { w: 0.01, h: 0.06, d: 0.01, x: P / 2 - 0.03, y: 0, z: 0.007 },
+  ]);
+  const paneGeometry = new BoxGeometry(P - 0.006, doorH, 0.004);
+  for (let i = 0; i < NETA_DOOR_COUNT; i++) {
     const door = new Group();
     door.name = `Door${i}`;
-    door.position.set((i - 1) * NETA_SLOT_PITCH, doorY, D / 2 - (i === 1 ? NETA_DOOR_BACK : NETA_DOOR_FRONT));
-    const pane = box(NETA_SLOT_PITCH - 0.006, doorH, 0.004, glass, 'Pane');
-    const stiles = new Mesh(
-      mergeBoxes([
-        { w: 0.008, h: doorH, d: 0.008, x: -NETA_SLOT_PITCH / 2 + 0.004, y: 0, z: 0 },
-        { w: 0.008, h: doorH, d: 0.008, x: NETA_SLOT_PITCH / 2 - 0.004, y: 0, z: 0 },
-        // Pull handle near the leading edge, on the chef's face.
-        { w: 0.01, h: 0.06, d: 0.01, x: (i === 2 ? -1 : 1) * (NETA_SLOT_PITCH / 2 - 0.03), y: 0, z: 0.007 },
-      ]),
-      steel,
-    );
-    stiles.name = 'Stiles';
-    door.add(pane, stiles);
+    door.position.set(glassLeft + (i + 0.5) * P, doorY, D / 2 - (i % 2 === 1 ? NETA_DOOR_BACK : NETA_DOOR_FRONT));
+    const pane = new Mesh(paneGeometry, glass);
+    pane.name = 'Pane';
+    const frame = new Mesh(stiles, steel);
+    frame.name = 'Stiles';
+    door.add(pane, frame);
     root.add(door);
   }
-  const doorsEnd = 1.5 * NETA_SLOT_PITCH;
-  const glassEnd = glassX + glassW / 2;
-  const fixed = box(glassEnd - doorsEnd, doorH, 0.004, glass, 'FixedPane');
-  fixed.position.set((doorsEnd + glassEnd) / 2, doorY, D / 2 - NETA_DOOR_FRONT);
   const rails = new Mesh(
     mergeBoxes([
       { w: glassW, h: 0.008, d: 0.024, x: glassX, y: 0.054, z: D / 2 - 0.012 },
@@ -242,31 +286,7 @@ export function createNetaCase(): Group {
     steel,
   );
   rails.name = 'DoorRails';
-  root.add(fixed, rails);
-  return root;
-}
-
-export type SakuKind = 'tuna' | 'white' | 'silver';
-
-/**
- * Saku: a block of fish from which slices are cut to order. The block runs
- * along X. The silver-skinned fish shows its skin pattern on the top face only,
- * so a slice has a visible skin side.
- */
-export function createSaku(kind: SakuKind): Group {
-  const root = new Group();
-  root.name = `Saku_${kind}`;
-  const material = kind === 'tuna' ? tunaFlesh : kind === 'white' ? whiteFlesh : silverFlesh;
-  const block = box(0.22, 0.035, 0.08, material, 'Block');
-  block.position.y = 0.0175;
-  root.add(block);
-  if (kind === 'silver') {
-    for (let i = 0; i < 6; i++) {
-      const stripe = box(0.012, 0.003, 0.08, silverSkin, `Skin${i}`);
-      stripe.position.set(-0.09 + i * 0.036, 0.036, 0);
-      root.add(stripe);
-    }
-  }
+  root.add(rails);
   return root;
 }
 

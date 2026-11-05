@@ -41,6 +41,11 @@ export const GETA_DEPTH = 0.1;
 // --- lengths, along X ---
 /** Length of the counters, the tsukedai and the eaves. */
 export const BAR_LENGTH = 1.8;
+/** Neta case: outer length along the bar, and the machine housing at its left end. */
+export const NETA_CASE_WIDTH = 1.5;
+export const NETA_HOUSING_WIDTH = 0.12;
+/** Sliding glass doors on the chef side, side by side across the glass part. */
+export const NETA_DOOR_COUNT = 5;
 /** Length of the chef's room between its end walls. */
 export const ROOM_LENGTH = 3.0;
 
@@ -125,6 +130,37 @@ export const MANAITA_Z = TSUKEDAI_CHEF_Z + MANAITA_DEPTH / 2;
 export const MANAITA_NEAR_Z = TSUKEDAI_CHEF_Z + MANAITA_DEPTH;
 export const MANAITA_TOP = WORK_COUNTER_TOP + MANAITA_THICKNESS;
 export const NETA_CASE_Z = TSUKEDAI_CHEF_Z - NETA_CASE_DEPTH / 2;
+/** Glass part of the neta case (right of the housing), centred on the player: case origin X. */
+export const NETA_GLASS_WIDTH = NETA_CASE_WIDTH - NETA_HOUSING_WIDTH;
+export const NETA_CASE_X = -NETA_HOUSING_WIDTH / 2;
+export const NETA_DOOR_PITCH = NETA_GLASS_WIDTH / NETA_DOOR_COUNT;
+/** Case floor top (where the case items stand) and the line their chef-side ends sit on, just inside the doors. */
+export const NETA_FLOOR_Y = TSUKEDAI_TOP + 0.054;
+export const NETA_FRONT_Z = NETA_CASE_Z + NETA_CASE_DEPTH / 2 - 0.025;
+/** Space kept clear at each end of the glass part, and between the neta hand's items and the rice hand's. */
+const NETA_END_MARGIN = 0.012;
+export const NETA_ZONE_GAP = 0.02;
+
+/**
+ * X centres of the case items, left to right, spread evenly over the glass
+ * part (which is centred on the player). `zoneStart` is the index of the
+ * first rice-hand item, where a wider gap goes. Throws if they do not fit.
+ */
+export function caseItemXs(widths: readonly number[], zoneStart = -1): number[] {
+  const left = -NETA_GLASS_WIDTH / 2 + NETA_END_MARGIN;
+  const usable = NETA_GLASS_WIDTH - 2 * NETA_END_MARGIN - (zoneStart > 0 ? NETA_ZONE_GAP : 0);
+  const total = widths.reduce((sum, w) => sum + w, 0);
+  if (total > usable) throw new Error(`case items need ${total.toFixed(3)} m but the case has ${usable.toFixed(3)} m`);
+  const gap = widths.length > 1 ? (usable - total) / (widths.length - 1) : 0;
+  const xs: number[] = [];
+  let x = left;
+  widths.forEach((w, i) => {
+    if (i === zoneStart) x += NETA_ZONE_GAP;
+    xs.push(x + w / 2);
+    x += w + gap;
+  });
+  return xs;
+}
 export const GETA_Z = TSUKEDAI_CUSTOMER_Z + GETA_DEPTH / 2 + 0.005;
 export const CUSTOMER_SEAT_Z = CUSTOMER_COUNTER_FAR_Z - 0.065;
 export const EAVES_Z = TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2;
@@ -151,12 +187,8 @@ export interface NodeLayout {
   station?: { width?: number; depth?: number; height?: number; radius?: number; below?: number };
 }
 
-const SAKU_Z = NETA_CASE_Z + 0.03;
-/** Saku slots in the neta case, one sliding door in front of each. */
-export const NETA_SLOT_PITCH = 0.28;
 /** Neta case height to the top glass (a real case is about 27 cm). */
 export const NETA_CASE_HEIGHT = 0.27;
-const SAKU_Y = TSUKEDAI_TOP + 0.055;
 const DISH_Z = MANAITA_Z - 0.1;
 
 /** Scene node id -> where `npm run layout` puts it. Nodes not listed are left alone. */
@@ -176,12 +208,9 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   'wet-cloth': { position: [0.66, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
   ledge: { position: [0, 0, TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2] },
   'neta-case': {
-    position: [0, TSUKEDAI_TOP, NETA_CASE_Z],
-    station: { depth: NETA_CASE_DEPTH },
+    position: [NETA_CASE_X, TSUKEDAI_TOP, NETA_CASE_Z],
+    station: { width: NETA_CASE_WIDTH, depth: NETA_CASE_DEPTH },
   },
-  'saku-tuna': { position: [-NETA_SLOT_PITCH, SAKU_Y, SAKU_Z] },
-  'saku-white': { position: [0, SAKU_Y, SAKU_Z] },
-  'saku-silver': { position: [NETA_SLOT_PITCH, SAKU_Y, SAKU_Z] },
   geta: { position: [0, TSUKEDAI_TOP, GETA_Z] },
   'customer-counter': {
     position: [0, -STEP_HEIGHT, TSUKEDAI_CUSTOMER_Z - CUSTOMER_COUNTER_DEPTH / 2],

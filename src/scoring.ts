@@ -5,7 +5,7 @@ import type { JudgeKind } from './game-state.js';
 /** Everything known about one served piece, judged together at serving time. */
 export interface PieceResult {
   judges: [JudgeKind, JudgeKind, JudgeKind, JudgeKind];
-  fishOk: boolean;
+  itemOk: boolean;
   wasabiOk: boolean;
   headOk: boolean;
   angleOk: boolean;
@@ -34,7 +34,7 @@ const JUDGE_POINTS: Record<JudgeKind, number> = {
 };
 
 /**
- * 100 points: rhythm 30, right fish 15, wasabi 10, orientation 15 (head 6,
+ * 100 points: rhythm 30, right item 15, wasabi 10, orientation 15 (head 6,
  * angle 6, skin 3), hospitality 10, freshness 10, hygiene 10. Serving with
  * unwashed hands also costs 20 more (food-poisoning risk). A dirty board,
  * soap during service and an unwiped knife each cost 5.
@@ -45,7 +45,7 @@ export function scorePiece(r: PieceResult): Score {
   const rhythm = r.judges.reduce((sum, j) => sum + JUDGE_POINTS[j], 0) / r.judges.length;
   score += (rhythm / 100) * 30;
   if (rhythm < 70) penalties.push('rhythm');
-  if (r.fishOk) score += 15;
+  if (r.itemOk) score += 15;
   else penalties.push('fish');
   if (r.wasabiOk) score += 10;
   else penalties.push('wasabi');

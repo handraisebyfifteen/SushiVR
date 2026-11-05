@@ -40,11 +40,11 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 
 **Around you** (a Showa-era sushi bar): the kitchen floor is one step above
 the customer side. You sit in the middle of a 1 m chef's aisle. In front of
-you is the 1 m cutting board (36 cm deep), with the wasabi dish and tezu bowl
+you is the 1 m cutting board (36 cm deep) on a stainless cold table, with the wasabi dish and tezu bowl
 (vinegar water) side by side at its right-back corner (pinch to move either;
 the spot is remembered) and the knife and wet cloth on the right. Beyond the board the
-raised tsukedai (30 cm) carries the long glass neta case with three fish
-blocks (saku) and, in front of the case, the serving stand (geta); the lower
+raised tsukedai (30 cm) carries the 1.5 m glass neta case (see below) and,
+in front of the case, the serving stand (geta); the lower
 customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
 eave on timber posts, left over from the sushi-stall days, carries a short
 plain noren and four paper lanterns. The rice tub (ohitsu) sits low on your
@@ -57,6 +57,24 @@ doorway, with its noren and the brighter kitchen beyond, is at the
 left end of the aisle. Fluorescent work lights hang over the board and the
 sink.
 
+**The neta case** holds 29 items, left to right: tamago, abalone, octopus,
+squid, flounder, striped jack, young yellowtail, bonito, lean / medium fatty
+/ fatty tuna, gizzard shad (kohada), horse mackerel, cured mackerel, prawn,
+sweet shrimp, scallop, ark shell, egg cockle, sea eel and the inari pouches,
+then, at the right end, sea urchin, salmon roe and the roll fillings (tuna
+sticks, cucumber, gourd strips, pickled radish, plum paste, shiso). The left
+(neta) hand takes the neta; the right-end items are the right hand's (they
+come into use with gunkan and rolls). Five sliding doors open by themselves
+for either hand. As a hand reaches in, the item nearest the fingers glows
+with its name (amber if it is the other hand's), and the items behind the
+open door float twice life size above the case, each named, so the close
+neighbours are easy to tell apart. Twenty of them make nigiri: twelve are
+cut from a block (the tuna, bonito, white fish, cured mackerel, squid,
+octopus, abalone, tamago) and get a slice shorter with every cut; eight are
+ready-cut and taken one piece at a time (sweet shrimp two at a time). When
+one is used up it is sold out: its place is empty and nobody orders it (the
+coming prep mode restocks). Counts and order are in `src/menu.ts`.
+
 **Turn around**: look far to the left and hold for a second. The view blinks
 and the bar turns 180 degrees. Do the same to turn back. Turning is blocked
 while you hold fish, rice, the knife or a finished piece (the wet cloth is
@@ -67,18 +85,20 @@ faucet, then put both hands on the towel hanging under the sink and grip it
 (two fists). Service starts when your hands are dry. During
 service wash with water only; soap now would make the food smell of it.
 
-**One order** (the card above the customer shows the fish color and whether
-wasabi is wanted):
+**One order** (the card above the customer shows a picture of the item, its
+name and whether wasabi is wanted):
 
-1. Left hand: reach to the case; the glass door in front of your hand slides
-   open by itself. Pinch the ordered saku and set it on the board; the door
-   closes once you have taken it. A wrong one glows amber; pinch it back into
-   the case (the door opens for it again). A hand that needs washing cannot
-   touch the fish. While a door is open the case lights up: the saku your
-   fingers would take glows white with its name above it, and the order
-   ticket (fish and wasabi) shows on the machine housing at the left end.
+1. Left hand: reach to the case; the glass door in front of the item under
+   your fingers slides open by itself. Pinch the ordered block and set it
+   on the board; the door closes once you have taken it. A wrong one glows
+   amber; pinch it back into the case (the door opens for it again). A
+   ready-cut piece (kohada, prawn, shellfish, eel...) comes straight onto
+   your fingers instead: go on at step 4; a wrong one is not taken. A hand
+   that needs washing cannot touch the fish. While a door is open the order
+   ticket shows on the machine housing at the left end.
 2. Right hand: make a fist on the knife. With the left palm resting on the
-   saku, draw the blade toward you along the white guide line: one slice.
+   block, draw the blade toward you along the white guide line at its cut
+   end: one slice, and the block, a slice shorter, goes back to the case.
    Wipe the blade on the wet cloth before opening your hand to put it down.
 3. Left hand: pinch the slice; it rests on your fingers.
 4. Right hand: dip in the tezu bowl (beat 1), reach down to the rice tub on
@@ -114,11 +134,12 @@ have done a step three times he stays quiet about it. The timings are in
 across the geta; the customer reaches for it and shows which hand they use.
 From then on place pieces diagonally, head end (the thick end of the slice)
 toward the customer, sloping from the customer's upper left to lower right
-for a right-handed guest and mirrored for a left-handed one. Silver-skinned
-fish shows its skin edge on the customer's right when cut at the guide line.
+for a right-handed guest and mirrored for a left-handed one. A slice with a
+skin edge (bonito, striped jack, cured mackerel) shows it on the customer's
+right when cut at the guide line.
 
 **Scoring**: each piece is graded Excellent / Good / Poor / Bad from the four
-timed beats, the right fish, wasabi, orientation, hospitality (handedness),
+timed beats, the right item, wasabi, orientation, hospitality (handedness),
 freshness since the cut, and hygiene (unwashed hands, a dirty board, soap
 during service, an unwiped knife). The grade and small icons for any
 penalties appear above the customer. After a few pieces the customer leaves
@@ -139,7 +160,10 @@ Practice mode (desktop emulator, `npm run dev` only): press P in the running
 app to play from the keyboard. Dragging the mouse looks around, holding T
 looks far left to turn around, and each number or letter key performs one
 step of the work, from the opening wash through the saku, the knife and the
-nigiri to serving; the keys are listed on a small panel in view. A key only
+nigiri to serving; the keys are listed on a small panel in view. For the
+case: 4 takes what was ordered, 5 takes the selected neta, 6 (Shift+6 back)
+steps through the neta, 7 makes the customer order the selected one, and 8
+restocks the whole case. A key only
 moves the emulated hands to a place and makes the gesture there; the game
 judges it exactly as it judges real hands, so mistakes still count. The timed
 gestures happen when you act: hold L to reach into the rice tub and let go on
@@ -153,6 +177,7 @@ emulator.
 | --- | --- |
 | `iwsdk.config.json` | Project authority: active scene, asset/component modules, XR and world features |
 | `src/index.ts` | App entry point: `World.create()` and system registration |
+| `src/menu.ts` | The menu and the neta case: every item, how it is prepared, which hand takes it, how many pieces a block or tray gives, its look, and the case order |
 | `src/layout.ts` | Every bar dimension (counter depths, aisle width, heights, the reach model); run `npm run layout` after editing |
 | `src/assets.ts` | Asset catalog shared by the runtime and the editor |
 | `src/components.ts` | Component catalog shared by the runtime and the editor |

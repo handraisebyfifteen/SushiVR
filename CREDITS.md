@@ -20,14 +20,15 @@ Column meanings:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `src/scene-assets/room.scene-asset.ts` | `room-floor` (procedural floor plane) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/room.scene-asset.ts` | `chef-platform` (procedural raised kitchen floor) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `counter` (procedural chef counter) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `counter` (procedural stainless cold table under the manaita: three doors with bar pulls, machine compartment with louvred vent and a blank temperature display, dark plinth; no branding) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `ledge` (procedural raised serving step) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `customer-counter` (procedural customer counter, one step lower) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `cutting-board` (procedural 1 m manaita) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `geta` (procedural serving stand) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `neta-case` (procedural refrigerated showcase: stainless base, green floor, front and top glass sloped for a view in, LED strip, compressor housing, three chef-side sliding glass doors with pull handles on rails) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `neta-case` (procedural refrigerated showcase: stainless base, green floor, front and top glass sloped for a view in, LED strip, compressor housing, 1.5 m long with five chef-side sliding glass doors with pull handles on two rails) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `rice-tub` (procedural ohitsu: cypress tub with two copper hoops, rice, a lid with a handle, on a low dark-wood stand) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/counter.scene-asset.ts` | `saku-tuna`, `saku-white`, `saku-silver` (procedural fish blocks) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/case-items.scene-asset.ts`, `src/scene-assets/lib/neta-look.ts`, `src/scene-assets/lib/neta-paint.ts`, `src/scene-assets/lib/neta-material.ts` | `case-*` (29 neta-case items from `src/menu.ts`: fish saku, squid sheet, octopus leg, abalone, tamago, ready-cut fillets, prawns, sweet shrimp, shellfish and eel, inari pouches, uni and salmon roe in wooden trays, roll fillings; fat, skin and spot patterns computed per pixel in a code-only shader, no textures) and the nigiri toppings built from them | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-06 |
+| `src/scene-assets/lib/hardsurface.ts` | Geometry helpers (`bevelBox` for the rounded saku and tamago blocks), copied unchanged from the IWSDK build-model skill template | IWSDK project template (`.agents/skills/iwsdk-build-model/assets/hardsurface.ts.template`) | Meta Platforms, Inc. | MIT (copyright notice kept in the file) | Yes | Keep the notice | 2026-11-06 |
 | `src/scene-assets/counter.scene-asset.ts` | `knife` (procedural yanagiba) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `wet-cloth` (procedural fukin) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `tezu-bowl` (procedural vinegar-water bowl) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
@@ -41,14 +42,15 @@ Column meanings:
 | `src/scene-assets/wash-station.scene-asset.ts` | `soap` (procedural soap pump bottle) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/wash-station.scene-asset.ts` | `towel` (procedural hand towel hanging over a small stainless bar on the sink cabinet) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/turn-system.ts` | Runtime mesh: blink sphere for the turn-around transition (primitive) |
-| `src/nigiri-system.ts` | Runtime meshes: rice ball, fish slice, wasabi dab, beat rings, serve-hold bar; judgement words drawn on canvas |
-| `src/customer-system.ts` | Runtime meshes: customer figure (sphere, boxes), order card and result icons drawn on canvas |
+| `src/nigiri-system.ts` | Runtime meshes: rice ball, the topping (each neta's own shape and material from `neta-look.ts`), wasabi dab, beat rings, serve-hold bar; judgement words drawn on canvas |
+| `src/customer-system.ts` | Runtime meshes: customer figure (sphere, boxes) and result icons drawn on canvas |
+| `src/order-card.ts` | Order card above the customer and order ticket on the neta case: a small picture of the item, its English name and the wasabi mark, drawn on canvas with the browser default font (no font or image file) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-06 |
 | `src/cutting-system.ts` | Runtime mesh: cut guide line (primitive) |
 | `src/feedback.ts` | Runtime meshes: station highlight rings and frames (primitives) |
 | `src/master-system.ts` | Runtime meshes: master figure in Japanese-style work clothes (sphere, cylinder, boxes; crossed collar, sash, apron, sleeves) and see-through ghost hands (boxes); his words and the turn arrow drawn on canvas with the browser default font | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/sfx.ts` | Sounds synthesized with the Web Audio API at runtime, including the master's wooden clack (no audio files) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/debug-hud-system.ts` | Debug-only labels and status panel drawn on canvas with the browser default font (no font file) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/neta-case-system.ts` | Runtime sprites: order ticket and saku name tags drawn on canvas with the browser default font (no font file); door slide and LED brightness animated in code | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/neta-case-system.ts` | Runtime sprites: item name tags and the zoom's labels drawn on canvas with the browser default font (no font file); the zoom over an open door reuses the case items' own meshes; door slide and LED brightness animated in code | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/practice-system.ts` | Development-only practice mode: key guide panel drawn on canvas with the browser default font (no font file); not in production builds | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 
 ## Removed assets

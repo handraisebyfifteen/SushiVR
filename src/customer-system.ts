@@ -5,18 +5,19 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
-  Object3D,
   SphereGeometry,
   type Sprite,
   Vector3,
 } from '@iwsdk/core';
-import { FISH_COLOR, type FishKind, service } from './game-state.js';
+import { caseStock, type Order, service } from './game-state.js';
+import { MENU, type MenuId, NETA } from './menu.js';
 import type { Score } from './scoring.js';
 import { stations } from './station-system.js';
-import { Bar, Customer, CustomerState, Fish, StationKind } from './sushi-components.js';
-import { type IconKind, makeIconSprite, makeOrderSprite, makeTextSprite } from './text-sprites.js';
+import { Bar, Customer, CustomerState, StationKind } from './sushi-components.js';
+import { makeOrderCard, redrawOrderCard } from './order-card.js';
+import { type IconKind, makeIconSprite, makeTextSprite } from './text-sprites.js';
 import { CUSTOMER_SEAT_Z, STEP_HEIGHT } from './layout.js';
-import { LEFT_HANDED_CUSTOMER_RATIO, PIECES_PER_CUSTOMER, RESULT_SECONDS } from './tuning.js';
+import { ENABLED_KINDS, LEFT_HANDED_CUSTOMER_RATIO, PIECES_PER_CUSTOMER, RESULT_SECONDS } from './tuning.js';
 import { TurnSystem } from './turn-system.js';
 
 const REACH_SECONDS = 0.8;
@@ -28,10 +29,27 @@ const SEAT = new Vector3(0, -STEP_HEIGHT, CUSTOMER_SEAT_Z);
 const HAND_REST_X = 0.17;
 const ALL_ICONS: IconKind[] = ['rhythm', 'fish', 'wasabi', 'orientation', 'hand', 'fresh', 'hygiene', 'board', 'soap', 'knife'];
 
-/** How the nigiri system hands a served piece to the customer. */
+/** How the nigiri system hands a served piece (its own entity) to the customer. */
 export const customerApi = {
-  serve: (_score: Score, _piece: Object3D): void => undefined,
+  serve: (_score: Score, _piece: Entity): void => undefined,
 };
+
+/**
+ * A menu item to order: weighted by how often it is ordered, among the kinds
+ * on the menu now and only while everything it needs is in the case. With
+ * the whole case sold out, anything on the menu.
+ */
+function pickOrder(): MenuId {
+  const ids = (Object.keys(MENU) as MenuId[]).filter((id) => ENABLED_KINDS.includes(MENU[id].kind));
+  const inStock = ids.filter((id) => MENU[id].neta.every((n) => caseStock[n] >= NETA[n].perPiece));
+  const pool = inStock.length ? inStock : ids;
+  let r = Math.random() * pool.reduce((sum, id) => sum + MENU[id].weight, 0);
+  for (const id of pool) {
+    r -= MENU[id].weight;
+    if (r <= 0) return id;
+  }
+  return pool[pool.length - 1];
+}
 
 /**
  * One customer at a time, as an abstract figure (sphere head, box body, two
@@ -47,14 +65,17 @@ export class CustomerSystem extends createSystem({}) {
   private handL!: Mesh;
   private handR!: Mesh;
   private orderCard: Sprite | null = null;
-  private cardKey = '';
+  private cardItem = '';
+  private cardWasabi = false;
+  /** The one order object shared through service.order (no allocation per frame). */
+  private readonly order: Order = { item: 'LeanTunaNigiri', wasabi: false };
   private gradeSprites = new Map<string, Sprite>();
   private icons = new Map<IconKind, Sprite>();
   private resultGroup!: Group;
   private resultTime = 0;
   private phase: 'waiting' | 'reaching' | 'returning' | 'leaving' | 'arriving' = 'waiting';
   private t = 0;
-  private piece: Object3D | null = null;
+  private piece: Entity | null = null;
   private readonly getaPos = new Vector3();
   private readonly handRest = new Vector3();
   private readonly tmp = new Vector3();
@@ -121,32 +142,41 @@ export class CustomerSystem extends createSystem({}) {
   }
 
   private newOrder(): void {
-    const fishes = Object.values(Fish) as FishKind[];
-    this.entity.setValue(Customer, 'fish', fishes[Math.floor(Math.random() * fishes.length)]);
-    this.entity.setValue(Customer, 'wasabi', Math.random() < 0.5);
+    const item = pickOrder();
+    this.entity.setValue(Customer, 'item', item);
+    this.entity.setValue(Customer, 'wasabi', MENU[item].wasabi === 'ask' && Math.random() < 0.5);
+    console.log(`[Customer] orders ${MENU[item].name}${this.entity.getValue(Customer, 'wasabi') ? ' with wasabi' : ''}`);
   }
 
   /** The component is the source of truth, so a test can edit the order. */
   private syncOrder(): void {
-    const fish = this.entity.getValue(Customer, 'fish') as FishKind;
+    const item = this.entity.getValue(Customer, 'item') as MenuId;
     const wasabi = !!this.entity.getValue(Customer, 'wasabi');
     service.customerLeftHanded = !!this.entity.getValue(Customer, 'leftHanded');
     service.customerHandKnown = !!this.entity.getValue(Customer, 'handKnown');
     service.eatenByCustomer = this.entity.getValue(Customer, 'eaten') ?? 0;
-    service.order = this.phase === 'waiting' ? { fish, wasabi } : null;
-    const key = `${fish}:${wasabi}`;
-    if (key !== this.cardKey) {
-      this.cardKey = key;
-      if (this.orderCard) this.figure.remove(this.orderCard);
-      this.orderCard = makeOrderSprite(FISH_COLOR[fish], wasabi);
-      this.orderCard.position.y = 1.42;
-      this.figure.add(this.orderCard);
+    this.order.item = item;
+    this.order.wasabi = wasabi;
+    service.order = this.phase === 'waiting' ? this.order : null;
+    if (item !== this.cardItem || wasabi !== this.cardWasabi) {
+      this.cardItem = item;
+      this.cardWasabi = wasabi;
+      if (this.orderCard) {
+        redrawOrderCard(this.orderCard, item, wasabi);
+      } else {
+        this.orderCard = makeOrderCard(item, wasabi, 0.26);
+        this.orderCard.position.y = 1.45;
+        this.figure.add(this.orderCard);
+      }
     }
     if (this.orderCard) this.orderCard.visible = this.phase === 'waiting';
   }
 
-  private serve(score: Score, piece: Object3D): void {
-    if (this.phase !== 'waiting') return;
+  private serve(score: Score, piece: Entity): void {
+    if (this.phase !== 'waiting') {
+      piece.dispose({ disposeResources: false });
+      return;
+    }
     this.piece = piece;
     this.phase = 'reaching';
     this.t = 0;
@@ -199,8 +229,9 @@ export class CustomerSystem extends createSystem({}) {
         hand.position.lerpVectors(this.handRest, this.getaPos, k);
         if (k >= 1) {
           if (this.piece) {
-            this.piece.visible = false;
-            this.piece.removeFromParent();
+            // The served copy shares its meshes' geometry and materials with the case: keep them.
+            this.piece.object3D?.removeFromParent();
+            this.piece.dispose({ disposeResources: false });
             this.piece = null;
           }
           this.phase = 'returning';

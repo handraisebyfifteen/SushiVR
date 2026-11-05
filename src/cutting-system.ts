@@ -1,39 +1,46 @@
-import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Vector3 } from '@iwsdk/core';
+import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, type FishKind, progress, service } from './game-state.js';
+import { chef, orderNeta, progress, service } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
-import { caseDoors } from './neta-case-system.js';
+import { NETA, type NetaId } from './menu.js';
+import { caseApi } from './neta-case-system.js';
 import { pieceApi } from './nigiri-system.js';
+import { blockLength } from './scene-assets/lib/neta-look.js';
 import { type Kind, overStation, stations } from './station-system.js';
-import { Held, Saku, StationKind } from './sushi-components.js';
+import { CaseItem, Held, StationKind } from './sushi-components.js';
 import { BOARD_DIRT_PER_CUT, CUT_STROKE, RUB_WIPE_KNIFE } from './tuning.js';
 
-/** Where a saku rests on the board (left of center) and the slice lands (to its right). */
-const SAKU_BOARD_X = -0.12;
-const SLICE_OFFSET_X = 0.17;
-const SAKU_HALF_LENGTH = 0.11;
-const SAKU_HALF_DEPTH = 0.04;
-/** Guide line sits at this x offset from the saku center (its right end). */
-const GUIDE_X = 0.075;
+/** Where a saku's uncut end rests on the board (left of centre); it runs to the right. */
+const SAKU_BOARD_LEFT = -0.2;
+/** The slice lands this far right of the cut end. */
+const SLICE_GAP = 0.06;
+/** Half the width of a saku across the board, plus some slack for the blade. */
+const SAKU_HALF_DEPTH = 0.025;
+/** One slice is cut this far in from the saku's cut end (where the guide line shows). */
+const SLICE_THICKNESS = 0.012;
 const BLADE_REACH = 0.15;
-const PICK_DISTANCE = 0.12;
+/** A pinch this close to the saku lying on the board picks it up again. */
+const PICK_DISTANCE = 0.1;
 
 /**
- * Taking a saku from the case, cutting one slice with the yanagiba, and
+ * Taking from the neta case, cutting one slice with the yanagiba, and
  * keeping the knife clean.
- *  - Neta hand pinches a saku in the case (hand must not need washing) and
- *    sets it on the board; a saku that does not match the order glows amber
- *    and can be pinched back into the case.
- *  - Rice hand makes a fist on the knife to hold it; letting go puts it back.
+ *  - The neta hand pinches what glows in the case (the hand must not need
+ *    washing). A saku is set on the board; one that does not match the
+ *    order glows amber and can be pinched back into the case. A ready-cut
+ *    piece (kohada, prawn, shellfish, eel...) goes straight onto the
+ *    fingers, so the wrong one is simply not taken.
+ *  - The rice hand makes a fist on the knife to hold it; letting go puts it back.
  *  - With the neta hand resting on the saku, draw the blade toward you along
- *    the guide line: one slice is cut, the saku returns to the case.
+ *    the guide line at the saku's cut end: one slice is cut, the saku is a
+ *    slice shorter and goes back to the case.
  *  - Wipe the blade on the wet cloth before putting it down.
  */
 export class CuttingSystem extends createSystem({
-  saku: { required: [Saku] },
+  items: { required: [CaseItem] },
 }) {
-  private homes = new Map<Entity, Vector3>();
+  private homes = new Map<Entity, { position: Vector3; quaternion: Quaternion }>();
   private held: Entity | null = null;
   private onBoard: Entity | null = null;
   private knife: Entity | null = null;
@@ -44,23 +51,31 @@ export class CuttingSystem extends createSystem({
   private cutStartZ: number | null = null;
   private wipeRub = new RubTracker();
   private readonly blade = new Vector3();
+  /** The saku on the board: its uncut end, its centre and its cut end (world). */
   private readonly sakuPos = new Vector3();
+  private readonly sakuMid = new Vector3();
+  private sakuEndX = 0;
   private readonly tmp = new Vector3();
+  private readonly flat = new Quaternion();
 
   init(): void {
     this.guide = new Mesh(
-      new BoxGeometry(0.006, 0.003, 0.11),
+      new BoxGeometry(0.006, 0.003, 0.08),
       new MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9 }),
     );
     this.guide.name = 'CutGuide';
     this.guide.visible = false;
     this.world.createTransformEntity(this.guide);
+    this.queries.items.subscribe('qualify', (entity) => {
+      const object = entity.object3D;
+      if (object) this.homes.set(entity, { position: object.position.clone(), quaternion: object.quaternion.clone() });
+    });
   }
 
   update(): void {
-    for (const entity of this.queries.saku.entities) {
+    for (const entity of this.queries.items.entities) {
       if (!this.homes.has(entity) && entity.object3D) {
-        this.homes.set(entity, entity.object3D.position.clone());
+        this.homes.set(entity, { position: entity.object3D.position.clone(), quaternion: entity.object3D.quaternion.clone() });
       }
     }
     const knifeInfo = stations.get(StationKind.Knife);
@@ -69,7 +84,8 @@ export class CuttingSystem extends createSystem({
       this.knife.object3D!.getWorldPosition(this.knifeHome);
       this.knifeHomeRotY = this.knife.object3D!.rotation.y;
     }
-    this.updateSaku();
+    if (this.onBoard) this.measureSaku(this.onBoard);
+    this.updateTake();
     this.updateKnife();
     this.updateHints();
     this.publish();
@@ -79,55 +95,65 @@ export class CuttingSystem extends createSystem({
   private publish(): void {
     progress.knifeHeld = this.knifeHeld;
     progress.sakuOnBoard = this.onBoard !== null;
-    progress.sakuWrong =
-      this.onBoard !== null && !!service.order && service.order.fish !== this.sakuFish(this.onBoard);
+    const ordered = orderNeta();
+    progress.sakuWrong = this.onBoard !== null && ordered !== null && ordered !== caseApi.neta(this.onBoard);
     if (this.onBoard) {
-      this.onBoard.object3D!.getWorldPosition(progress.sakuAt);
+      progress.sakuAt.copy(this.sakuMid);
       const home = this.homes.get(this.onBoard);
-      if (home) progress.sakuHome.copy(home);
+      if (home) progress.sakuHome.copy(home.position);
     }
   }
 
-  private sakuFish(entity: Entity): FishKind {
-    return entity.getValue(Saku, 'fish') as FishKind;
+  /** The saku's ends on the board: it lies along +X from its uncut end, as long as the slices it has left. */
+  private measureSaku(saku: Entity): void {
+    const object = saku.object3D!;
+    object.getWorldPosition(this.sakuPos);
+    const body = object.getObjectByName('Body');
+    const length = blockLength(caseApi.neta(saku)) * (body ? body.scale.x : 1);
+    this.sakuEndX = this.sakuPos.x + length;
+    this.sakuMid.set(this.sakuPos.x + length / 2, this.sakuPos.y, this.sakuPos.z);
   }
 
-  private nearestSaku(point: Vector3): Entity | null {
-    let best: Entity | null = null;
-    let bestD = PICK_DISTANCE;
-    for (const entity of this.queries.saku.entities) {
-      const object = entity.object3D;
-      if (!object) continue;
-      object.getWorldPosition(this.tmp);
-      const d = this.tmp.distanceTo(point);
-      if (d < bestD) {
-        bestD = d;
-        best = entity;
-      }
-    }
-    return best;
-  }
-
-  private updateSaku(): void {
+  /** Taking from the case with the neta hand, carrying a saku, setting it on the board or back. */
+  private updateTake(): void {
     const side = chef.netaSide;
     const hand = hands.all[side];
     const state = chef.hands[side];
+    // The rice hand reaching for the neta hand's items: say so.
+    const rice = hands.all[chef.riceSide];
+    if (rice.tracked && rice.pinchStart) {
+      const item = caseApi.chosen(chef.riceSide);
+      if (item && caseApi.check(chef.riceSide, item) === 'wrongHand') this.wrongHand(item);
+    }
+
     if (!this.held) {
       if (!hand.tracked || !hand.pinchStart || state.holding !== Held.None) return;
-      const saku = this.nearestSaku(hand.grasp);
-      if (!saku) return;
-      // A saku in the case can only be taken through its open door.
-      if (saku !== this.onBoard && !caseDoors.isOpenAt(saku.object3D!.getWorldPosition(this.tmp))) return;
+      // The saku on the board, picked up again.
+      if (this.onBoard && hand.grasp.distanceTo(this.sakuMid) < PICK_DISTANCE && !pieceApi.hasNeta()) {
+        this.held = this.onBoard;
+        this.onBoard = null;
+        state.holding = Held.Saku;
+        glowObject(this.held.object3D!, null);
+        return;
+      }
+      const item = caseApi.chosen(side);
+      if (!item) return;
+      const check = caseApi.check(side, item);
+      if (check === 'wrongHand') return this.wrongHand(item);
+      if (check === 'shut') return;
       if (state.needsWash) {
         feedback.flash(StationKind.NetaCase, COLOR_WARN);
         coach.mistake('washFirst', StationKind.NetaCase);
         console.log('[Cutting] wash your hand before touching the fish');
         return;
       }
-      this.held = saku;
+      const neta = caseApi.neta(item);
+      const def = NETA[neta];
+      if (def.prep === 'piece') return this.takePiece(item, neta);
+      if (def.prep !== 'saku') return;
+      this.held = item;
       state.holding = Held.Saku;
-      glowObject(saku.object3D!, null);
-      if (this.onBoard === saku) this.onBoard = null;
+      glowObject(item.object3D!, null);
       return;
     }
     const object = this.held.object3D!;
@@ -136,21 +162,24 @@ export class CuttingSystem extends createSystem({
 
     // Let go: into the case or onto the board.
     state.holding = Held.None;
+    const neta = caseApi.neta(this.held);
+    const ordered = orderNeta();
     if (overStation(hand.grasp, StationKind.NetaCase)) {
-      const fish = this.sakuFish(this.held);
-      if (service.order && service.order.fish !== fish) coach.done('returnSaku');
+      if (ordered && ordered !== neta) coach.done('returnSaku');
       this.returnHome(this.held);
     } else {
       if (this.onBoard && this.onBoard !== this.held) this.returnHome(this.onBoard);
       const board = stations.get(StationKind.CuttingBoard)!;
-      object.position.set(board.pos.x + SAKU_BOARD_X, board.pos.y, board.pos.z);
+      // Lengthwise on the board, cut end to the right.
+      object.position.set(board.pos.x + SAKU_BOARD_LEFT, board.pos.y, board.pos.z);
+      object.quaternion.copy(this.flat);
       this.onBoard = this.held;
-      const fish = this.sakuFish(this.held);
-      if (service.order && service.order.fish !== fish) {
+      this.measureSaku(this.held);
+      if (ordered && ordered !== neta) {
         glowObject(object, COLOR_WARN);
         feedback.flash(StationKind.CuttingBoard, COLOR_WARN);
-        coach.mistake('wrongFish', StationKind.CuttingBoard);
-        console.log(`[Cutting] ${fish} is not what was ordered`);
+        coach.mistake('wrongItem', StationKind.CuttingBoard);
+        console.log(`[Cutting] ${neta} is not what was ordered`);
       } else {
         coach.done('takeSaku');
         feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
@@ -159,9 +188,36 @@ export class CuttingSystem extends createSystem({
     this.held = null;
   }
 
+  /** A ready-cut piece straight onto the neta hand's fingers, if it is what was ordered. */
+  private takePiece(item: Entity, neta: NetaId): void {
+    if (pieceApi.hasNeta()) return;
+    const ordered = orderNeta();
+    if (ordered && ordered !== neta) {
+      glowObject(item.object3D!, COLOR_WARN);
+      feedback.flash(StationKind.NetaCase, COLOR_WARN);
+      coach.mistake('wrongItem', StationKind.NetaCase);
+      console.log(`[Cutting] ${neta} is not what was ordered`);
+      return;
+    }
+    if (!caseApi.consume(item, NETA[neta].perPiece)) return;
+    pieceApi.take(neta);
+    coach.done('takeSaku');
+    feedback.flash(StationKind.NetaCase, COLOR_DONE);
+    console.log(`[Cutting] took a piece of ${neta} (${item.getValue(CaseItem, 'remaining')} left)`);
+  }
+
+  private wrongHand(item: Entity | null): void {
+    if (item?.object3D) feedback.flash(StationKind.NetaCase, COLOR_WARN);
+    coach.mistake('wrongHand', StationKind.NetaCase);
+    console.log('[Cutting] the other hand takes that');
+  }
+
   private returnHome(saku: Entity): void {
     const home = this.homes.get(saku);
-    if (home) saku.object3D!.position.copy(home);
+    if (home) {
+      saku.object3D!.position.copy(home.position);
+      saku.object3D!.quaternion.copy(home.quaternion);
+    }
     glowObject(saku.object3D!, null);
     if (this.onBoard === saku) this.onBoard = null;
   }
@@ -202,19 +258,19 @@ export class CuttingSystem extends createSystem({
       console.log('[Cutting] knife wiped');
     }
 
-    // Cutting: neta hand on the saku, blade drawn toward the chef over it.
+    // Cutting: neta hand on the saku, blade drawn toward the chef across its cut end.
     const saku = this.onBoard;
     if (saku && !pieceApi.hasNeta()) {
-      saku.object3D!.getWorldPosition(this.sakuPos);
+      const guideX = Math.max(this.sakuMid.x, this.sakuEndX - SLICE_THICKNESS);
       this.guide.visible = true;
-      this.guide.position.set(this.sakuPos.x + GUIDE_X, this.sakuPos.y + 0.045, this.sakuPos.z);
+      this.guide.position.set(guideX, this.sakuPos.y + 0.04, this.sakuPos.z);
       const other = hands.all[chef.netaSide];
       const holdingDown =
         other.tracked &&
-        Math.hypot(other.palm.x - this.sakuPos.x, other.palm.z - this.sakuPos.z) < 0.13 &&
+        Math.hypot(other.palm.x - this.sakuMid.x, other.palm.z - this.sakuMid.z) < 0.13 &&
         other.palm.y < this.sakuPos.y + 0.15;
       const overSaku =
-        Math.abs(this.blade.x - this.sakuPos.x) < SAKU_HALF_LENGTH &&
+        this.blade.x > this.sakuPos.x - 0.01 && this.blade.x < this.sakuEndX + 0.03 &&
         Math.abs(this.blade.z - this.sakuPos.z) < SAKU_HALF_DEPTH + CUT_STROKE + 0.04 &&
         this.blade.y < this.sakuPos.y + 0.1;
       if (holdingDown && overSaku) {
@@ -263,18 +319,19 @@ export class CuttingSystem extends createSystem({
   }
 
   private cut(saku: Entity): void {
-    const fish = this.sakuFish(saku);
+    const neta = caseApi.neta(saku);
     // Cutting at the right end (the guide) leaves the skin edge on the customer's right.
-    const skinRight = hands.all[chef.riceSide].palm.x > this.sakuPos.x;
-    this.tmp.set(this.sakuPos.x + SLICE_OFFSET_X, this.sakuPos.y, this.sakuPos.z);
-    pieceApi.cut(fish, skinRight, this.tmp);
+    const skinRight = hands.all[chef.riceSide].palm.x > this.sakuMid.x;
+    this.tmp.set(this.sakuEndX + SLICE_GAP, this.sakuPos.y, this.sakuPos.z);
+    pieceApi.cut(neta, skinRight, this.tmp);
+    caseApi.consume(saku, 1);
     this.returnHome(saku);
     chef.knifeDirty = true;
     chef.boardDirt = Math.min(1, chef.boardDirt + BOARD_DIRT_PER_CUT);
     this.cutStartZ = null;
     feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
     coach.done('cut');
-    console.log(`[Cutting] cut one slice of ${fish}${skinRight ? '' : ' (skin on the wrong side)'}`);
+    console.log(`[Cutting] cut one slice of ${neta}${skinRight ? '' : ' (skin on the wrong side)'}, ${saku.getValue(CaseItem, 'remaining')} left`);
   }
 
   private updateHints(): void {

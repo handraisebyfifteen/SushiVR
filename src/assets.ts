@@ -8,11 +8,11 @@ import {
   createLedge,
   createNetaCase,
   createRiceTub,
-  createSaku,
   createTezuBowl,
   createWasabiDish,
   createWetCloth,
 } from './scene-assets/counter.scene-asset.js';
+import { caseItemAssets } from './scene-assets/case-items.scene-asset.js';
 import { createDishCabinet } from './scene-assets/dish-cabinet.scene-asset.js';
 import { createEaves } from './scene-assets/eaves.scene-asset.js';
 import { createItabaRoom } from './scene-assets/itaba-room.scene-asset.js';
@@ -39,9 +39,6 @@ export default defineAssets({
   'cutting-board': createCuttingBoard(),
   geta: createGeta(),
   'neta-case': createNetaCase(),
-  'saku-tuna': createSaku('tuna'),
-  'saku-white': createSaku('white'),
-  'saku-silver': createSaku('silver'),
   knife: createKnife(),
   'wet-cloth': createWetCloth(),
   'tezu-bowl': createTezuBowl(),
@@ -55,4 +52,6 @@ export default defineAssets({
   'itaba-room': createItabaRoom(),
   'work-table': createWorkTable(),
   'gas-stove': createGasStove(),
+  // Every neta-case item (case-lean-tuna, ...), from src/menu.ts.
+  ...caseItemAssets(),
 });

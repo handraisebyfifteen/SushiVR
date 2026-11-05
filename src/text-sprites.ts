@@ -5,14 +5,11 @@ import { CanvasTexture, Sprite, SpriteMaterial } from '@iwsdk/core';
  * font and plain shapes, so the app ships no font or image files.
  */
 
-export function makeTextSprite(
-  text: string,
-  options: { color?: string; background?: string; width?: number; fontPx?: number } = {},
-): Sprite {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 128;
+type TextOptions = { color?: string; background?: string; width?: number; fontPx?: number };
+
+function drawText(canvas: HTMLCanvasElement, text: string, options: TextOptions): void {
   const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (options.background) {
     ctx.fillStyle = options.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -32,6 +29,22 @@ export function makeTextSprite(
   ctx.strokeStyle = 'rgba(0,0,0,0.7)';
   ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+}
+
+/** Redraws a sprite made by makeTextSprite with new text (same canvas, no new texture). */
+export function setSpriteText(sprite: Sprite, text: string, options: TextOptions = {}): void {
+  const texture = sprite.material.map as CanvasTexture | null;
+  if (!texture) return;
+  drawText(texture.image as HTMLCanvasElement, text, options);
+  texture.needsUpdate = true;
+  sprite.name = `Text_${text}`;
+}
+
+export function makeTextSprite(text: string, options: TextOptions = {}): Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  drawText(canvas, text, options);
   const texture = new CanvasTexture(canvas);
   const sprite = new Sprite(new SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
   const w = options.width ?? 0.16;
@@ -158,39 +171,6 @@ export function makeIconSprite(kind: IconKind): Sprite {
   return sprite;
 }
 
-/** Order card: a tile in the fish's color plus a wasabi mark (dot, or dot with a slash). */
-export function makeOrderSprite(fishColor: string, wasabi: boolean): Sprite {
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.fillRect(0, 0, 128, 64);
-  ctx.fillStyle = fishColor;
-  ctx.fillRect(10, 12, 52, 40);
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(10, 12, 52, 40);
-  ctx.fillStyle = wasabi ? '#6B9E3A' : '#BBBBBB';
-  ctx.beginPath();
-  ctx.arc(94, 32, 14, 0, Math.PI * 2);
-  ctx.fill();
-  if (!wasabi) {
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(80, 46);
-    ctx.lineTo(108, 18);
-    ctx.stroke();
-  }
-  const texture = new CanvasTexture(canvas);
-  const sprite = new Sprite(new SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
-  sprite.scale.set(0.16, 0.08, 1);
-  sprite.renderOrder = 900;
-  sprite.name = 'OrderCard';
-  return sprite;
-}
-
 /** A curved arrow pointing to the viewer's left: "look left to turn around". */
 export function makeTurnArrowSprite(): Sprite {
   const canvas = document.createElement('canvas');
@@ -218,62 +198,3 @@ export function makeTurnArrowSprite(): Sprite {
   return sprite;
 }
 
-/**
- * Order ticket shown inside the neta case while a door is open: the fish as
- * a tile with its look (stripes for the silver-skinned fish, a pink tint and
- * outline for white fish), its English name, and whether wasabi goes on.
- */
-export function makeOrderTicket(fishName: string, fishColor: string, striped: boolean, wasabi: boolean): Sprite {
-  const canvas = document.createElement('canvas');
-  canvas.width = 384;
-  canvas.height = 160;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = 'rgba(255,252,244,0.96)';
-  ctx.fillRect(0, 0, 384, 160);
-  ctx.strokeStyle = '#2B2622';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, 380, 156);
-  // Fish tile.
-  ctx.fillStyle = fishColor;
-  ctx.fillRect(18, 28, 120, 104);
-  if (striped) {
-    ctx.fillStyle = '#3F5266';
-    for (let i = 0; i < 5; i++) ctx.fillRect(26 + i * 23, 28, 9, 104);
-  }
-  ctx.strokeStyle = '#2B2622';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(18, 28, 120, 104);
-  // Name and wasabi.
-  ctx.fillStyle = '#1E1A17';
-  ctx.textBaseline = 'middle';
-  let fontPx = 40;
-  ctx.font = `bold ${fontPx}px sans-serif`;
-  const room = 384 - 160 - 14;
-  const measured = ctx.measureText(fishName).width;
-  if (measured > room) {
-    fontPx = Math.floor((fontPx * room) / measured);
-    ctx.font = `bold ${fontPx}px sans-serif`;
-  }
-  ctx.fillText(fishName, 160, 58);
-  ctx.fillStyle = wasabi ? '#4F7F25' : '#8A8A8A';
-  ctx.beginPath();
-  ctx.arc(176, 112, 13, 0, Math.PI * 2);
-  ctx.fill();
-  if (!wasabi) {
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(163, 125);
-    ctx.lineTo(189, 99);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#1E1A17';
-  ctx.font = 'bold 30px sans-serif';
-  ctx.fillText(wasabi ? 'Wasabi' : 'No wasabi', 200, 113);
-  const texture = new CanvasTexture(canvas);
-  const sprite = new Sprite(new SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
-  sprite.scale.set(0.15, 0.0625, 1);
-  sprite.renderOrder = 905;
-  sprite.name = 'OrderTicket';
-  return sprite;
-}

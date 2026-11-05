@@ -1,8 +1,8 @@
 import { Vector3 } from '@iwsdk/core';
-import { Fish, Held, Judge } from './sushi-components.js';
+import { MENU, type MenuId, NETA, type NetaId } from './menu.js';
+import { Held, Judge } from './sushi-components.js';
 import { CHEF_LEFT_HANDED } from './tuning.js';
 
-export type FishKind = (typeof Fish)[keyof typeof Fish];
 export type HeldKind = (typeof Held)[keyof typeof Held];
 export type JudgeKind = (typeof Judge)[keyof typeof Judge];
 export type Side = 0 | 1; // 0 = left hand, 1 = right hand
@@ -44,7 +44,7 @@ export function holdingAnything(): boolean {
 
 /** The current order; null while no customer is seated. */
 export interface Order {
-  fish: FishKind;
+  item: MenuId;
   wasabi: boolean;
 }
 export const service = {
@@ -80,13 +80,13 @@ export const progress = {
   pieceAt: new Vector3(),
 };
 
-export const FISH_LABEL: Record<FishKind, string> = {
-  Tuna: 'Tuna',
-  White: 'White fish',
-  Silver: 'Silver-skinned fish',
-};
-export const FISH_COLOR: Record<FishKind, string> = {
-  Tuna: '#C8333A',
-  White: '#F3DDD6',
-  Silver: '#8FA3B8',
-};
+/** The neta of the current order's first ingredient (the topping of a nigiri). */
+export function orderNeta(): NetaId | null {
+  return service.order ? MENU[service.order.item].neta[0] : null;
+}
+
+/**
+ * Units left in the neta case per neta (slices, pieces or servings), kept
+ * current by NetaCaseSystem from the CaseItem components.
+ */
+export const caseStock = Object.fromEntries(Object.keys(NETA).map((id) => [id, 0])) as Record<NetaId, number>;

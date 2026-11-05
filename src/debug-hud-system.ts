@@ -14,7 +14,9 @@ import { chef, service } from './game-state.js';
 import { hands } from './hands.js';
 import { HygieneSystem } from './hygiene-system.js';
 import { NigiriSystem } from './nigiri-system.js';
-import { Bar, Saku, Station } from './sushi-components.js';
+import { MENU, NETA } from './menu.js';
+import { caseApi } from './neta-case-system.js';
+import { Bar, CaseItem, Station } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
 
 /** Label text per station kind (English only, shown with ?debug=1). */
@@ -30,11 +32,6 @@ const STATION_LABELS: Record<string, string> = {
   Sink: 'Sink',
   Soap: 'Hand soap',
   Towel: 'Hand towel',
-};
-const SAKU_LABELS: Record<string, string> = {
-  Tuna: 'Tuna',
-  White: 'White fish',
-  Silver: 'Silver-skinned fish',
 };
 const LABEL_LIFT = 0.1;
 const PANEL_REFRESH_SECONDS = 0.2;
@@ -70,7 +67,6 @@ function makeLabel(text: string): Sprite {
  */
 export class DebugHudSystem extends createSystem({
   stations: { required: [Station] },
-  saku: { required: [Saku] },
   bar: { required: [Bar] },
 }) {
   private labels = new Map<Entity, Sprite>();
@@ -106,14 +102,10 @@ export class DebugHudSystem extends createSystem({
         STATION_LABELS[entity.getValue(Station, 'kind') as string] ?? '?',
         LABEL_LIFT + (entity.getValue(Station, 'height') ?? 0),
       );
-    const labelSaku = (entity: Entity) =>
-      this.addLabel(entity, SAKU_LABELS[entity.getValue(Saku, 'fish') as string] ?? '?', 0.07);
     this.cleanupFuncs.push(
       this.queries.stations.subscribe('qualify', labelStation),
-      this.queries.saku.subscribe('qualify', labelSaku),
     );
     for (const entity of this.queries.stations.entities) labelStation(entity);
-    for (const entity of this.queries.saku.entities) labelSaku(entity);
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = 1024;
@@ -145,9 +137,18 @@ export class DebugHudSystem extends createSystem({
       },
       () => {
         const o = service.order;
-        return `Order: ${o ? `${o.fish} ${o.wasabi ? 'with' : 'no'} wasabi` : '-'}  customer ${service.customerLeftHanded ? 'left' : 'right'}-handed${service.customerHandKnown ? '' : ' (unknown)'} eaten ${service.eatenByCustomer}`;
+        return `Order: ${o ? `${MENU[o.item].name} ${o.wasabi ? 'with' : 'no'} wasabi` : '-'}  customer ${service.customerLeftHanded ? 'left' : 'right'}-handed${service.customerHandKnown ? '' : ' (unknown)'} eaten ${service.eatenByCustomer}`;
       },
       () => this.world.getSystem(NigiriSystem)?.describe() ?? '',
+      () => {
+        // The case: what each hand is about to take and how many are left (case items are too close to label).
+        const part = (side: number) => {
+          const e = caseApi.hovered[side];
+          if (!e) return '-';
+          return `${NETA[caseApi.neta(e)].name} ${e.getValue(CaseItem, 'remaining')} left${caseApi.wrongHand[side] ? ' (other hand)' : caseApi.ready[side] ? '' : ' (door shut)'}`;
+        };
+        return `Case: L ${part(0)}  R ${part(1)}`;
+      },
     );
   }
 

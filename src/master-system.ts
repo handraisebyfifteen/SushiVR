@@ -16,12 +16,13 @@ import {
 } from '@iwsdk/core';
 import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
 import { debugLines } from './debug.js';
-import { chef, FISH_LABEL, type FishKind, holdingAnything, progress, service } from './game-state.js';
+import { chef, holdingAnything, orderNeta, progress, service } from './game-state.js';
 import { hands } from './hands.js';
+import { NETA } from './menu.js';
 import { playClack } from './sfx.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { type BoxPart, mergeGeometries, partMatrix } from './scene-assets/lib/batch.js';
-import { Master, Saku, StationKind } from './sushi-components.js';
+import { CaseItem, Master, StationKind } from './sushi-components.js';
 import { makeTextSprite, makeTurnArrowSprite } from './text-sprites.js';
 import {
   MASTER_DEMO_DELAY_SECONDS,
@@ -67,7 +68,8 @@ const MISTAKE_WORDS: Record<MistakeKey, string> = {
   needSoap: 'Soap first',
   soapInService: 'No soap now',
   washFirst: 'Wash first',
-  wrongFish: 'Not that fish',
+  wrongItem: 'Not that one',
+  wrongHand: 'Other hand',
   knifeUnwiped: 'Wipe the blade',
 };
 
@@ -164,7 +166,7 @@ class GhostHand {
  * channel, and never changes the game state himself.
  */
 export class MasterSystem extends createSystem({
-  saku: { required: [Saku] },
+  items: { required: [CaseItem] },
 }) {
   private entity!: Entity;
   private figure!: Group;
@@ -184,7 +186,8 @@ export class MasterSystem extends createSystem({
   private hintGiven = false;
   private demo = false;
   private demoTime = 0;
-  private successes = new Map<StepKey, number>();
+  /** Successes per step; taking from the case is counted per neta (where each one sits is learned one by one). */
+  private successes = new Map<string, number>();
   private totalSuccesses = 0;
   private lastSaid = '';
   private gesture: 'none' | 'nod' | 'shake' = 'none';
@@ -275,7 +278,7 @@ export class MasterSystem extends createSystem({
     this.world.createTransformEntity(this.arrow);
 
     debugLines.push(() => {
-      const learned = this.step ? (this.successes.get(this.step) ?? 0) : 0;
+      const learned = this.step ? (this.successes.get(this.learnKey(this.step)) ?? 0) : 0;
       return `Master: ${this.step ?? '-'} done ${learned}/${MASTER_LEARNED_COUNT} idle ${this.idle.toFixed(1)}s demo ${this.demo ? 'on' : 'off'} said "${this.lastSaid}"`;
     });
   }
@@ -323,8 +326,9 @@ export class MasterSystem extends createSystem({
 
   private readEvents(): void {
     for (const key of coach.doneSteps) {
-      const n = (this.successes.get(key) ?? 0) + 1;
-      this.successes.set(key, n);
+      const learnKey = this.learnKey(key);
+      const n = (this.successes.get(learnKey) ?? 0) + 1;
+      this.successes.set(learnKey, n);
       this.totalSuccesses++;
       if (key === this.step) {
         this.idle = 0;
@@ -420,14 +424,19 @@ export class MasterSystem extends createSystem({
   }
 
   private learned(step: StepKey): boolean {
-    return (this.successes.get(step) ?? 0) >= MASTER_LEARNED_COUNT;
+    return (this.successes.get(this.learnKey(step)) ?? 0) >= MASTER_LEARNED_COUNT;
+  }
+
+  /** The step, or for taking from the case the step and the ordered neta. */
+  private learnKey(step: StepKey): string {
+    if (step !== 'takeSaku') return step;
+    const neta = orderNeta();
+    return neta ? `takeSaku:${neta}` : step;
   }
 
   private stepWord(step: StepKey): string {
-    if (step === 'takeSaku' && service.order) {
-      const fish = service.order.fish as FishKind;
-      return fish === 'Silver' ? 'Take the silver fish' : `Take the ${FISH_LABEL[fish].toLowerCase()}`;
-    }
+    const neta = orderNeta();
+    if (step === 'takeSaku' && neta) return `Take the ${NETA[neta].name.toLowerCase()}`;
     if (step === 'place') return service.customerHandKnown ? 'Geta: on the diagonal' : 'Geta: straight across';
     return STEP_WORDS[step];
   }
@@ -521,10 +530,11 @@ export class MasterSystem extends createSystem({
     out.y += drop;
   }
 
+  /** Where the ordered neta is in the case. */
   private orderedSakuAt(out: Vector3): boolean {
-    const fish = service.order?.fish;
-    for (const entity of this.queries.saku.entities) {
-      if (entity.getValue(Saku, 'fish') === fish && entity.object3D) {
+    const neta = orderNeta();
+    for (const entity of this.queries.items.entities) {
+      if (entity.getValue(CaseItem, 'neta') === neta && entity.object3D) {
         entity.object3D.getWorldPosition(out);
         return true;
       }

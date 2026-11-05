@@ -36,7 +36,7 @@ export type StepKey =
   | 'serve';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
-export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongFish' | 'knifeUnwiped';
+export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';
 
 export type Grade = 'Excellent' | 'Good' | 'Poor' | 'Bad';
 

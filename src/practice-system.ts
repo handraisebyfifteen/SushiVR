@@ -8,12 +8,14 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { chef, type FishKind, progress } from './game-state.js';
+import { chef, orderNeta, progress } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { hands } from './hands.js';
 import { SEATED_EYE_HEIGHT } from './layout.js';
+import { CASE_ORDER, menuFor, NETA, type NetaId } from './menu.js';
+import { caseApi } from './neta-case-system.js';
 import { type Kind, stations } from './station-system.js';
-import { Fish, Held, Nigiri, NigiriStage, Saku, StationKind } from './sushi-components.js';
+import { CaseItem, Customer, Held, Nigiri, NigiriStage, StationKind } from './sushi-components.js';
 
 /**
  * Practice mode (development only): play the bar from the keyboard in the
@@ -148,7 +150,8 @@ const LOOK_PITCH_DEG = -22;
 const HEAD_TURN_RATE_DEG = 320;
 const TURN_LOOK_DEG = 88;
 const HEADING_STEP_DEG = 45;
-const SAKU_KEYS: Record<string, FishKind> = { Digit4: Fish.Tuna, Digit5: Fish.White, Digit6: Fish.Silver };
+/** The neta a nigiri can be made from, in case order (what 6 steps through). */
+const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => NETA[id].prep === 'saku' || NETA[id].prep === 'piece');
 
 class DriverHand {
   steps: Step[] = [];
@@ -187,10 +190,13 @@ class DriverHand {
 }
 
 export class PracticeSystem extends createSystem({
-  saku: { required: [Saku] },
+  items: { required: [CaseItem] },
+  customer: { required: [Customer] },
   nigiri: { required: [Nigiri] },
 }) {
   private on = false;
+  /** Index into NIGIRI_NETA of the neta 5 takes and 7 orders. */
+  private selected = NIGIRI_NETA.indexOf('LeanTuna');
   private device: EmuDevice | null = null;
   private driver: [DriverHand, DriverHand] = [new DriverHand(0), new DriverHand(1)];
   private lookYaw = 0;
@@ -297,9 +303,23 @@ export class PracticeSystem extends createSystem({
       return;
     }
     if (!down || e.repeat) return;
-    const fish = SAKU_KEYS[e.code];
-    if (fish) {
-      this.takeSaku(fish);
+    const caseKeys: Record<string, () => void> = {
+      Digit4: () => {
+        const neta = orderNeta();
+        if (neta) this.takeSaku(neta);
+        else this.say('No order yet');
+      },
+      Digit5: () => this.takeSaku(NIGIRI_NETA[this.selected]),
+      Digit6: () => this.select(e.shiftKey ? -1 : 1),
+      Digit7: () => this.orderSelected(),
+      Digit8: () => {
+        caseApi.restockAll();
+        this.say('Case restocked');
+      },
+    };
+    const caseKey = caseKeys[e.code];
+    if (caseKey) {
+      caseKey();
       e.preventDefault();
       return;
     }
@@ -486,16 +506,58 @@ export class PracticeSystem extends createSystem({
 
   // ---- verbs: saku and knife -------------------------------------------------------
 
-  /** 4 / 5 / 6: the neta hand takes that saku from the case and lays it on the board. */
-  private takeSaku(fish: FishKind): void {
+  /** 6 / Shift+6: the next or previous neta for 5 and 7. */
+  private select(step: number): void {
+    this.selected = (this.selected + step + NIGIRI_NETA.length) % NIGIRI_NETA.length;
+    const neta = NIGIRI_NETA[this.selected];
+    this.say(`Selected: ${NETA[neta].name} (${this.stockOf(neta)} left)`);
+  }
+
+  /** 7: the customer orders the selected neta (to try every one). */
+  private orderSelected(): void {
+    const neta = NIGIRI_NETA[this.selected];
+    const item = menuFor('nigiri', [neta]);
+    const customer = this.queries.customer.entities.values().next().value;
+    if (!item || !customer) return;
+    customer.setValue(Customer, 'item', item);
+    customer.setValue(Customer, 'wasabi', NETA[neta].prep === 'saku' && neta !== 'Tamago');
+    this.say(`Ordered: ${NETA[neta].name}`);
+  }
+
+  private stockOf(neta: NetaId): number {
+    for (const entity of this.queries.items.entities) {
+      if (entity.getValue(CaseItem, 'neta') === neta) return entity.getValue(CaseItem, 'remaining') ?? 0;
+    }
+    return 0;
+  }
+
+  /**
+   * 4 / 5: the neta hand reaches into the case for that neta: a saku is laid
+   * on the board, a ready-cut piece comes straight onto the fingers.
+   */
+  private takeSaku(neta: NetaId): void {
     const side = chef.netaSide;
     if (!this.ready(side, Held.None)) return;
-    const at = this.sakuAt(fish);
+    const at = this.sakuAt(neta);
     const board = this.reachable(StationKind.CuttingBoard);
     if (!at || !board) return;
-    this.run(side, `Taking the ${fish === Fish.White ? 'white fish' : fish === Fish.Silver ? 'silver fish' : 'tuna'}`, [
-      move(at, v(0, 0.12, 0), 'grasp', 0.35),
-      move(at, v(0, 0.01, 0), 'grasp', 0.15),
+    const name = NETA[neta].name.toLowerCase();
+    if (NETA[neta].prep === 'piece') {
+      this.run(side, `Taking the ${name}`, [
+        move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
+        move(at, v(0, 0.015, -0.015), 'grasp', 0.2),
+        wait(0.2),
+        pinch(1),
+        wait(0.12),
+        pinch(0),
+        this.rest(side),
+      ]);
+      return;
+    }
+    this.run(side, `Taking the ${name}`, [
+      move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
+      move(at, v(0, 0.015, -0.015), 'grasp', 0.2),
+      wait(0.2),
       pinch(1),
       wait(0.12),
       move(at, v(0, 0.14, 0), 'grasp', 0.2),
@@ -558,7 +620,7 @@ export class PracticeSystem extends createSystem({
     const rice = chef.riceSide;
     const neta = chef.netaSide;
     if (chef.hands[rice].holding !== Held.Knife) return this.say('Hold the knife first (K)');
-    if (!progress.sakuOnBoard) return this.say('Put a saku on the board first (4 5 6)');
+    if (!progress.sakuOnBoard) return this.say('Put a saku on the board first (4 or 5)');
     if (progress.hasNeta) return this.say('A slice is already cut');
     if (this.driver[rice].busy || !this.ready(neta, Held.None)) return;
     const saku = progress.sakuAt.clone();
@@ -884,15 +946,19 @@ export class PracticeSystem extends createSystem({
     return true;
   }
 
-  /** Where that fish's saku is now (in the case or on the board). */
-  private sakuAt(fish: FishKind): Vector3 | null {
-    for (const entity of this.queries.saku.entities) {
-      if (entity.getValue(Saku, 'fish') !== fish || !entity.object3D) continue;
+  /** Where that neta is now in the case (its end nearest the chef). */
+  private sakuAt(neta: NetaId): Vector3 | null {
+    for (const entity of this.queries.items.entities) {
+      if (entity.getValue(CaseItem, 'neta') !== neta || !entity.object3D) continue;
+      if ((entity.getValue(CaseItem, 'remaining') ?? 0) < NETA[neta].perPiece) {
+        this.say(`${NETA[neta].name}: sold out (8 restocks)`);
+        return null;
+      }
       const at = new Vector3();
       entity.object3D.getWorldPosition(at);
       return this.inFront(at) ? at : null;
     }
-    this.say(`No ${fish} saku in this scene`);
+    this.say(`No ${NETA[neta].name} in the case`);
     return null;
   }
 
@@ -1095,7 +1161,7 @@ export class PracticeSystem extends createSystem({
     const lines = [
       'Drag: look     T (hold): turn around',
       '1 soap  2 wash  3 towel  C cloth  V wipe  B rinse',
-      '4 tuna  5 white  6 silver   R saku back',
+      '4 take the order  5 selected  6 next  7 order it  8 restock  R back',
       'K knife   X cut   W wipe the blade',
       'N neta   J tezu   L hold, let go on the beat: rice',
       'Y wasabi   H hands together',
