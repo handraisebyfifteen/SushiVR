@@ -8,7 +8,7 @@ import {
 
 /**
  * Behind the chef (reached by turning around): a stainless prep sink unit
- * with sliding doors, a backsplash and a faucet, plus a wooden dish cabinet.
+ * with sliding doors, a backsplash, a faucet and a dish cabinet above it.
  * Primitives only; origins at floor contact. The chef faces +Z after turning,
  * so "far side" here is +Z and the chef's right is -X.
  */
@@ -39,7 +39,6 @@ const cabinetGlass = new MeshStandardMaterial({
   transparent: true,
   opacity: 0.3,
 });
-const brass = new MeshStandardMaterial({ color: '#6E4A1E', roughness: 0.5, metalness: 0.4 });
 
 function box(w: number, h: number, d: number, material: MeshStandardMaterial, name: string): Mesh {
   const mesh = new Mesh(new BoxGeometry(w, h, d), material);
@@ -57,7 +56,8 @@ const BASIN_DEPTH = 0.2;
 /**
  * Prep sink unit: 1.2 m stainless cabinet with two sliding doors, a top with
  * a drainboard on the left and a deep basin on the right, a raised
- * backsplash on the far edge and a faucet rising from it over the basin.
+ * backsplash on the far edge, a faucet rising from it over the basin, and a
+ * wooden dish cabinet with sliding glass doors mounted above.
  */
 export function createSinkUnit(): Group {
   const root = new Group();
@@ -133,81 +133,34 @@ export function createSinkUnit(): Group {
   const handle = box(0.06, 0.012, 0.012, steelDark, 'FaucetHandle');
   handle.position.set(bx + 0.04, SINK_TOP_Y + 0.27, D / 2 - 0.06);
   root.add(splash, riser, arm, spout, handle);
-  return root;
-}
 
-/**
- * Wooden dish cabinet: two rows of sliding glass doors with shelves behind
- * them, three drawers with knobs, and six panelled doors below. Front is -Z.
- */
-export function createDishCabinet(): Group {
-  const root = new Group();
-  root.name = 'DishCabinet';
-  const W = 1.2;
-  const H = 1.85;
-  const D = 0.45;
-  const sideL = box(0.04, H, D, wood, 'SideL');
-  sideL.position.set(-W / 2 + 0.02, H / 2, 0);
-  const sideR = box(0.04, H, D, wood, 'SideR');
-  sideR.position.set(W / 2 - 0.02, H / 2, 0);
-  const top = box(W, 0.04, D, wood, 'Top');
-  top.position.set(0, H - 0.02, 0);
-  const plinth = box(W, 0.08, D, woodDark, 'Plinth');
-  plinth.position.set(0, 0.04, 0);
-  const backPanel = box(W - 0.08, H - 0.12, 0.02, woodInner, 'Back');
-  backPanel.position.set(0, H / 2, D / 2 - 0.01);
-  root.add(sideL, sideR, top, plinth, backPanel);
-
-  // Horizontal rails that split the front into bands.
-  const rails = [H - 0.06, 1.55, 1.04, 0.86, 0.1];
-  for (const y of rails) {
-    const rail = box(W - 0.08, 0.05, 0.04, wood, 'Rail');
-    rail.position.set(0, y, -D / 2 + 0.02);
-    root.add(rail);
-  }
-  // Glass door rows: a small upper row and a tall main row, each two panes
-  // with a center stile, shelves visible behind.
-  const glassRows: Array<[number, number]> = [
-    [1.58, H - 0.085],
-    [1.07, 1.525],
-  ];
-  for (const [y0, y1] of glassRows) {
-    const h = y1 - y0;
-    for (const sx of [-1, 1]) {
-      const pane = box(W / 2 - 0.08, h, 0.006, cabinetGlass, 'GlassPane');
-      pane.position.set(sx * (W / 4 - 0.02), (y0 + y1) / 2, -D / 2 + 0.03);
-      const frame = box(0.04, h, 0.02, wood, 'PaneStile');
-      frame.position.set(sx * (W / 2 - 0.06), (y0 + y1) / 2, -D / 2 + 0.03);
-      root.add(pane, frame);
-    }
-    const stile = box(0.04, h, 0.02, wood, 'CenterStile');
-    stile.position.set(0, (y0 + y1) / 2, -D / 2 + 0.03);
-    root.add(stile);
-  }
-  for (const y of [1.07, 1.22, 1.37, 1.58]) {
-    const shelf = box(W - 0.1, 0.02, D - 0.1, woodInner, 'Shelf');
-    shelf.position.set(0, y + 0.01, 0.02);
-    root.add(shelf);
-  }
-  // Three drawers with knobs.
-  for (let i = 0; i < 3; i++) {
-    const x = (i - 1) * 0.37;
-    const drawer = box(0.35, 0.13, 0.02, wood, 'Drawer');
-    drawer.position.set(x, 0.95, -D / 2 + 0.01);
-    const knob = new Mesh(new CylinderGeometry(0.012, 0.012, 0.02, 8, 1), brass);
-    knob.name = 'Knob';
-    knob.rotation.x = Math.PI / 2;
-    knob.position.set(x, 0.95, -D / 2 - 0.01);
-    root.add(drawer, knob);
-  }
-  // Six panelled doors.
-  for (let i = 0; i < 6; i++) {
-    const x = -0.46 + i * 0.184;
-    const door = box(0.17, 0.7, 0.02, wood, 'Door');
-    door.position.set(x, 0.48, -D / 2 + 0.01);
-    const panel = box(0.11, 0.5, 0.01, woodDark, 'DoorPanel');
-    panel.position.set(x, 0.48, -D / 2 - 0.004);
-    root.add(door, panel);
+  // Upper dish cabinet over the far half of the sink: a simple wooden box
+  // with two sliding glass doors and two shelves.
+  const cabY = 1.4;
+  const cabH = 0.65;
+  const cabD = 0.32;
+  const cabZ = D / 2 - cabD / 2;
+  const cabSideL = box(0.04, cabH, cabD, wood, 'CabSideL');
+  cabSideL.position.set(-W / 2 + 0.02, cabY + cabH / 2, cabZ);
+  const cabSideR = box(0.04, cabH, cabD, wood, 'CabSideR');
+  cabSideR.position.set(W / 2 - 0.02, cabY + cabH / 2, cabZ);
+  const cabTop = box(W, 0.04, cabD, wood, 'CabTop');
+  cabTop.position.set(0, cabY + cabH - 0.02, cabZ);
+  const cabBottom = box(W, 0.04, cabD, wood, 'CabBottom');
+  cabBottom.position.set(0, cabY + 0.02, cabZ);
+  const cabBack = box(W - 0.08, cabH - 0.08, 0.02, woodInner, 'CabBack');
+  cabBack.position.set(0, cabY + cabH / 2, D / 2 - 0.01);
+  const shelf = box(W - 0.1, 0.02, cabD - 0.08, woodInner, 'CabShelf');
+  shelf.position.set(0, cabY + cabH / 2, cabZ + 0.02);
+  const stile = box(0.03, cabH - 0.08, 0.02, wood, 'CabStile');
+  stile.position.set(0, cabY + cabH / 2, cabZ - cabD / 2 + 0.02);
+  root.add(cabSideL, cabSideR, cabTop, cabBottom, cabBack, shelf, stile);
+  for (const sx of [-1, 1]) {
+    const pane = box(W / 2 - 0.07, cabH - 0.1, 0.006, cabinetGlass, 'CabGlass');
+    pane.position.set(sx * (W / 4 - 0.01), cabY + cabH / 2, cabZ - cabD / 2 + 0.03);
+    const pull = box(0.012, 0.08, 0.012, woodDark, 'CabPull');
+    pull.position.set(sx * 0.05, cabY + cabH / 2, cabZ - cabD / 2 + 0.01);
+    root.add(pane, pull);
   }
   return root;
 }

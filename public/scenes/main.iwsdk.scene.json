@@ -453,23 +453,6 @@
       }
     },
     {
-      "id": "dish-cabinet",
-      "name": "Dish Cabinet",
-      "content": {
-        "type": "asset",
-        "asset": "dish-cabinet",
-        "castShadow": true,
-        "receiveShadow": true
-      },
-      "transform": {
-        "position": [
-          1.05,
-          0,
-          0.85
-        ]
-      }
-    },
-    {
       "id": "key-light",
       "name": "Key Light",
       "transform": {
