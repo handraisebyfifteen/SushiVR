@@ -1,56 +1,66 @@
 # Sushi VR
 
-寿司をテーマにした WebXR アプリです（開発中）。
-Meta Quest などの VR ヘッドセットのブラウザで URL を開くだけで、インストールなしで遊べることを目指しています。
+A sushi-restaurant simulator for WebXR, built for the Meta VR Start Developer
+Competition 2026. It runs in the browser of a VR headset such as Meta Quest with
+no installation: open the URL and start making sushi.
 
-> 現在はプロジェクトの土台のみで、IWSDK のスターターサンプル（ロボットとウェルカムパネル）が入っています。
+> Work in progress. The project currently contains an empty room; the sushi
+> counter and hand-tracked nigiri-making come next.
 
-## 動かし方
+Read this in Japanese: [README.ja.md](README.ja.md)
 
-Node.js 22.12 以上が必要です（[`.nvmrc`](.nvmrc) 参照）。
+## Getting started
+
+Node.js 22.12 or newer is required (see [`.nvmrc`](.nvmrc)).
 
 ```sh
 npm install
 npm run dev
 ```
 
-開発用のブラウザが起動します。VR ヘッドセットがなくても、内蔵のエミュレーター（IWER）でパソコン上から VR 操作を試せます。
-ブラウザ内の Runtime / Editor の切り替えで、アプリの実行画面とシーン編集画面を行き来できます。
+This starts the managed development browser. You do not need a headset to try
+it: the built-in emulator (IWER) lets you simulate a VR session, controllers,
+and hand tracking from your desktop. Use the Runtime / Editor toggle in the
+browser window to switch between the running app and the scene editor.
 
-本番用ファイルの作成:
+Other useful commands:
 
 ```sh
-npm run build   # dist/ に出力
+npm run typecheck   # TypeScript type check
+npm run build       # production build into dist/
+npm run preview     # serve the production build locally
 ```
 
-## 構成
+## Project layout
 
-| パス | 内容 |
+| Path | Purpose |
 | --- | --- |
-| `iwsdk.config.json` | プロジェクト設定（使うシーン・アセット・XR 機能など） |
-| `src/index.ts` | アプリの起点。`World.create()` とシステムの登録 |
-| `src/assets.ts` | アセット（3D モデル・音など）の一覧 |
-| `src/components.ts` | コンポーネントの一覧 |
-| `src/scene-assets/` | コードで作る 3D モデル |
-| `public/scenes/` | シーンの配置データ（JSON） |
-| `public/ui/` | UI パネル（`.uikitml`） |
+| `iwsdk.config.json` | Project authority: active scene, asset/component modules, XR and world features |
+| `src/index.ts` | App entry point: `World.create()` and system registration |
+| `src/assets.ts` | Asset catalog shared by the runtime and the editor |
+| `src/components.ts` | Component catalog shared by the runtime and the editor |
+| `src/scene-assets/` | 3D models built in code (no external model files) |
+| `public/scenes/` | Scene composition (JSON) |
+| `public/ui/` | UI panels (`.uikitml`) |
 
-## スターターサンプルについて
+## Design constraints
 
-ロボットは押すと音が鳴り、プレイヤーの方を向きます。左右の台には、つかんで動かせるピースと回せるリングがあります。
-サンプルを削除する手順は IWSDK のガイドを参照してください。
+- All in-game text is English.
+- No real company, brand, or product names.
+- No external 3D models, images, audio, or fonts; geometry is built from
+  primitives in code.
+- Targets 60 fps or better on a Meta Quest headset.
+- Every asset is tracked in [CREDITS.md](CREDITS.md).
 
-- 最小構成のシーン: https://iwsdk.dev/guides/01b-minimal-scene.html
-- エミュレーター（IWER）の操作方法: https://iwsdk.dev/guides/02-testing-experience.html#iwer-controls
+## Built with
 
-## 使用技術
+- [IWSDK (Immersive Web SDK)](https://iwsdk.dev), Meta's WebXR framework
+- Three.js, Vite, TypeScript
 
-- [IWSDK (Immersive Web SDK)](https://iwsdk.dev) — Meta による WebXR 開発フレームワーク
-- Three.js / Vite / TypeScript
+## License
 
-## ライセンス
-
-[MIT](LICENSE)。IWSDK のテンプレートから生成されたファイルには Meta Platforms, Inc. の著作権表示が含まれています。
+[MIT](LICENSE). Files generated from IWSDK templates include a copyright notice
+from Meta Platforms, Inc.
 
 ---
 
