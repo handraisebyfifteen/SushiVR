@@ -209,8 +209,8 @@ export interface MenuDef {
   wasabi: 'ask' | 'never';
   /** Relative order frequency. */
   weight: number;
-  /** Knife strokes for a roll (2: four pieces, 3: six pieces). */
-  cuts?: 2 | 3;
+  /** Pieces one roll is cut into: kanpyo into six, the others into eight. */
+  pieces?: 6 | 8;
 }
 
 export const Menu = {
@@ -278,12 +278,12 @@ export const MENU: Record<MenuId, MenuDef> = {
   UniGunkan: { name: 'Sea urchin', kind: 'gunkan', neta: ['Uni'], wasabi: 'ask', weight: 1.5 },
   IkuraGunkan: { name: 'Salmon roe', kind: 'gunkan', neta: ['Ikura'], wasabi: 'ask', weight: 1.5 },
   Inari: { name: 'Inari', kind: 'inari', neta: ['InariAge'], wasabi: 'never', weight: 1 },
-  KanpyoRoll: { name: 'Gourd roll', kind: 'maki', neta: ['Kanpyo'], wasabi: 'ask', weight: 1, cuts: 2 },
-  TunaRoll: { name: 'Tuna roll', kind: 'maki', neta: ['TunaStick'], wasabi: 'ask', weight: 1.5, cuts: 3 },
-  CucumberRoll: { name: 'Cucumber roll', kind: 'maki', neta: ['Cucumber'], wasabi: 'ask', weight: 1, cuts: 3 },
-  PickleRoll: { name: 'Pickle roll', kind: 'maki', neta: ['Takuan'], wasabi: 'never', weight: 0.7, cuts: 3 },
-  UmeShisoRoll: { name: 'Plum and shiso roll', kind: 'maki', neta: ['Shiso', 'UmePaste'], wasabi: 'never', weight: 0.7, cuts: 3 },
-  UmeCucumberRoll: { name: 'Plum and cucumber roll', kind: 'maki', neta: ['UmePaste', 'Cucumber'], wasabi: 'never', weight: 0.7, cuts: 3 },
+  KanpyoRoll: { name: 'Gourd roll', kind: 'maki', neta: ['Kanpyo'], wasabi: 'ask', weight: 1, pieces: 6 },
+  TunaRoll: { name: 'Tuna roll', kind: 'maki', neta: ['TunaStick'], wasabi: 'ask', weight: 1.5, pieces: 8 },
+  CucumberRoll: { name: 'Cucumber roll', kind: 'maki', neta: ['Cucumber'], wasabi: 'ask', weight: 1, pieces: 8 },
+  PickleRoll: { name: 'Pickle roll', kind: 'maki', neta: ['Takuan'], wasabi: 'never', weight: 0.7, pieces: 8 },
+  UmeShisoRoll: { name: 'Plum and shiso roll', kind: 'maki', neta: ['Shiso', 'UmePaste'], wasabi: 'never', weight: 0.7, pieces: 8 },
+  UmeCucumberRoll: { name: 'Plum and cucumber roll', kind: 'maki', neta: ['UmePaste', 'Cucumber'], wasabi: 'never', weight: 0.7, pieces: 8 },
 };
 
 /** The menu item a finished piece is, from its kind and neta (null if none matches). */

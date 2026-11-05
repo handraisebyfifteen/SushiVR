@@ -8,11 +8,11 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { chef, orderNeta, progress } from './game-state.js';
+import { chef, orderKind, orderNeta, progress, service } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { hands } from './hands.js';
 import { SEATED_EYE_HEIGHT } from './layout.js';
-import { CASE_ORDER, menuFor, NETA, type NetaId } from './menu.js';
+import { CASE_ORDER, MENU, type MenuId, menuFor, NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
 import { type Kind, stations } from './station-system.js';
 import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sushi-components.js';
@@ -150,8 +150,8 @@ const LOOK_PITCH_DEG = -22;
 const HEAD_TURN_RATE_DEG = 320;
 const TURN_LOOK_DEG = 88;
 const HEADING_STEP_DEG = 45;
-/** What can be ordered from the case, in case order (what 6 steps through): nigiri neta, gunkan toppings, the inari pouch. */
-const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => ['saku', 'piece', 'scoop', 'age'].includes(NETA[id].prep));
+/** What can be ordered from the case, in case order (what 6 steps through): nigiri neta, gunkan toppings, the inari pouch, roll fillings. */
+const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => ['saku', 'piece', 'scoop', 'age', 'filling'].includes(NETA[id].prep));
 
 class DriverHand {
   steps: Step[] = [];
@@ -305,6 +305,11 @@ export class PracticeSystem extends createSystem({
     if (!down || e.repeat) return;
     const caseKeys: Record<string, () => void> = {
       Digit4: () => {
+        const order = service.order;
+        if (order && MENU[order.item].kind === 'maki') {
+          const next = MENU[order.item].neta[progress.fillings];
+          return next ? this.placeFilling(next) : this.say('Every filling is on: roll it (I)');
+        }
         const neta = orderNeta();
         if (neta) this.takeSaku(neta);
         else this.say('No order yet');
@@ -339,6 +344,8 @@ export class PracticeSystem extends createSystem({
       KeyY: () => this.wasabi(),
       KeyH: () => this.join(),
       KeyZ: () => this.takeNori(),
+      KeyU: () => this.spreadRice(),
+      KeyI: () => this.rollMaki(),
       Space: () => this.touch(),
       KeyF: () => this.flip(),
       KeyG: () => this.halfTurn(),
@@ -507,12 +514,29 @@ export class PracticeSystem extends createSystem({
 
   // ---- verbs: saku and knife -------------------------------------------------------
 
-  /** Z: the neta hand takes a nori strip from the nori box (a gunkan begins). */
+  /** Z: the neta hand takes nori from the nori box: a strip for a gunkan, or a half sheet laid on the mat for a roll. */
   private takeNori(): void {
     const side = chef.netaSide;
     if (!this.ready(side, Held.None)) return;
     const box = this.reachable(StationKind.NoriBox);
     if (!box) return;
+    if (orderKind() === 'maki') {
+      const mat = this.reachable(StationKind.Makisu);
+      if (!mat) return;
+      this.run(side, 'Nori on the mat (then J, L, U to spread the rice)', [
+        move(box, v(0, 0.1, 0.02), 'grasp', 0.35),
+        move(box, v(0, 0.02, 0), 'grasp', 0.2),
+        pinch(1),
+        wait(0.12),
+        move(box, v(0, 0.1, 0), 'grasp', 0.2),
+        move(mat, v(0, 0.06, 0), 'grasp', 0.35),
+        move(mat, v(0, 0.02, 0), 'grasp', 0.15),
+        pinch(0),
+        wait(0.1),
+        this.rest(side),
+      ]);
+      return;
+    }
     this.run(side, 'A nori strip (then H to wrap the rice)', [
       move(box, v(0, 0.1, 0.02), 'grasp', 0.35),
       move(box, v(0, 0.02, 0), 'grasp', 0.2),
@@ -544,6 +568,63 @@ export class PracticeSystem extends createSystem({
     ]);
   }
 
+  /** U: the open rice hand sweeps the rice out over the nori on the mat. */
+  private spreadRice(): void {
+    const side = chef.riceSide;
+    if (!progress.matNori) return this.say('Nori on the mat first (Z)');
+    if (!progress.hasRice) return this.say('Take rice first (J, then hold L)');
+    if (this.driver[side].busy) return this.say('Rice hand is busy');
+    const mat = this.reachable(StationKind.Makisu);
+    if (!mat) return;
+    this.run(side, 'Spreading the rice', [
+      pose('open'),
+      move(mat, v(0, 0.06, 0.02), 'palm', 0.3),
+      move(mat, v(0, 0.03, 0.02), 'palm', 0.15),
+      rub(mat, v(0, 0.03, 0.02), 'palm', 2.2, 0.07, 1.1, () => progress.spread >= 1),
+      pose('default'),
+      this.rest(side),
+    ]);
+  }
+
+  /** 4 on a roll order: the rice hand lays the next filling along the rice. */
+  private placeFilling(neta: NetaId): void {
+    const side = chef.riceSide;
+    if (progress.spread < 1) return this.say('Spread the rice first (U)');
+    if (this.driver[side].busy || chef.hands[side].holding !== Held.None) return this.say('Rice hand is busy');
+    const at = this.sakuAt(neta);
+    if (!at) return;
+    const mat = progress.pieceAt.clone();
+    this.run(side, `Laying the ${NETA[neta].name.toLowerCase()}`, [
+      move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
+      move(at, v(0, 0.015, -0.015), 'grasp', 0.2),
+      wait(0.2),
+      pinch(1),
+      wait(0.12),
+      move(at, v(0, 0.12, 0.03), 'grasp', 0.2),
+      move(mat, v(0, 0.07, 0), 'grasp', 0.35),
+      move(mat, v(0, 0.025, 0), 'grasp', 0.15),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
+  /** I: both hands at the near edge of the mat push it away: rolled. */
+  private rollMaki(): void {
+    if (progress.fillings < 1) return this.say('Lay the filling first (4)');
+    if (this.driver[0].busy || this.driver[1].busy) return this.say('Hands are busy');
+    const mat = progress.pieceAt.clone();
+    for (const side of [chef.netaSide, chef.riceSide] as const) {
+      const x = side === chef.netaSide ? -0.06 : 0.06;
+      this.run(side, 'Rolling: both fists on the beat (Space)', [
+        move(mat, v(x, 0.06, 0.08), 'palm', 0.3),
+        move(mat, v(x, 0.035, 0.08), 'palm', 0.15),
+        move(mat, v(x, 0.035, -0.02), 'palm', 0.35),
+        wait(0.2),
+      ]);
+    }
+  }
+
   /** 6 / Shift+6: the next or previous neta for 5 and 7. */
   private select(step: number): void {
     this.selected = (this.selected + step + NIGIRI_NETA.length) % NIGIRI_NETA.length;
@@ -555,7 +636,9 @@ export class PracticeSystem extends createSystem({
   private orderSelected(): void {
     const neta = NIGIRI_NETA[this.selected];
     const prep = NETA[neta].prep;
-    const item = menuFor(prep === 'scoop' ? 'gunkan' : prep === 'age' ? 'inari' : 'nigiri', [neta]);
+    // A roll filling orders the roll that starts with it (shiso: ume-shiso, plum: ume-kyu).
+    const roll = (Object.keys(MENU) as MenuId[]).find((id) => MENU[id].kind === 'maki' && MENU[id].neta[0] === neta);
+    const item = prep === 'filling' ? (roll ?? null) : menuFor(prep === 'scoop' ? 'gunkan' : prep === 'age' ? 'inari' : 'nigiri', [neta]);
     const customer = this.queries.customer.entities.values().next().value;
     if (!item || !customer) return;
     customer.setValue(Customer, 'item', item);
@@ -664,6 +747,7 @@ export class PracticeSystem extends createSystem({
     const rice = chef.riceSide;
     const neta = chef.netaSide;
     if (chef.hands[rice].holding !== Held.Knife) return this.say('Hold the knife first (K)');
+    if (progress.kind === 'maki') return this.cutRoll();
     if (!progress.sakuOnBoard) return this.say('Put a saku on the board first (4 or 5)');
     if (progress.hasNeta) return this.say('A slice is already cut');
     if (this.driver[rice].busy || !this.ready(neta, Held.None)) return;
@@ -680,6 +764,26 @@ export class PracticeSystem extends createSystem({
       move(guide, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
       move(guide, v(0, 0.06, 0.09), 'palm', 0.15),
       move(guide, v(0, 0.06, 0.23), 'palm', 0.5),
+      move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
+      moveLocal(KNIFE_READY, 'palm', 0.3),
+    ]);
+  }
+
+  /** X on a roll: the neta hand steadies the roll, the blade is drawn across the next guide line. */
+  private cutRoll(): void {
+    const rice = chef.riceSide;
+    const neta = chef.netaSide;
+    if (!progress.squeezed) return this.say('Roll and squeeze it first (I, Space)');
+    if (progress.cutsDone >= progress.cutsNeeded) return this.say('All cut: put the knife down (W, K), carry it (M)');
+    if (this.driver[rice].busy || this.driver[neta].busy) return this.say('Hands are busy');
+    const roll = progress.pieceAt.clone();
+    const guide = progress.guideAt.clone();
+    this.run(neta, 'Hand on the roll', [move(roll, v(-0.07, 0.04, 0), 'palm', 0.3), wait(1.25), this.rest(neta)]);
+    this.run(rice, `Cut ${progress.cutsDone + 1} of ${progress.cutsNeeded}`, [
+      wait(0.3),
+      move(guide, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
+      move(guide, v(0, 0.05, 0.09), 'palm', 0.15),
+      move(guide, v(0, 0.05, 0.23), 'palm', 0.5),
       move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
       moveLocal(KNIFE_READY, 'palm', 0.3),
     ]);
@@ -763,8 +867,10 @@ export class PracticeSystem extends createSystem({
   /** Y: the rice hand's index finger takes wasabi from the dish and dabs it on the neta. */
   private wasabi(): void {
     const side = chef.riceSide;
-    if (!progress.netaHeld) return this.say('Take the neta first (N)');
-    if (!progress.hasRice) return this.say('Take rice first: wasabi comes on the way up (J, then hold L)');
+    const roll = progress.kind === 'maki';
+    if (roll && progress.spread < 1) return this.say('Spread the rice first (U)');
+    if (!roll && !progress.netaHeld) return this.say('Take the neta first (N)');
+    if (!roll && !progress.hasRice) return this.say('Take rice first: wasabi comes on the way up (J, then hold L)');
     if (this.driver[side].busy) return this.say('Rice hand is busy');
     const dish = this.reachable(StationKind.Wasabi);
     if (!dish) return;
@@ -826,6 +932,10 @@ export class PracticeSystem extends createSystem({
         wait(0.15),
         pinch(0),
       ]);
+    } else if (stage === 'Rolled') {
+      // A roll: both fists together on the beat.
+      if (this.driver[0].busy || this.driver[1].busy) return this.say('Hands are busy');
+      for (const s of [0, 1] as const) this.run(s, 'Squeezed: knife (K), then cut on the line (X)', [pose('fist'), wait(0.2), pose('default')]);
     } else if (stage === 'Stuffed') {
       // Inari: the hand holding the pouch makes a fist on the beat.
       const neta = chef.netaSide;
@@ -1221,7 +1331,7 @@ export class PracticeSystem extends createSystem({
       '4 take the order  5 selected  6 next  7 order it  8 restock  R back',
       'K knife   X cut   W wipe the blade',
       'N neta   J tezu   L hold, let go on the beat: rice',
-      'Y wasabi   H hands together   Z nori (gunkan)',
+      'Y wasabi   H hands   Z nori   U spread   I roll',
       'Space touch on the beat   F flip   G half turn',
       'M carry / let go   Q E turn 45   S serve',
       `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}`,

@@ -41,7 +41,14 @@ export type StepKey =
   // inari
   | 'takeAge'
   | 'stuffAge'
-  | 'closeAge';
+  | 'closeAge'
+  // rolls
+  | 'layNori'
+  | 'spreadRice'
+  | 'placeFilling'
+  | 'rollMaki'
+  | 'squeezeRoll'
+  | 'cutRoll';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
 export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';

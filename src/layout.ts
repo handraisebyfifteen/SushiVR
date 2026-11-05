@@ -206,6 +206,8 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   'tezu-bowl': { position: [0.4, MANAITA_TOP, DISH_Z] },
   // Back-left corner of the board, for the neta hand (gunkan nori).
   'nori-box': { position: [-0.38, MANAITA_TOP, DISH_Z] },
+  // Left of centre, toward the chef, where both hands reach it (rolled up at the board's left edge when not in use).
+  makisu: { position: [-0.2, MANAITA_TOP, MANAITA_Z + 0.07], station: { width: 0.24, depth: 0.22, height: 0.004 } },
   knife: { position: [0.57, WORK_COUNTER_TOP, MANAITA_Z + 0.03] },
   'wet-cloth': { position: [0.66, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
   ledge: { position: [0, 0, TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2] },

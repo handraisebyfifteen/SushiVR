@@ -9,8 +9,8 @@ import type { PieceKind } from './menu.js';
 export const CHEF_LEFT_HANDED = false;
 
 // --- menu ---
-/** Kinds of piece the customers order (rolls follow in a later step). */
-export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri', 'gunkan', 'inari'];
+/** Kinds of piece the customers order. */
+export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri', 'gunkan', 'inari', 'maki'];
 
 // --- customers ---
 export const LEFT_HANDED_CUSTOMER_RATIO = 0.3;
@@ -51,6 +51,15 @@ export const FLIP_WINDOW_SECONDS = 0.5;
 /** Turn: clockwise hand rotation (degrees) while pinching that spins the piece. */
 export const ROTATE_DEG = 60;
 export const SERVE_HOLD_SECONDS = 1.0;
+
+// --- rolls (hosomaki) ---
+/** Total sideways palm travel over the nori (two sweeps) that spreads the rice. */
+export const SPREAD_DISTANCE = 0.32;
+/** Both palms push forward this far over the mat (within ROLL_WINDOW_SECONDS) to roll it. */
+export const ROLL_PUSH_DISTANCE = 0.06;
+export const ROLL_WINDOW_SECONDS = 0.8;
+/** Both fists close within this many seconds of each other: the squeeze. */
+export const SQUEEZE_SYNC_SECONDS = 0.3;
 
 // --- rhythm ---
 export const TEMPO_MS = 1000;

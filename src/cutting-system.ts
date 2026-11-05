@@ -23,6 +23,12 @@ const BLADE_REACH = 0.15;
 /** A pinch this close to the saku lying on the board picks it up again. */
 const PICK_DISTANCE = 0.1;
 
+/** The knife, for the roll: whether the rice hand holds it and where its blade tip is (world). */
+export const knifeApi = {
+  held: false,
+  blade: new Vector3(),
+};
+
 /**
  * Taking from the neta case, cutting one slice with the yanagiba, and
  * keeping the knife clean.
@@ -239,6 +245,7 @@ export class CuttingSystem extends createSystem({
   }
 
   private updateKnife(): void {
+    knifeApi.held = this.knifeHeld;
     if (!this.knife) return;
     const side = chef.riceSide;
     const hand = hands.all[side];
@@ -263,6 +270,7 @@ export class CuttingSystem extends createSystem({
       knifeObject.rotation.y = (hand.yawDeg * Math.PI) / 180 + Math.PI / 2;
     }
     this.blade.copy(hand.palm).addScaledVector(hand.fingerDir, BLADE_REACH);
+    knifeApi.blade.copy(this.blade);
 
     // Wipe on the wet cloth: any part of the blade passing over it counts.
     const onCloth = this.bladeOver(StationKind.WetCloth, 0.1);

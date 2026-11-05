@@ -583,6 +583,52 @@ export function containerMaterial(id: NetaId): Material | null {
   return stoneware;
 }
 
+/** Roll radius (a hosomaki, about 2.6 cm across) and the filling's radius in its cut face. */
+export const MAKI_RADIUS = 0.013;
+const MAKI_FILLING_RADIUS = 0.0045;
+/** The colour each filling shows in a roll's cut face. */
+const FACE_COLOR: Partial<Record<NetaId, string>> = {
+  Kanpyo: '#8C5E2E',
+  TunaStick: '#B3202C',
+  Cucumber: '#7FA65A',
+  Takuan: '#F2D23C',
+  UmePaste: '#A3242E',
+  Shiso: '#3E7A2E',
+};
+const rolls = new Map<string, NetaMaterial>();
+
+/** The material of a roll with these fillings (nori outside, the fillings in the cut face). */
+export function makiMaterial(fillings: readonly NetaId[]): NetaMaterial {
+  const key = fillings.join('+');
+  let m = rolls.get(key);
+  if (!m) {
+    const c2 = FACE_COLOR[fillings[0]] ?? '#888888';
+    const c3 = fillings[1] ? (FACE_COLOR[fillings[1]] ?? c2) : undefined;
+    m = makeNetaMaterial(`Roll_${key}`, NetaPattern.MakiRoll, '#16241B', c2, [1, MAKI_RADIUS, MAKI_FILLING_RADIUS], 4.2, 0.4, false, c3);
+    rolls.set(key, m);
+  }
+  return m;
+}
+
+/** A roll segment: a unit length along X (scale x to the length), radius MAKI_RADIUS, capped. */
+export function makiSegmentGeometry(): BufferGeometry {
+  return patterned(new CylinderGeometry(MAKI_RADIUS, MAKI_RADIUS, 1, 24, 1).rotateZ(Math.PI / 2));
+}
+
+/** A filling as it is laid on the rice, along X: sticks and ribbons end to end, a line of plum paste, two shiso leaves. */
+export function fillingOnRice(id: NetaId): BufferGeometry {
+  const look = caseLook(id);
+  const g = look.geometry;
+  const turn = new Matrix4().makeRotationY(Math.PI / 2);
+  if (id === 'UmePaste') return g.clone().applyMatrix4(new Matrix4().makeScale(9, 0.7, 0.5)).translate(0, -0.0045, 0);
+  const a = new Matrix4().multiplyMatrices(new Matrix4().makeTranslation(-0.048, 0, 0), turn);
+  const b = new Matrix4().multiplyMatrices(new Matrix4().makeTranslation(0.048, 0, 0), turn);
+  return weld([
+    [g, a],
+    [g, b],
+  ]);
+}
+
 /** The glossy material of a liquid (the inari broth). */
 export function liquidMaterial(): Material {
   liquid ??= new MeshStandardMaterial({ color: '#5E3812', roughness: 0.08, metalness: 0 });

@@ -213,6 +213,31 @@
       }
     },
     {
+      "id": "makisu",
+      "name": "Makisu",
+      "content": {
+        "type": "asset",
+        "asset": "makisu",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.2,
+          0.77,
+          -0.25
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Makisu",
+          "width": 0.24,
+          "depth": 0.22,
+          "height": 0.004
+        }
+      }
+    },
+    {
       "id": "knife",
       "name": "Knife (yanagiba)",
       "content": {

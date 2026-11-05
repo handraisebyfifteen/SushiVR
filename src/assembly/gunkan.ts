@@ -163,6 +163,8 @@ export class GunkanAssembly implements Assembly {
   }
 
   private updateTakeNori(hand: HandReader): void {
+    // For a roll the nori box gives a half sheet (MakiAssembly).
+    if (orderKind() === 'maki') return;
     const state = chef.hands[chef.netaSide];
     if (!hand.tracked || !hand.pinchStart || state.holding !== Held.None) return;
     if (!overStation(hand.grasp, StationKind.NoriBox)) return;

@@ -18,7 +18,7 @@ import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
 import { debugLines } from './debug.js';
 import { chef, holdingAnything, orderKind, orderNeta, progress, service } from './game-state.js';
 import { hands } from './hands.js';
-import { NETA } from './menu.js';
+import { MENU, NETA } from './menu.js';
 import { playClack } from './sfx.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { type BoxPart, mergeGeometries, partMatrix } from './scene-assets/lib/batch.js';
@@ -68,6 +68,12 @@ const STEP_WORDS: Record<StepKey, string> = {
   takeAge: 'Take an inari pouch',
   stuffAge: 'Hands together: fill it',
   closeAge: 'Fist on the beat: fold',
+  layNori: 'Nori on the mat',
+  spreadRice: 'Spread the rice',
+  placeFilling: 'Lay the filling',
+  rollMaki: 'Push to roll',
+  squeezeRoll: 'Both fists on the beat',
+  cutRoll: 'Cut on the line',
 };
 
 const MISTAKE_WORDS: Record<MistakeKey, string> = {
@@ -80,7 +86,10 @@ const MISTAKE_WORDS: Record<MistakeKey, string> = {
 };
 
 /** Steps that happen on the piece in the chef's hands: words go above the piece. */
-const PIECE_STEPS = new Set<StepKey>(['join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi', 'wrapNori', 'stuffAge', 'closeAge']);
+const PIECE_STEPS = new Set<StepKey>([
+  'join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi', 'wrapNori', 'stuffAge', 'closeAge',
+  'spreadRice', 'rollMaki', 'squeezeRoll',
+]);
 const TURN_STEPS = new Set<StepKey>(['turnBack', 'turnFront']);
 
 const GESTURE_SECONDS = 0.9;
@@ -392,6 +401,8 @@ export class MasterSystem extends createSystem({
       if (back) return 'turnFront';
     }
     if (!chef.open || back) return null;
+    // A roll uses the knife too: its own recipe decides about the knife.
+    if ((progress.kind ?? orderKind()) === 'maki') return this.makiStep();
 
     if (progress.knifeHeld) {
       if (progress.hasNeta) return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
@@ -456,6 +467,36 @@ export class MasterSystem extends createSystem({
     return progress.closed ? null : 'closeAge';
   }
 
+  /** A roll: nori on the mat, rice, spread, wasabi, fillings, roll, squeeze, three cuts, then the geta. */
+  private makiStep(): StepKey | null {
+    if (progress.sakuOnBoard && !progress.knifeHeld) return 'returnSaku';
+    const stage = progress.stage;
+    if (stage === 'Done' || stage === 'Carried') {
+      if (progress.knifeHeld) return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
+      return 'place';
+    }
+    if (stage === 'Placed') return 'serve';
+    if (!progress.matNori) return progress.knifeHeld ? 'putKnife' : 'layNori';
+    if (progress.spread < 1) {
+      if (!progress.hasRice) return chef.hands[chef.riceSide].wet ? 'rice' : 'tezu';
+      return 'spreadRice';
+    }
+    const needed = service.order ? MENU[service.order.item].neta.length : 1;
+    if (service.order?.wasabi && progress.wasabi !== 'neta' && progress.fillings === 0) return 'wasabi';
+    if (progress.fillings < needed) return 'placeFilling';
+    if (!progress.rolled) return 'rollMaki';
+    if (!progress.squeezed) return 'squeezeRoll';
+    if (progress.cutsDone < progress.cutsNeeded) return progress.knifeHeld ? 'cutRoll' : 'holdKnife';
+    return null;
+  }
+
+  /** The next filling for the roll on order, if any. */
+  private nextFilling(): (typeof MENU)[keyof typeof MENU]['neta'][number] | null {
+    const order = service.order;
+    if (!order || MENU[order.item].kind !== 'maki') return null;
+    return MENU[order.item].neta[progress.fillings] ?? null;
+  }
+
   private learned(step: StepKey): boolean {
     return (this.successes.get(this.learnKey(step)) ?? 0) >= MASTER_LEARNED_COUNT;
   }
@@ -471,6 +512,8 @@ export class MasterSystem extends createSystem({
     const neta = orderNeta();
     if (step === 'takeSaku' && neta) return `Take the ${NETA[neta].name.toLowerCase()}`;
     if (step === 'spoonTopping' && neta) return `${neta === 'Uni' ? 'Spatula' : 'Spoon'} on the ${NETA[neta].name.toLowerCase()}`;
+    const filling = step === 'placeFilling' ? this.nextFilling() : null;
+    if (filling) return `Lay the ${NETA[filling].name.toLowerCase()}`;
     if (step === 'place' && (progress.kind ?? orderKind()) !== 'nigiri') return 'Onto the geta';
     if (step === 'place') return service.customerHandKnown ? 'Geta: on the diagonal' : 'Geta: straight across';
     return STEP_WORDS[step];
@@ -497,7 +540,14 @@ export class MasterSystem extends createSystem({
       case 'returnSaku':
       case 'spoonTopping':
       case 'takeAge':
+      case 'placeFilling':
         return StationKind.NetaCase;
+      case 'layNori':
+      case 'spreadRice':
+      case 'rollMaki':
+      case 'squeezeRoll':
+      case 'cutRoll':
+        return StationKind.Makisu;
       case 'takeNori':
         return StationKind.NoriBox;
       case 'holdKnife':
@@ -540,6 +590,15 @@ export class MasterSystem extends createSystem({
       case 'cut':
         out.copy(progress.sakuAt).add(this.tmp.set(0, 0.15, 0));
         return;
+      case 'cutRoll':
+        out.copy(progress.guideAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'placeFilling':
+        if (this.netaAt(this.nextFilling(), out)) {
+          out.y += 0.15;
+          return;
+        }
+        break;
       case 'takeNeta':
         out.copy(progress.sliceAt).add(this.tmp.set(0, 0.15, 0));
         return;
@@ -569,6 +628,18 @@ export class MasterSystem extends createSystem({
     this.tmp.set(0, 0, -distance).applyQuaternion(this.q);
     out.add(this.tmp);
     out.y += drop;
+  }
+
+  /** Where a neta is in the case. */
+  private netaAt(neta: string | null, out: Vector3): boolean {
+    if (!neta) return false;
+    for (const entity of this.queries.items.entities) {
+      if (entity.getValue(CaseItem, 'neta') === neta && entity.object3D) {
+        entity.object3D.getWorldPosition(out);
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Where the ordered neta is in the case. */
@@ -916,6 +987,63 @@ export class MasterSystem extends createSystem({
         // The hand holding the pouch closes into a fist on the beat.
         neta.pose(this.netaHold(a), yaw, this.beatCurl(), 0);
         return true;
+      case 'layNori': {
+        // The neta hand: a half sheet from the nori box onto the mat.
+        const box = this.stationPos(StationKind.NoriBox);
+        const mat = this.stationPos(StationKind.Makisu);
+        if (!box || !mat) return false;
+        a.copy(box).add(off.set(0, 0.03, 0));
+        b.copy(mat).add(off.set(0, 0.05, 0));
+        const k = this.phase(2.2);
+        if (k < 0.3) neta.pose(this.go(k / 0.3, c.copy(a).add(off.set(0, 0.08, 0.03)), a), yaw, 0, k > 0.22 ? 1 : 0);
+        else if (k < 0.8) neta.pose(this.go((k - 0.3) / 0.5, a, b), yaw, 0, 1);
+        else neta.pose(b, yaw, 0, 0);
+        return true;
+      }
+      case 'spreadRice': {
+        // The rice hand, open and flat, sweeping side to side over the nori.
+        const mat = this.stationPos(StationKind.Makisu);
+        if (!mat) return false;
+        const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.07;
+        rice.pose(a.copy(mat).add(off.set(s, 0.035, 0.02)), yaw, 0, 0);
+        return true;
+      }
+      case 'placeFilling': {
+        // The rice hand: the filling from the case, laid along the middle of the rice.
+        if (!this.netaAt(this.nextFilling(), a)) return false;
+        a.y += 0.03;
+        b.copy(progress.pieceAt).add(off.set(0, 0.05, 0));
+        const k = this.phase(2.4);
+        if (k < 0.3) rice.pose(this.go(k / 0.3, c.copy(a).add(off.set(0, 0.08, 0.03)), a), yaw, 0, k > 0.22 ? 1 : 0);
+        else if (k < 0.8) rice.pose(this.go((k - 0.3) / 0.5, a, b), yaw, 0, 1);
+        else rice.pose(b, yaw, 0, 0);
+        return true;
+      }
+      case 'rollMaki': {
+        // Both hands at the near edge of the mat push it away.
+        const mat = this.stationPos(StationKind.Makisu);
+        if (!mat) return false;
+        const k = smooth(this.phase(1.6));
+        const z = 0.08 - k * 0.12;
+        neta.pose(a.copy(mat).add(off.set(-0.06, 0.04, z)), yaw, 0.2 + 0.4 * k, 0);
+        rice.pose(b.copy(mat).add(off.set(0.06, 0.04, z)), yaw, 0.2 + 0.4 * k, 0);
+        return true;
+      }
+      case 'squeezeRoll': {
+        const at = progress.pieceAt;
+        neta.pose(a.copy(at).add(off.set(-0.05, 0.04, 0.02)), yaw, this.beatCurl(), 0);
+        rice.pose(b.copy(at).add(off.set(0.05, 0.04, 0.02)), yaw, this.beatCurl(), 0);
+        return true;
+      }
+      case 'cutRoll': {
+        const g = progress.guideAt;
+        neta.pose(a.copy(progress.pieceAt).add(off.set(-0.06, 0.05, 0)), yaw, 0.1, 0);
+        // The blade reaches 15 cm ahead of the fist: draw the fist back across the guide.
+        b.copy(g).add(off.set(0, 0.05, 0.09));
+        c.copy(g).add(off.set(0, 0.05, 0.22));
+        rice.pose(this.go(this.phase(2) * 1.4, b, c), yaw, 1, 0);
+        return true;
+      }
       case 'stuffAge':
       case 'wrapNori':
       case 'join': {

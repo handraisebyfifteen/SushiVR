@@ -13,6 +13,7 @@ import {
 } from '@iwsdk/core';
 import { GunkanAssembly } from './assembly/gunkan.js';
 import { InariAssembly } from './assembly/inari.js';
+import { MakiAssembly } from './assembly/maki.js';
 import { NigiriAssembly } from './assembly/nigiri.js';
 import { type Assembly, normYaw, type PieceCore } from './assembly/types.js';
 import { coach, type Grade } from './coach.js';
@@ -74,9 +75,10 @@ export const pieceApi = {
  *    hand turns the piece), hold a fist over the geta to serve; scored.
  * Each kind (src/assembly/) builds the piece up to Done: NigiriAssembly
  * (slice, join, three touches, roll over, half turn), GunkanAssembly
- * (nori strip, wrap, topping on) and InariAssembly (pouch, fill, fold
- * shut). The first ingredient decides the kind: a cut or taken slice makes
- * a nigiri, a nori strip a gunkan, a pouch an inari.
+ * (nori strip, wrap, topping on), InariAssembly (pouch, fill, fold shut)
+ * and MakiAssembly (nori on the mat, spread, fillings, roll, squeeze, cut).
+ * The first ingredient decides the kind: a cut or taken slice makes a
+ * nigiri, a nori strip a gunkan, a pouch an inari, a half sheet a roll.
  */
 export class PieceSystem extends createSystem({}) implements PieceCore {
   entity!: Entity;
@@ -101,6 +103,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   private nigiri!: NigiriAssembly;
   private gunkan!: GunkanAssembly;
   private inari!: InariAssembly;
+  private maki!: MakiAssembly;
   private beatRing!: Mesh<RingGeometry, MeshBasicMaterial>;
   private targetRing!: Mesh<RingGeometry, MeshBasicMaterial>;
   private judgeSprites = new Map<JudgeKind, Sprite>();
@@ -117,7 +120,18 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   private readonly tmp = new Vector3();
 
   private get active(): Assembly | null {
-    return this.kind === 'nigiri' ? this.nigiri : this.kind === 'gunkan' ? this.gunkan : this.kind === 'inari' ? this.inari : null;
+    switch (this.kind) {
+      case 'nigiri':
+        return this.nigiri;
+      case 'gunkan':
+        return this.gunkan;
+      case 'inari':
+        return this.inari;
+      case 'maki':
+        return this.maki;
+      default:
+        return null;
+    }
   }
 
   init(): void {
@@ -170,6 +184,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.nigiri = new NigiriAssembly(this);
     this.gunkan = new GunkanAssembly(this, this.world);
     this.inari = new InariAssembly(this);
+    this.maki = new MakiAssembly(this, this.world);
 
     pieceApi.hasNeta = () => this.kind !== null;
     pieceApi.cut = (neta, skinRight, at) => this.nigiri.cut(neta, skinRight, at);
@@ -198,8 +213,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.updateTezuAndRice(riceHand, riceState);
     const active = this.active;
     if (!active) {
-      // No piece yet: a nori strip starts a gunkan (a slice comes through pieceApi).
+      // No piece yet: a nori strip starts a gunkan, a half sheet on the mat a
+      // roll (a slice or a pouch comes through pieceApi).
       this.gunkan.update(delta);
+      this.maki.update(delta);
     } else if (this.stage === NigiriStage.Done) {
       this.updatePickUp(riceHand);
     } else if (this.stage === NigiriStage.Carried) {
@@ -382,6 +399,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.nigiri.reset();
     this.gunkan.reset();
     this.inari.reset();
+    this.maki.reset();
     this.kind = null;
     const e = this.entity;
     e.setValue(Piece, 'kind', PieceKindValue.None);
@@ -512,6 +530,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     else {
       this.gunkan.hints();
       this.inari.hints();
+      this.maki.hints();
     }
   }
 
@@ -529,6 +548,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.gunkan.publish();
     this.nigiri.publish();
     this.inari.publish();
+    this.maki.publish();
   }
 
   /** For the debug panel. */

@@ -20,8 +20,10 @@ export const StationKind = {
   Sink: 'Sink',
   Soap: 'Soap',
   Towel: 'Towel',
-  /** Nori for gunkan (and later rolls), on the board's back-left corner. */
+  /** Nori for gunkan and rolls, on the board's back-left corner. */
   NoriBox: 'NoriBox',
+  /** The bamboo mat, laid out on the board while a roll is ordered. */
+  Makisu: 'Makisu',
 } as const;
 
 /**
@@ -74,6 +76,10 @@ export const Held = {
   Nori: 'Nori',
   /** The topping spoon, uni or salmon roe on it. */
   Spoon: 'Spoon',
+  /** A roll filling (kanpyo, cucumber...) on its way to the mat. */
+  Filling: 'Filling',
+  /** A half sheet of nori on its way to the mat. */
+  NoriSheet: 'NoriSheet',
 } as const;
 
 /** The chef's hands and tools, mirrored from the game state for inspection. */
@@ -144,6 +150,20 @@ export const InariStage = {
   Age: 'Age',
   /** The rice is in the pouch; the mouth is still open. */
   Stuffed: 'Stuffed',
+} as const;
+
+/** A roll's own stages. */
+export const MakiStage = {
+  /** A half sheet of nori lies on the mat. */
+  Laid: 'Laid',
+  /** The rice is spread over the nori. */
+  Spread: 'Spread',
+  /** Every filling is on the rice. */
+  Filled: 'Filled',
+  /** Rolled up in the mat. */
+  Rolled: 'Rolled',
+  /** Squeezed firm (judged); now it is cut. */
+  Squeezed: 'Squeezed',
 } as const;
 
 export const PieceKindValue = {

@@ -33,6 +33,7 @@ const STATION_LABELS: Record<string, string> = {
   Soap: 'Hand soap',
   Towel: 'Hand towel',
   NoriBox: 'Nori',
+  Makisu: 'Makisu',
 };
 const LABEL_LIFT = 0.1;
 const PANEL_REFRESH_SECONDS = 0.2;

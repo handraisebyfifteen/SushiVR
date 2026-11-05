@@ -1,5 +1,6 @@
 import {
   BoxGeometry,
+  type BufferGeometry,
   CylinderGeometry,
   DoubleSide,
   Group,
@@ -381,6 +382,45 @@ export function createNoriBox(): Group {
   const nori = new Mesh(mergeBoxes(strips), noriSheet);
   nori.name = 'Nori';
   root.add(wood, nori);
+  return root;
+}
+
+const bamboo = new MeshStandardMaterial({ color: '#CDB67E', roughness: 0.6 });
+const cotton = new MeshStandardMaterial({ color: '#3B3A35', roughness: 0.9 });
+
+/** Makisu size: slats along X, the mat rolls forward along Z. */
+export const MAKISU_WIDTH = 0.24;
+export const MAKISU_DEPTH = 0.22;
+
+/**
+ * Makisu: the bamboo rolling mat, origin at its centre on the board. `Open`
+ * is the mat laid out for a roll; `Rolled` is the same mat rolled up and
+ * put aside at the board's left edge. The roll system shows one or the
+ * other (open while a roll is ordered).
+ */
+export function createMakisu(): Group {
+  const root = new Group();
+  root.name = 'Makisu';
+  const slats: Array<[BufferGeometry, Matrix4]> = [];
+  const slat = new CylinderGeometry(0.0036, 0.0036, MAKISU_WIDTH, 6, 1).rotateZ(Math.PI / 2);
+  const count = 24;
+  for (let i = 0; i < count; i++) {
+    const z = -MAKISU_DEPTH / 2 + ((i + 0.5) * MAKISU_DEPTH) / count;
+    slats.push([slat, new Matrix4().makeScale(1, 0.55, 1).setPosition(0, 0.002, z)]);
+  }
+  const open = new Mesh(mergeGeometries(slats), bamboo);
+  open.name = 'Open';
+  const strings = new Mesh(
+    mergeBoxes([-0.09, -0.03, 0.03, 0.09].map((x) => ({ w: 0.0016, h: 0.0016, d: MAKISU_DEPTH, x, y: 0.004, z: 0 }))),
+    cotton,
+  );
+  strings.name = 'Strings';
+  open.add(strings);
+  const rolled = new Mesh(new CylinderGeometry(0.019, 0.019, MAKISU_WIDTH, 16, 1).rotateX(Math.PI / 2), bamboo);
+  rolled.name = 'Rolled';
+  rolled.position.set(-0.25, 0.019, 0);
+  root.add(open, rolled);
+  open.visible = false;
   return root;
 }
 

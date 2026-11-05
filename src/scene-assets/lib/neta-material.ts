@@ -43,11 +43,17 @@ export const NetaPattern = {
   Nori: 25,
   /** Rustic white stoneware (kohiki-like): speckled glaze, bare rim and foot. */
   Stoneware: 26,
+  /**
+   * A roll lying along x (radius dims.y): nori outside; on the cut faces a
+   * nori ring, rice, and the filling(s) (colour2, colour3) in the middle.
+   */
+  MakiRoll: 27,
 } as const;
 
 const GLSL = /* glsl */ `
 uniform vec3 uC1;
 uniform vec3 uC2;
+uniform vec3 uC3;
 uniform vec3 uDims;
 uniform float uPhase;
 uniform int uPattern;
@@ -236,6 +242,22 @@ vec3 netaColor(vec3 p, vec3 n) {
     if (p.y > H - 0.0012 || p.y < 0.0035) c = mix(c, c2, 0.75);
     return c;
   }
+  if (pat == 27) {
+    float rr = length(p.yz);
+    if (abs(n.x) > 0.5) {
+      if (rr > H * 0.88) return vec3(0.03, 0.05, 0.035);
+      vec3 rice = vec3(0.93, 0.91, 0.86) * (0.84 + 0.22 * nNoise(p * 2600.0 + ph));
+      float rf = W;
+      if (any(notEqual(uC3, c2))) {
+        // Two fillings side by side.
+        if (length(p.yz - vec2(0.0, -rf * 0.55)) < rf * 0.65) return c2 * (0.9 + 0.15 * fine);
+        if (length(p.yz - vec2(0.0, rf * 0.55)) < rf * 0.65) return uC3 * (0.9 + 0.15 * fine);
+        return rice;
+      }
+      return rr < rf ? c2 * (0.9 + 0.15 * fine) : rice;
+    }
+    return c * (0.75 + 0.45 * nNoise(vec3(p.x * 300.0, p.y * 2400.0, p.z * 2400.0) + ph));
+  }
   if (pat == 24) {
     c *= 0.9 + 0.12 * fine;
     c = mix(c, vec3(0.8), 0.3 * nLine(p.x, 0.0012));
@@ -248,6 +270,7 @@ vec3 netaColor(vec3 p, vec3 n) {
 interface NetaUserData {
   c1: [number, number, number];
   c2: [number, number, number];
+  c3?: [number, number, number];
   dims: [number, number, number];
   phase: number;
   pattern: number;
@@ -264,6 +287,7 @@ export class NetaMaterial extends MeshStandardMaterial {
     const u = this.userData as NetaUserData;
     shader.uniforms.uC1 = { value: new Vector3(...u.c1) };
     shader.uniforms.uC2 = { value: new Vector3(...u.c2) };
+    shader.uniforms.uC3 = { value: new Vector3(...(u.c3 ?? u.c2)) };
     shader.uniforms.uDims = { value: new Vector3(...u.dims) };
     shader.uniforms.uPhase = { value: u.phase };
     shader.uniforms.uPattern = { value: u.pattern };
@@ -300,12 +324,17 @@ export function makeNetaMaterial(
   phase: number,
   gloss: number,
   doubleSided = false,
+  color3?: string,
 ): NetaMaterial {
   const m = new NetaMaterial({ vertexColors: true, roughness: 0.85 - gloss * 0.6, metalness: 0, side: doubleSided ? DoubleSide : FrontSide });
   m.name = `Neta_${name}`;
   const a = new Color(color);
   const b = new Color(color2);
   const data: NetaUserData = { c1: [a.r, a.g, a.b], c2: [b.r, b.g, b.b], dims, phase, pattern };
+  if (color3) {
+    const c = new Color(color3);
+    data.c3 = [c.r, c.g, c.b];
+  }
   m.userData = data as unknown as Record<string, unknown>;
   return m;
 }

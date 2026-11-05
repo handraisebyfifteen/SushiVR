@@ -79,6 +79,16 @@ export const progress = {
   ageHeld: false,
   stuffed: false,
   closed: false,
+  /** Rolls: nori on the mat, how far the rice is spread (0..1), fillings on, rolled, squeezed, cuts made of cuts needed. */
+  matNori: false,
+  spread: 0,
+  fillings: 0,
+  rolled: false,
+  squeezed: false,
+  cutsDone: 0,
+  cutsNeeded: 0,
+  /** Where the next cut of the roll goes (world), and the middle of the roll or mat. */
+  guideAt: new Vector3(),
   hasRice: false,
   wasabi: 'none' as 'none' | 'finger' | 'neta',
   /** performance.now() of the current metronome's first beat, 0 when none. */
