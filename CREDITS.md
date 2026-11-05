@@ -38,7 +38,7 @@ Column meanings:
 | `src/scene-assets/kitchen-station.scene-asset.ts` | `gas-stove` (procedural commercial gas range: four burners, oven, side cupboards, wall tiles, pot and kettle; no branding) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/itaba-room.scene-asset.ts` | `itaba-room` (procedural chef's room: walls, ceiling, fluorescent fixtures, kitchen doorway with noren, unlit kitchen beyond, floor light spill) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/wash-station.scene-asset.ts` | `soap` (procedural soap pump bottle) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/scene-assets/wash-station.scene-asset.ts` | `towel` (procedural folded hand towel) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/wash-station.scene-asset.ts` | `towel` (procedural hand towel hanging over a small stainless bar on the sink cabinet) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/turn-system.ts` | Runtime mesh: blink sphere for the turn-around transition (primitive) |
 | `src/nigiri-system.ts` | Runtime meshes: rice ball, fish slice, wasabi dab, beat rings, serve-hold bar; judgement words drawn on canvas |
 | `src/customer-system.ts` | Runtime meshes: customer figure (sphere, boxes), order card and result icons drawn on canvas |

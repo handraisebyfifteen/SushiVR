@@ -413,17 +413,27 @@ export class PracticeSystem extends createSystem({
     }
   }
 
+  /** 3: both hands onto the towel hanging under the sink, then two fists to dry them. */
   private towel(): void {
-    const side = this.freeHand();
     const at = this.reachable(StationKind.Towel);
-    if (side === null || !at) return;
-    this.run(side, 'Drying on the towel', [
-      move(at, v(0, 0.36, 0), 'palm', 0.35),
-      move(at, v(0, 0.04, 0), 'palm', 0.2),
-      rub(at, v(0, 0.04, 0), 'palm', 1.1, 0.035, 2.5, () => !chef.hands[0].needsTowel && !chef.hands[1].needsTowel),
-      move(at, v(0, 0.36, 0), 'palm', 0.2),
-      this.rest(side),
-    ]);
+    if (!at) return;
+    if (this.driver[0].busy || this.driver[1].busy) return this.say('Hands are busy');
+    if (chef.hands[0].holding !== Held.None || chef.hands[1].holding !== Held.None) {
+      return this.say('Put things down first');
+    }
+    for (const side of [0, 1] as const) {
+      // In the chef's frame the towel is ahead (-z); its front face is toward the chef (+z).
+      const x = side === 0 ? -0.06 : 0.06;
+      this.run(side, 'Gripping the towel', [
+        move(at, v(x, 0.2, 0.14), 'palm', 0.35),
+        move(at, v(x, 0.11, 0.035), 'palm', 0.2),
+        pose('fist'),
+        wait(0.35),
+        pose('default'),
+        move(at, v(x, 0.2, 0.14), 'palm', 0.2),
+        this.rest(side),
+      ]);
+    }
   }
 
   /** C: take the wet cloth with the right hand, or put it back. */

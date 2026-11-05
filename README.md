@@ -48,11 +48,11 @@ blocks (saku) and, in front of the case, the serving stand (geta); the lower
 customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
 eave on timber posts, left over from the sushi-stall days, carries a short
 plain noren and four paper lanterns. The rice tub is low on your right, out
-of sight. Behind you are the prep sink with its faucet, the soap and the hand
-towel; on the sink's right stand a stainless work table and a four-burner
-gas range with an oven, and on its left a glass-door dish cabinet against
-the back wall. The
-kitchen doorway, with its noren and the brighter kitchen beyond, is at the
+of sight. Behind you are the prep sink with its faucet, the soap and a hand
+towel hanging on a bar under the sink's front edge; on the sink's right
+stand a stainless work table and a four-burner gas range with an oven, and
+on its left a glass-door dish cabinet against the back wall. The kitchen
+doorway, with its noren and the brighter kitchen beyond, is at the
 left end of the aisle. Fluorescent work lights hang over the board and the
 sink.
 
@@ -62,7 +62,8 @@ while you hold fish, rice, the knife or a finished piece (the wet cloth is
 fine: it gets washed at the sink).
 
 **Opening**: turn to the sink, pinch the soap pump, rub both hands under the
-faucet, then rub the towel. Service starts when your hands are dry. During
+faucet, then put both hands on the towel hanging under the sink and grip it
+(two fists). Service starts when your hands are dry. During
 service wash with water only; soap now would make the food smell of it.
 
 **One order** (the card above the customer shows the fish color and whether

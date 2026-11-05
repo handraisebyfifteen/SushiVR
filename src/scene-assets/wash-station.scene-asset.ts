@@ -14,6 +14,8 @@ import {
   SINK_TOP,
   SINK_UNIT_X,
   SINK_WIDTH,
+  TOWEL_DROP,
+  TOWEL_STANDOFF,
 } from '../layout.js';
 
 /**
@@ -166,14 +168,39 @@ export function createSoap(): Group {
   return root;
 }
 
-/** Folded hand towel for drying hands after washing. */
+/**
+ * Hand towel hanging over a small stainless bar on the sink cabinet front,
+ * for drying both hands (grip it with both hands) after washing. Origin: the
+ * bottom hem of the front panel, which faces -Z; the cabinet face is
+ * TOWEL_STANDOFF behind the bar, where the two brackets end.
+ */
 export function createTowel(): Group {
   const root = new Group();
   root.name = 'Towel';
-  const fold = box(0.18, 0.02, 0.13, cloth, 'Fold');
-  fold.position.y = 0.01;
-  const edge = box(0.18, 0.006, 0.045, cloth, 'Edge');
-  edge.position.set(0, 0.023, 0.03);
-  root.add(fold, edge);
+  const W = 0.24;
+  const barY = TOWEL_DROP;
+  const barZ = 0.01;
+  const barR = 0.006;
+  const t = 0.008; // cloth thickness
+  const bar = new Mesh(new CylinderGeometry(barR, barR, W + 0.04, 10, 1), steel);
+  bar.name = 'Bar';
+  bar.rotation.z = Math.PI / 2;
+  bar.position.set(0, barY, barZ);
+  root.add(bar);
+  for (const side of [-1, 1]) {
+    const bracket = box(0.012, 0.024, TOWEL_STANDOFF - barZ + 0.002, steel, 'Bracket');
+    bracket.position.set(side * (W / 2 + 0.015), barY, (barZ + TOWEL_STANDOFF) / 2);
+    root.add(bracket);
+  }
+  // Cloth: front panel down to the hem, a rounded fold over the bar, a shorter back panel.
+  const front = box(W, barY, t, cloth, 'FrontPanel');
+  front.position.set(0, barY / 2, barZ - barR - t / 2);
+  const fold = new Mesh(new CylinderGeometry(barR + t, barR + t, W, 14, 1, false, 0, Math.PI), cloth);
+  fold.name = 'Fold';
+  fold.rotation.z = Math.PI / 2; // the half that faced +X now faces up
+  fold.position.set(0, barY, barZ);
+  const back = box(W, 0.13, t, cloth, 'BackPanel');
+  back.position.set(0, barY - 0.065, barZ + barR + t / 2);
+  root.add(front, fold, back);
   return root;
 }

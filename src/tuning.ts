@@ -20,7 +20,6 @@ export const BOARD_DIRT_PER_CUT = 0.35;
 export const BOARD_DIRT_PER_NIGIRI = 0.35;
 /** Rub distance (total palm travel) needed for each cleaning action. */
 export const RUB_WASH_HANDS = 0.5;
-export const RUB_TOWEL = 0.25;
 export const RUB_WASH_CLOTH = 0.4;
 export const RUB_WIPE_BOARD = 0.4;
 export const RUB_WIPE_KNIFE = 0.08;

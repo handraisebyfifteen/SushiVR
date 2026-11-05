@@ -481,15 +481,15 @@
       "transform": {
         "position": [
           0.345,
-          0.8,
-          0.58
+          0.53,
+          0.485
         ]
       },
       "components": {
         "Station": {
           "kind": "Towel",
-          "radius": 0.11,
-          "height": 0.02
+          "radius": 0.12,
+          "height": 0
         }
       }
     },

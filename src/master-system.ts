@@ -691,10 +691,13 @@ export class MasterSystem extends createSystem({
         return true;
       }
       case 'towel': {
+        // Both hands on the front of the hanging towel, gripping and letting go.
         const towel = this.stationPos(StationKind.Towel);
         if (!towel) return false;
-        const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.06;
-        rice.pose(a.copy(towel).add(off.set(s, 0.04, 0)), yaw, 0.2, 0);
+        const curl = 0.5 + 0.5 * Math.sin(this.phase(1.2) * Math.PI * 2);
+        const toward = back ? -0.035 : 0.035; // from the towel toward the chef
+        rice.pose(a.copy(towel).add(off.set(0.06 * side, 0.11, toward)), yaw, curl, 0);
+        neta.pose(b.copy(towel).add(off.set(-0.06 * side, 0.11, toward)), yaw, curl, 0);
         return true;
       }
       case 'rinseCloth': {

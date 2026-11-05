@@ -83,6 +83,12 @@ export const SINK_BASIN_DEPTH = 0.34;
 export const SINK_FRONT_RIM = 0.04;
 /** Top strip on the basin's right (seen facing the sink) that holds the soap. */
 export const SINK_END_STRIP = 0.125;
+/** Hand towel: hung over a small bar on the sink cabinet front, just under the counter lip. */
+export const TOWEL_BAR_Y = 0.735;
+/** From the bar down to the bottom hem of the towel's front panel. */
+export const TOWEL_DROP = 0.205;
+/** How far the towel bar stands off the cabinet front. */
+export const TOWEL_STANDOFF = 0.035;
 export const CABINET_WIDTH = 0.7;
 export const CABINET_DEPTH = 0.4;
 export const CABINET_HEIGHT = 1.8;
@@ -130,6 +136,8 @@ export const SINK_UNIT_Z = BACK_ROW_Z + BACK_ROW_DEPTH / 2;
 /** Washing zone: the basin plus its front rim, measured from the sink's front face. */
 export const SINK_ZONE_DEPTH = SINK_FRONT_RIM + SINK_BASIN_DEPTH;
 export const SINK_ZONE_Z = BACK_ROW_Z + SINK_ZONE_DEPTH / 2;
+/** Front face of the sink cabinet (its body is inset 2 cm behind the counter edge). */
+export const SINK_CABINET_FRONT_Z = BACK_ROW_Z + 0.02;
 /** Glass-door dish cabinet, in the same row as the sink, against the back wall. */
 export const CABINET_X = SINK_UNIT_X + SINK_WIDTH / 2 + CABINET_GAP + CABINET_WIDTH / 2;
 export const CABINET_Z = BACK_WALL_Z - CABINET_DEPTH / 2;
@@ -140,7 +148,7 @@ type Vec3 = [number, number, number];
 export interface NodeLayout {
   position: Vec3;
   /** Station zone fields to write into the node's Station component. */
-  station?: { width?: number; depth?: number; height?: number };
+  station?: { width?: number; depth?: number; height?: number; radius?: number };
 }
 
 const SAKU_Z = NETA_CASE_Z + 0.03;
@@ -181,7 +189,10 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   soap: {
     position: [SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - SINK_END_STRIP / 2, SINK_TOP, BACK_ROW_Z + 0.045],
   },
-  towel: { position: [SINK_BASIN_X + SINK_BASIN_WIDTH / 2 + 0.12, SINK_TOP, BACK_ROW_Z + 0.08] },
+  towel: {
+    position: [SINK_BASIN_X + SINK_BASIN_WIDTH / 2 + 0.12, TOWEL_BAR_Y - TOWEL_DROP, SINK_CABINET_FRONT_Z - TOWEL_STANDOFF],
+    station: { radius: 0.12, height: 0 },
+  },
   'dish-cabinet': { position: [CABINET_X, 0, CABINET_Z] },
   'work-table': { position: [WORKTABLE_X, 0, SINK_UNIT_Z] },
   'gas-stove': { position: [STOVE_X, 0, SINK_UNIT_Z] },

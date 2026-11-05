@@ -9,7 +9,6 @@ import { Bar, Chef, Held, StationKind } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
 import {
   PIECES_PER_WASH,
-  RUB_TOWEL,
   RUB_WASH_CLOTH,
   RUB_WASH_HANDS,
   RUB_WIPE_BOARD,
@@ -25,8 +24,8 @@ const HAND_FIELDS = [
 
 /**
  * Hand and board hygiene.
- *  - Opening: soap, then rub both hands under the faucet, then the towel
- *    (rubbing it with either hand dries both).
+ *  - Opening: soap, then rub both hands under the faucet, then grip the
+ *    towel hanging under the sink with both hands (two fists) to dry them.
  *    Service starts when both hands are dry.
  *  - During service: water only (soap now taints the food), towel after.
  *  - Dirt builds up with every piece; at 1.0 the hand needs washing.
@@ -39,7 +38,6 @@ export class HygieneSystem extends createSystem({}) {
   private chefEntity!: Entity;
   private handRings!: [Mesh<RingGeometry, MeshBasicMaterial>, Mesh<RingGeometry, MeshBasicMaterial>];
   private washRub = [new RubTracker(), new RubTracker()];
-  private towelRub = [new RubTracker(), new RubTracker()];
   private clothRub = new RubTracker();
   private boardRub = new RubTracker();
   private clothHome = new Vector3();
@@ -122,34 +120,32 @@ export class HygieneSystem extends createSystem({}) {
     // --- wet cloth: pick up, wipe the board, wash it in the sink ---
     this.updateCloth();
 
-    // --- towel: dry a washed hand ---
+    // --- towel: grip it with both hands (two fists) to dry them ---
+    let onTowelBoth = true;
+    let gripping = true;
     for (let i = 0; i < 2; i++) {
       const hand = hands.all[i];
       const state = chef.hands[i];
       const onTowel = hand.tracked && state.holding === Held.None && overStation(hand.palm, StationKind.Towel);
-      const d = this.towelRub[i].update(hand.palm, onTowel && state.needsTowel);
       if (onTowel && state.needsWash && hand.fistStart) {
         feedback.flash(StationKind.Towel, COLOR_WARN); // wash first
         coach.mistake('washFirst', StationKind.Towel);
       }
-      if (state.needsTowel) this.rubProgress = Math.max(this.rubProgress, Math.min(1, d / RUB_TOWEL));
-      if (d >= RUB_TOWEL) {
-        // Rubbing the towel with one hand dries both: the towel is between them.
-        for (const h of chef.hands) {
-          if (h.needsTowel) {
-            h.needsTowel = false;
-            h.wet = false;
-          }
-        }
-        this.towelRub[0].reset();
-        this.towelRub[1].reset();
-        feedback.flash(StationKind.Towel, COLOR_DONE);
-        coach.done('towel');
-        console.log('[Hygiene] hands dried');
-        if (!chef.open && !chef.hands[0].needsTowel && !chef.hands[1].needsTowel && !chef.hands[0].needsWash && !chef.hands[1].needsWash) {
-          chef.open = true;
-          console.log('[Hygiene] bar is open');
-        }
+      onTowelBoth &&= onTowel;
+      gripping &&= hand.fist;
+    }
+    const needsTowel = chef.hands[0].needsTowel || chef.hands[1].needsTowel;
+    if (onTowelBoth && gripping && needsTowel && !chef.hands[0].needsWash && !chef.hands[1].needsWash) {
+      for (const h of chef.hands) {
+        h.needsTowel = false;
+        h.wet = false;
+      }
+      feedback.flash(StationKind.Towel, COLOR_DONE);
+      coach.done('towel');
+      console.log('[Hygiene] hands dried');
+      if (!chef.open) {
+        chef.open = true;
+        console.log('[Hygiene] bar is open');
       }
     }
 
