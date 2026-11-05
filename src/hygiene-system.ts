@@ -1,5 +1,7 @@
 import { Color, createSystem, type Entity, Mesh, MeshBasicMaterial, RingGeometry, Vector3 } from '@iwsdk/core';
+import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
+import { progress } from './game-state.js';
 import { chef, type Side } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { overStation, stations } from './station-system.js';
@@ -84,9 +86,11 @@ export class HygieneSystem extends createSystem({}) {
         if (chef.open) {
           chef.soapDuringService = true;
           feedback.flash(StationKind.Soap, COLOR_WARN);
+          coach.mistake('soapInService', StationKind.Soap);
           console.log('[Hygiene] soap during service: the food will smell of it');
         } else {
           feedback.flash(StationKind.Soap, COLOR_DONE);
+          coach.done('soap');
           console.log('[Hygiene] soap on');
         }
       }
@@ -103,9 +107,11 @@ export class HygieneSystem extends createSystem({}) {
       if (rub >= RUB_WASH_HANDS) {
         if (!chef.open && !chef.soaped) {
           feedback.flash(StationKind.Soap, COLOR_WARN); // opening wash needs soap first
+          coach.mistake('needSoap', StationKind.Soap);
           console.log('[Hygiene] opening wash needs soap');
         } else {
           this.washed();
+          coach.done('washHands');
           feedback.flash(StationKind.Sink, COLOR_DONE);
         }
         this.washRub[0].reset();
@@ -124,6 +130,7 @@ export class HygieneSystem extends createSystem({}) {
       const d = this.towelRub[i].update(hand.palm, onTowel && state.needsTowel);
       if (onTowel && state.needsWash && hand.fistStart) {
         feedback.flash(StationKind.Towel, COLOR_WARN); // wash first
+        coach.mistake('washFirst', StationKind.Towel);
       }
       if (state.needsTowel) this.rubProgress = Math.max(this.rubProgress, Math.min(1, d / RUB_TOWEL));
       if (d >= RUB_TOWEL) {
@@ -137,6 +144,7 @@ export class HygieneSystem extends createSystem({}) {
         this.towelRub[0].reset();
         this.towelRub[1].reset();
         feedback.flash(StationKind.Towel, COLOR_DONE);
+        coach.done('towel');
         console.log('[Hygiene] hands dried');
         if (!chef.open && !chef.hands[0].needsTowel && !chef.hands[1].needsTowel && !chef.hands[0].needsWash && !chef.hands[1].needsWash) {
           chef.open = true;
@@ -153,6 +161,7 @@ export class HygieneSystem extends createSystem({}) {
     if (chef.hands[0].needsTowel || chef.hands[1].needsTowel) feedback.hints.add(StationKind.Towel);
     if (chef.boardDirt >= 1) feedback.hints.add(StationKind.WetCloth);
 
+    progress.clothHeld = this.clothSide !== null;
     this.updateRings();
     this.sync();
   }
@@ -179,6 +188,7 @@ export class HygieneSystem extends createSystem({}) {
         if (hand.pinchStart && overStation(hand.grasp, StationKind.WetCloth)) {
           this.clothSide = i as Side;
           chef.hands[i].holding = Held.Cloth;
+          coach.done('takeCloth');
           console.log('[Hygiene] cloth picked up');
         }
       }
@@ -199,6 +209,7 @@ export class HygieneSystem extends createSystem({}) {
       chef.clothDirty = true;
       this.boardRub.reset();
       feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
+      coach.done('wipeBoard');
       console.log('[Hygiene] board wiped; the cloth is dirty now');
     }
 
@@ -211,6 +222,7 @@ export class HygieneSystem extends createSystem({}) {
       this.washed();
       this.clothRub.reset();
       feedback.flash(StationKind.Sink, COLOR_DONE);
+      coach.done('rinseCloth');
       console.log('[Hygiene] cloth washed');
     }
 

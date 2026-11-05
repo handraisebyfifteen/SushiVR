@@ -8,6 +8,7 @@ import {
   SphereGeometry,
   Vector3,
 } from '@iwsdk/core';
+import { coach } from './coach.js';
 import { chef, holdingAnything } from './game-state.js';
 import { Bar } from './sushi-components.js';
 import { TURN_HOLD_SECONDS, TURN_YAW_DEG } from './tuning.js';
@@ -136,6 +137,7 @@ export class TurnSystem extends createSystem({
 
     const facingBack = !this.barEntity.getValue(Bar, 'facingBack');
     chef.facingBack = facingBack;
+    coach.done(facingBack ? 'turnBack' : 'turnFront');
     this.barEntity.setValue(Bar, 'facingBack', facingBack);
     this.barEntity.setValue(Bar, 'turns', (this.barEntity.getValue(Bar, 'turns') ?? 0) + 1);
     console.log(`[Turn] now facing ${facingBack ? 'the washing station' : 'the bar'}`);

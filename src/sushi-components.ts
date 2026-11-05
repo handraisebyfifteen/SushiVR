@@ -152,3 +152,17 @@ export const Nigiri = createComponent('Nigiri', {
   boardWasDirty: { type: Types.Boolean, default: false },
   soapDuringService: { type: Types.Boolean, default: false },
 });
+
+/** The master (guide), on one runtime entity named `Master`, mirrored for inspection. */
+export const Master = createComponent('Master', {
+  /** The step the master thinks comes next ('' when none). */
+  step: { type: Types.String, default: '' },
+  /** Seconds without progress on that step. */
+  idle: { type: Types.Float32, default: 0 },
+  /** Last word the master said. */
+  lastSaid: { type: Types.String, default: '' },
+  /** True while the ghost hands show the motion. */
+  demo: { type: Types.Boolean, default: false },
+  /** Steps done often enough that the master stays quiet about them. */
+  learnedSteps: { type: Types.Int32, default: 0 },
+});

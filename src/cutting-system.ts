@@ -1,6 +1,7 @@
 import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Vector3 } from '@iwsdk/core';
+import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, type FishKind, service } from './game-state.js';
+import { chef, type FishKind, progress, service } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { pieceApi } from './nigiri-system.js';
 import { type Kind, overStation, stations } from './station-system.js';
@@ -70,6 +71,20 @@ export class CuttingSystem extends createSystem({
     this.updateSaku();
     this.updateKnife();
     this.updateHints();
+    this.publish();
+  }
+
+  /** Share where the saku and knife are, for the master. */
+  private publish(): void {
+    progress.knifeHeld = this.knifeHeld;
+    progress.sakuOnBoard = this.onBoard !== null;
+    progress.sakuWrong =
+      this.onBoard !== null && !!service.order && service.order.fish !== this.sakuFish(this.onBoard);
+    if (this.onBoard) {
+      this.onBoard.object3D!.getWorldPosition(progress.sakuAt);
+      const home = this.homes.get(this.onBoard);
+      if (home) progress.sakuHome.copy(home);
+    }
   }
 
   private sakuFish(entity: Entity): FishKind {
@@ -102,6 +117,7 @@ export class CuttingSystem extends createSystem({
       if (!saku) return;
       if (state.needsWash) {
         feedback.flash(StationKind.NetaCase, COLOR_WARN);
+        coach.mistake('washFirst', StationKind.NetaCase);
         console.log('[Cutting] wash your hand before touching the fish');
         return;
       }
@@ -118,6 +134,8 @@ export class CuttingSystem extends createSystem({
     // Let go: into the case or onto the board.
     state.holding = Held.None;
     if (overStation(hand.grasp, StationKind.NetaCase)) {
+      const fish = this.sakuFish(this.held);
+      if (service.order && service.order.fish !== fish) coach.done('returnSaku');
       this.returnHome(this.held);
     } else {
       if (this.onBoard && this.onBoard !== this.held) this.returnHome(this.onBoard);
@@ -128,8 +146,10 @@ export class CuttingSystem extends createSystem({
       if (service.order && service.order.fish !== fish) {
         glowObject(object, COLOR_WARN);
         feedback.flash(StationKind.CuttingBoard, COLOR_WARN);
+        coach.mistake('wrongFish', StationKind.CuttingBoard);
         console.log(`[Cutting] ${fish} is not what was ordered`);
       } else {
+        coach.done('takeSaku');
         feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
       }
     }
@@ -156,6 +176,7 @@ export class CuttingSystem extends createSystem({
         this.knifeHeld = true;
         state.holding = Held.Knife;
         this.cutStartZ = null;
+        coach.done('holdKnife');
         console.log('[Cutting] knife in hand');
       }
       return;
@@ -174,6 +195,7 @@ export class CuttingSystem extends createSystem({
       chef.knifeDirty = false;
       this.wipeRub.reset();
       feedback.flash(StationKind.WetCloth, COLOR_DONE);
+      coach.done('wipeKnife');
       console.log('[Cutting] knife wiped');
     }
 
@@ -212,7 +234,10 @@ export class CuttingSystem extends createSystem({
       if (chef.knifeDirty) {
         chef.knifeUnwiped = true;
         feedback.flash(StationKind.Knife, COLOR_WARN);
+        coach.mistake('knifeUnwiped', StationKind.Knife);
         console.log('[Cutting] knife put down without wiping');
+      } else if (pieceApi.hasNeta()) {
+        coach.done('putKnife');
       }
     }
   }
@@ -245,6 +270,7 @@ export class CuttingSystem extends createSystem({
     chef.boardDirt = Math.min(1, chef.boardDirt + BOARD_DIRT_PER_CUT);
     this.cutStartZ = null;
     feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
+    coach.done('cut');
     console.log(`[Cutting] cut one slice of ${fish}${skinRight ? '' : ' (skin on the wrong side)'}`);
   }
 

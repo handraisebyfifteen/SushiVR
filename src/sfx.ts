@@ -65,3 +65,23 @@ export function playTone(frequency: number, seconds = 0.08, volume = 0.15): void
   osc.start(t);
   osc.stop(t + seconds);
 }
+
+/** A short wooden clack that marks the master's word. */
+export function playClack(): void {
+  const ac = context();
+  if (!ac) return;
+  const t = ac.currentTime;
+  const src = ac.createBufferSource();
+  src.buffer = noise(ac);
+  const filter = ac.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 1400;
+  filter.Q.value = 6;
+  const gain = ac.createGain();
+  gain.gain.setValueAtTime(0.5, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+  src.connect(filter).connect(gain).connect(ac.destination);
+  src.start(t);
+  src.stop(t + 0.08);
+  playTone(620, 0.06, 0.08);
+}

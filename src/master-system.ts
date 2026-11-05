@@ -1,0 +1,887 @@
+import {
+  BoxGeometry,
+  CylinderGeometry,
+  createSystem,
+  DoubleSide,
+  type Entity,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  Quaternion,
+  SphereGeometry,
+  type Sprite,
+  Vector3,
+} from '@iwsdk/core';
+import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
+import { debugLines } from './debug.js';
+import { chef, FISH_LABEL, type FishKind, holdingAnything, progress, service } from './game-state.js';
+import { hands } from './hands.js';
+import { playClack } from './sfx.js';
+import { type Kind, overStation, stations } from './station-system.js';
+import { Master, Saku, StationKind } from './sushi-components.js';
+import { makeTextSprite, makeTurnArrowSprite } from './text-sprites.js';
+import {
+  MASTER_DEMO_DELAY_SECONDS,
+  MASTER_FIRST_HINT_SECONDS,
+  MASTER_HINT_IDLE_SECONDS,
+  MASTER_LEARNED_COUNT,
+  MASTER_POSITION,
+  MASTER_WORD_SECONDS,
+  TEMPO_MS,
+} from './tuning.js';
+
+/** Fixed words for each step; takeSaku and place depend on the order. */
+const STEP_WORDS: Record<StepKey, string> = {
+  turnBack: 'Turn: look left',
+  turnFront: 'Turn: look left',
+  soap: 'Soap first',
+  washHands: 'Rub under the tap',
+  towel: 'Dry your hands',
+  takeCloth: 'Rinse the cloth',
+  wipeBoard: 'Wipe the board',
+  rinseCloth: 'Rinse the cloth',
+  takeSaku: 'Take the fish',
+  returnSaku: 'Put it back',
+  holdKnife: 'Grip the knife',
+  cut: 'Pull along the line',
+  wipeKnife: 'Wipe the blade',
+  putKnife: 'Set the knife down',
+  takeNeta: 'Pick up the slice',
+  tezu: 'Tezu first',
+  rice: 'Rice: low right',
+  wasabi: 'Dab the wasabi',
+  join: 'Hands together',
+  touch1: 'Press on the beat',
+  flip: 'Push and roll',
+  touch2: 'Pinch on the beat',
+  rotate: 'Turn it clockwise',
+  touch3: 'Pinch on the beat',
+  place: 'Geta: on the diagonal',
+  serve: 'Hold a fist',
+};
+
+const MISTAKE_WORDS: Record<MistakeKey, string> = {
+  needSoap: 'Soap first',
+  soapInService: 'No soap now',
+  washFirst: 'Wash first',
+  wrongFish: 'Not that fish',
+  knifeUnwiped: 'Wipe the blade',
+};
+
+/** Steps that happen on the piece in the chef's hands: words go above the piece. */
+const PIECE_STEPS = new Set<StepKey>(['join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi']);
+const TURN_STEPS = new Set<StepKey>(['turnBack', 'turnFront']);
+
+const GESTURE_SECONDS = 0.9;
+const WORD_LIFT = 0.17;
+const FACE_TURN_RATE = 4;
+
+const ghostMaterial = new MeshBasicMaterial({
+  color: '#4FB8FF',
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false,
+  side: DoubleSide,
+});
+
+function smooth(x: number): number {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * A see-through hand built from boxes, palm down with fingers along local -Z
+ * and its origin at the palm center. Fingers curl for a fist; thumb and index
+ * close for a pinch. The left hand is the right hand mirrored.
+ */
+class GhostHand {
+  readonly root = new Group();
+  private readonly fingers: Group[] = [];
+  private readonly thumb = new Group();
+
+  constructor(name: string, mirror: boolean) {
+    this.root.name = name;
+    const palm = new Mesh(new BoxGeometry(0.075, 0.022, 0.085), ghostMaterial);
+    palm.name = 'Palm';
+    this.root.add(palm);
+    for (let i = 0; i < 4; i++) {
+      const knuckle = new Group();
+      knuckle.position.set(-0.027 + i * 0.018, 0, -0.0425);
+      const length = i === 3 ? 0.055 : 0.07;
+      const finger = new Mesh(new BoxGeometry(0.015, 0.015, length), ghostMaterial);
+      finger.name = 'Finger';
+      finger.position.z = -length / 2;
+      knuckle.add(finger);
+      this.root.add(knuckle);
+      this.fingers.push(knuckle);
+    }
+    this.thumb.position.set(-0.04, -0.004, 0.005);
+    const thumbMesh = new Mesh(new BoxGeometry(0.016, 0.016, 0.06), ghostMaterial);
+    thumbMesh.name = 'Thumb';
+    thumbMesh.position.z = -0.03;
+    this.thumb.add(thumbMesh);
+    this.root.add(this.thumb);
+    // A little larger than life so it reads at arm's length.
+    this.root.scale.set(mirror ? -1.15 : 1.15, 1.15, 1.15);
+    this.root.renderOrder = 850;
+    this.root.visible = false;
+  }
+
+  /** curl 0..1 = open..fist, pinch 0..1, point = index stays straight. */
+  pose(at: Vector3, yaw: number, curl: number, pinch: number, point = false): void {
+    this.root.visible = true;
+    this.root.position.copy(at);
+    this.root.rotation.set(0, yaw, 0);
+    for (let i = 0; i < 4; i++) {
+      const c = i === 0 ? (point ? 0 : Math.max(curl, pinch * 0.55)) : curl;
+      this.fingers[i].rotation.x = -c * 1.5;
+    }
+    this.thumb.rotation.set(-pinch * 0.4 - curl * 0.3, 0.6 - pinch * 0.55 - curl * 0.4, 0);
+  }
+
+  hide(): void {
+    this.root.visible = false;
+  }
+}
+
+/**
+ * The master: an older chef standing beside you who shows the basic process
+ * without a wall of text.
+ *  - When you are stuck on a step, he says what comes next in two or three
+ *    words above the place to act, with a wooden clack, and points at it.
+ *  - If you stay stuck, see-through hands show the motion in a loop.
+ *  - When you make a mistake, he says a word about it right away.
+ *  - After a serve he nods ("Good.") or shakes his head ("Again.").
+ *  - Once a step has been done a few times he stays quiet about it.
+ * He reads the game through the shared progress snapshot and the coach
+ * channel, and never changes the game state himself.
+ */
+export class MasterSystem extends createSystem({
+  saku: { required: [Saku] },
+}) {
+  private entity!: Entity;
+  private figure!: Group;
+  private head!: Group;
+  private handR!: Mesh;
+  private ghosts!: [GhostHand, GhostHand];
+  private arrow!: Sprite;
+  private words = new Map<string, Sprite>();
+  private shownWord: Sprite | null = null;
+  private wordTime = 0;
+  private wordFollowsStep = false;
+  private readonly wordAt = new Vector3();
+
+  private step: StepKey | null = null;
+  private idle = 0;
+  private hintGiven = false;
+  private demo = false;
+  private demoTime = 0;
+  private successes = new Map<StepKey, number>();
+  private totalSuccesses = 0;
+  private lastSaid = '';
+  private gesture: 'none' | 'nod' | 'shake' = 'none';
+  private gestureTime = 0;
+  private facing = 0;
+  private syncTime = 0;
+
+  private readonly target = new Vector3();
+  private readonly tmp = new Vector3();
+  private readonly a = new Vector3();
+  private readonly b = new Vector3();
+  private readonly c = new Vector3();
+  private readonly off = new Vector3();
+  private readonly q = new Quaternion();
+  private readonly handRestL = new Vector3(-0.2, 0.98, -0.1);
+  private readonly handRestR = new Vector3(0.2, 0.98, -0.1);
+  private readonly handPoint = new Vector3(0.16, 1.32, -0.34);
+
+  init(): void {
+    const skin = new MeshStandardMaterial({ color: '#E3C3A0', roughness: 0.8 });
+    const coat = new MeshStandardMaterial({ color: '#F2EFE8', roughness: 0.9 });
+    const band = new MeshStandardMaterial({ color: '#23304A', roughness: 0.8 });
+    this.figure = new Group();
+    this.figure.name = 'Master';
+    this.head = new Group();
+    this.head.position.y = 1.55;
+    const face = new Mesh(new SphereGeometry(0.1, 16, 12), skin);
+    face.name = 'Head';
+    const headband = new Mesh(new CylinderGeometry(0.103, 0.103, 0.03, 20, 1), band);
+    headband.name = 'Headband';
+    headband.position.y = 0.04;
+    this.head.add(face, headband);
+    const torso = new Mesh(new BoxGeometry(0.38, 0.5, 0.2), coat);
+    torso.name = 'Torso';
+    torso.position.y = 1.2;
+    const handL = new Mesh(new BoxGeometry(0.06, 0.05, 0.09), skin);
+    handL.name = 'HandLeft';
+    handL.position.copy(this.handRestL);
+    this.handR = new Mesh(new BoxGeometry(0.06, 0.05, 0.09), skin);
+    this.handR.name = 'HandRight';
+    this.handR.position.copy(this.handRestR);
+    this.figure.add(this.head, torso, handL, this.handR);
+    this.figure.position.set(MASTER_POSITION[0], MASTER_POSITION[1], MASTER_POSITION[2]);
+    this.entity = this.world.createTransformEntity(this.figure);
+    this.entity.addComponent(Master, {});
+
+    this.ghosts = [new GhostHand('GhostHandLeft', true), new GhostHand('GhostHandRight', false)];
+    for (const ghost of this.ghosts) this.world.createTransformEntity(ghost.root);
+
+    this.arrow = makeTurnArrowSprite();
+    this.arrow.visible = false;
+    this.world.createTransformEntity(this.arrow);
+
+    debugLines.push(() => {
+      const learned = this.step ? (this.successes.get(this.step) ?? 0) : 0;
+      return `Master: ${this.step ?? '-'} done ${learned}/${MASTER_LEARNED_COUNT} idle ${this.idle.toFixed(1)}s demo ${this.demo ? 'on' : 'off'} said "${this.lastSaid}"`;
+    });
+  }
+
+  update(delta: number): void {
+    this.readEvents();
+
+    const step = this.computeStep();
+    if (step !== this.step) {
+      this.step = step;
+      this.idle = 0;
+      this.hintGiven = false;
+      this.demo = false;
+      this.demoTime = 0;
+      if (this.wordFollowsStep) this.hideWord();
+    }
+
+    const quiet = !step || this.learned(step);
+    if (quiet) {
+      this.idle = 0;
+      this.demo = false;
+    } else {
+      this.idle += delta;
+      const wait = this.totalSuccesses === 0 ? MASTER_FIRST_HINT_SECONDS : MASTER_HINT_IDLE_SECONDS;
+      if (coach.nudged) this.idle = Math.max(this.idle, wait);
+      if (this.idle >= wait && !this.hintGiven) {
+        this.hintGiven = true;
+        this.say(this.stepWord(step!), true);
+      }
+      if (this.idle >= wait + MASTER_DEMO_DELAY_SECONDS && !this.demo) {
+        this.demo = true;
+        this.demoTime = 0;
+        this.say(this.stepWord(step!), true);
+      }
+    }
+    coach.nudged = false;
+
+    this.updateWord(delta);
+    this.updateDemo(delta);
+    this.updateFigure(delta);
+    this.sync(delta);
+  }
+
+  // ---- events --------------------------------------------------------------
+
+  private readEvents(): void {
+    for (const key of coach.doneSteps) {
+      const n = (this.successes.get(key) ?? 0) + 1;
+      this.successes.set(key, n);
+      this.totalSuccesses++;
+      if (key === this.step) {
+        this.idle = 0;
+        this.demo = false;
+      }
+    }
+    coach.doneSteps.length = 0;
+
+    for (const m of coach.mistakes) {
+      this.anchorAtStation(m.at);
+      this.say(MISTAKE_WORDS[m.key], false);
+      this.startGesture('shake');
+    }
+    coach.mistakes.length = 0;
+
+    if (coach.servedGrade) {
+      this.react(coach.servedGrade);
+      coach.servedGrade = null;
+    }
+  }
+
+  private react(grade: Grade): void {
+    const geta = stations.get(StationKind.Geta);
+    if (geta) this.wordAt.copy(geta.pos).add(this.tmp.set(0, 0.25, 0));
+    else this.inFrontOfChef(this.wordAt, 0.55, -0.1);
+    if (grade === 'Excellent') {
+      this.startGesture('nod');
+      this.say('Good.', false);
+    } else if (grade === 'Good') {
+      this.startGesture('nod');
+    } else if (grade === 'Bad') {
+      this.startGesture('shake');
+      this.say('Again.', false);
+    }
+  }
+
+  // ---- which step comes next ------------------------------------------------
+
+  private computeStep(): StepKey | null {
+    const [L, R] = chef.hands;
+    const back = chef.facingBack;
+
+    if (progress.clothHeld) {
+      if (chef.clothDirty) return back ? 'rinseCloth' : 'turnBack';
+      if (!back && chef.boardDirt > 0) return 'wipeBoard';
+      return back ? 'turnFront' : null;
+    }
+    if (!holdingAnything()) {
+      if (L.needsWash || R.needsWash) {
+        if (!back) return 'turnBack';
+        return !chef.open && !chef.soaped ? 'soap' : 'washHands';
+      }
+      if (L.needsTowel || R.needsTowel) return back ? 'towel' : 'turnBack';
+      if (chef.clothDirty) return back ? 'turnFront' : 'takeCloth';
+      if (back) return 'turnFront';
+    }
+    if (!chef.open || back) return null;
+
+    if (progress.knifeHeld) {
+      if (progress.hasNeta) return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
+      return progress.sakuOnBoard && !progress.sakuWrong ? 'cut' : 'putKnife';
+    }
+    if (!progress.hasNeta) {
+      if (progress.sakuOnBoard) return progress.sakuWrong ? 'returnSaku' : 'holdKnife';
+      if (chef.boardDirt > 0 && progress.stage === 'None' && !progress.hasRice) return 'wipeBoard';
+      return service.order ? 'takeSaku' : null;
+    }
+    switch (progress.stage) {
+      case 'None':
+        return 'takeNeta';
+      case 'Neta':
+      case 'Rice':
+        if (!progress.hasRice) return chef.hands[chef.riceSide].wet ? 'rice' : 'tezu';
+        if (service.order?.wasabi && progress.wasabi !== 'neta') return 'wasabi';
+        return 'join';
+      case 'Joined':
+        return 'touch1';
+      case 'Touched1':
+        return 'flip';
+      case 'Flipped':
+        return 'touch2';
+      case 'Touched2':
+        return 'rotate';
+      case 'Rotated':
+        return 'touch3';
+      case 'Done':
+      case 'Carried':
+        return 'place';
+      case 'Placed':
+        return 'serve';
+    }
+    return null;
+  }
+
+  private learned(step: StepKey): boolean {
+    return (this.successes.get(step) ?? 0) >= MASTER_LEARNED_COUNT;
+  }
+
+  private stepWord(step: StepKey): string {
+    if (step === 'takeSaku' && service.order) {
+      const fish = service.order.fish as FishKind;
+      return fish === 'Silver' ? 'Take the silver fish' : `Take the ${FISH_LABEL[fish].toLowerCase()}`;
+    }
+    if (step === 'place') return service.customerHandKnown ? 'Geta: on the diagonal' : 'Geta: straight across';
+    return STEP_WORDS[step];
+  }
+
+  /** The station a step happens at (for pointing, words and the demo). */
+  private stepStation(step: StepKey): Kind | null {
+    switch (step) {
+      case 'soap':
+        return StationKind.Soap;
+      case 'washHands':
+      case 'rinseCloth':
+        return StationKind.Sink;
+      case 'towel':
+        return StationKind.Towel;
+      case 'takeCloth':
+      case 'wipeKnife':
+        return StationKind.WetCloth;
+      case 'wipeBoard':
+      case 'cut':
+      case 'takeNeta':
+        return StationKind.CuttingBoard;
+      case 'takeSaku':
+      case 'returnSaku':
+        return StationKind.NetaCase;
+      case 'holdKnife':
+      case 'putKnife':
+        return StationKind.Knife;
+      case 'tezu':
+        return StationKind.Tezu;
+      case 'rice':
+        return StationKind.RiceTub;
+      case 'wasabi':
+        return StationKind.Wasabi;
+      case 'place':
+      case 'serve':
+        return StationKind.Geta;
+      default:
+        return null;
+    }
+  }
+
+  /** Where the word for a step floats, written into `out`. */
+  private stepWordAt(step: StepKey, out: Vector3): void {
+    if (TURN_STEPS.has(step)) {
+      this.inFrontOfChef(out, 0.55, -0.12);
+      return;
+    }
+    if (PIECE_STEPS.has(step)) {
+      out.copy(progress.pieceAt).add(this.tmp.set(0, 0.14, 0));
+      return;
+    }
+    switch (step) {
+      case 'takeSaku':
+        if (this.orderedSakuAt(out)) {
+          out.y += 0.15;
+          return;
+        }
+        break;
+      case 'returnSaku':
+      case 'cut':
+        out.copy(progress.sakuAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'takeNeta':
+        out.copy(progress.sliceAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'rice': {
+        const tezu = stations.get(StationKind.Tezu);
+        if (tezu) {
+          out.copy(tezu.pos).add(this.tmp.set(-0.05, 0.2, 0.08));
+          return;
+        }
+        break;
+      }
+    }
+    const kind = this.stepStation(step);
+    const info = kind ? stations.get(kind) : undefined;
+    if (info) {
+      out.copy(info.pos);
+      out.y += kind === StationKind.Geta ? 0.22 : WORD_LIFT;
+      return;
+    }
+    this.inFrontOfChef(out, 0.55, -0.12);
+  }
+
+  /** A point ahead of the chef along the rig's facing (not the head's). */
+  private inFrontOfChef(out: Vector3, distance: number, drop: number): void {
+    this.player.head.getWorldPosition(out);
+    this.player.getWorldQuaternion(this.q);
+    this.tmp.set(0, 0, -distance).applyQuaternion(this.q);
+    out.add(this.tmp);
+    out.y += drop;
+  }
+
+  private orderedSakuAt(out: Vector3): boolean {
+    const fish = service.order?.fish;
+    for (const entity of this.queries.saku.entities) {
+      if (entity.getValue(Saku, 'fish') === fish && entity.object3D) {
+        entity.object3D.getWorldPosition(out);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // ---- words ---------------------------------------------------------------
+
+  private wordSprite(text: string): Sprite {
+    let sprite = this.words.get(text);
+    if (!sprite) {
+      sprite = makeTextSprite(text, { color: '#FFF6E0', background: 'rgba(25,22,20,0.78)', width: 0.24 });
+      sprite.name = `MasterWord_${text}`;
+      sprite.visible = false;
+      this.world.createTransformEntity(sprite);
+      this.words.set(text, sprite);
+    }
+    return sprite;
+  }
+
+  /**
+   * Show a word. followsStep: placed by the current step each frame;
+   * otherwise it stays at `wordAt`, which the caller sets first.
+   */
+  private say(text: string, followsStep: boolean): void {
+    if (this.shownWord) this.shownWord.visible = false;
+    this.shownWord = this.wordSprite(text);
+    this.shownWord.visible = true;
+    this.wordFollowsStep = followsStep;
+    this.wordTime = MASTER_WORD_SECONDS;
+    this.lastSaid = text;
+    playClack();
+    console.log(`[Master] "${text}"`);
+  }
+
+  private anchorAtStation(kind: Kind | null): void {
+    const info = kind ? stations.get(kind) : undefined;
+    if (info) this.wordAt.copy(info.pos).add(this.tmp.set(0, WORD_LIFT + 0.05, 0));
+    else this.inFrontOfChef(this.wordAt, 0.55, -0.1);
+  }
+
+  private hideWord(): void {
+    if (this.shownWord) this.shownWord.visible = false;
+    this.shownWord = null;
+    this.wordTime = 0;
+    this.arrow.visible = false;
+  }
+
+  private updateWord(delta: number): void {
+    if (!this.shownWord) return;
+    // The word stays up for as long as the demo runs.
+    if (!(this.demo && this.wordFollowsStep)) this.wordTime -= delta;
+    if (this.wordTime <= 0) {
+      this.hideWord();
+      return;
+    }
+    if (this.wordFollowsStep && this.step) this.stepWordAt(this.step, this.wordAt);
+    this.shownWord.position.copy(this.wordAt);
+    const fade = Math.min(1, this.wordTime / 0.4);
+    this.shownWord.material.opacity = fade;
+
+    const turning = this.wordFollowsStep && this.step !== null && TURN_STEPS.has(this.step);
+    this.arrow.visible = turning;
+    if (turning) {
+      // The arrow sits left of the word and slides further left.
+      this.player.getWorldQuaternion(this.q);
+      const slide = 0.16 + 0.04 * ((performance.now() / 700) % 1);
+      this.tmp.set(-slide, 0, 0).applyQuaternion(this.q);
+      this.arrow.position.copy(this.wordAt).add(this.tmp);
+    }
+  }
+
+  // ---- ghost hands -----------------------------------------------------------
+
+  private updateDemo(delta: number): void {
+    const [gL, gR] = this.ghosts;
+    const step = this.step;
+    if (!this.demo || !step) {
+      gL.hide();
+      gR.hide();
+      return;
+    }
+    // While the player is already trying at the right place, get out of the way.
+    const kind = this.stepStation(step);
+    if (kind && kind !== StationKind.RiceTub) {
+      for (const hand of hands.all) {
+        if (hand.tracked && (overStation(hand.palm, kind) || overStation(hand.grasp, kind))) {
+          gL.hide();
+          gR.hide();
+          return;
+        }
+      }
+    }
+    this.demoTime += delta;
+    const rice = this.ghosts[chef.riceSide];
+    const neta = this.ghosts[chef.netaSide];
+    const other = rice === gR ? gL : gR;
+    other.hide();
+    if (!this.playDemo(step, rice, neta)) {
+      gL.hide();
+      gR.hide();
+    }
+  }
+
+  // Small path helpers; all write into scratch vectors, nothing is allocated.
+
+  private stationPos(kind: Kind): Vector3 | null {
+    return stations.get(kind)?.pos ?? null;
+  }
+
+  private phase(period: number): number {
+    return (this.demoTime % period) / period;
+  }
+
+  /** from -> to, eased, into `tmp`. */
+  private go(k: number, from: Vector3, to: Vector3): Vector3 {
+    return this.tmp.lerpVectors(from, to, smooth(k));
+  }
+
+  /** from -> to over the first half, back over the second. */
+  private there(k: number, from: Vector3, to: Vector3): Vector3 {
+    return k < 0.5 ? this.go(k * 2, from, to) : this.go((k - 0.5) * 2, to, from);
+  }
+
+  /** Where the neta hand holds the slice, in front of the chef. */
+  private netaHold(out: Vector3): Vector3 {
+    const board = this.stationPos(StationKind.CuttingBoard);
+    if (board) out.copy(board).add(this.off.set(-0.1, 0.19, 0.07));
+    else out.set(-0.1, 0.96, -0.2);
+    return out;
+  }
+
+  /** 1 on each beat of the running metronome, 0 between. */
+  private beatCurl(): number {
+    const origin = progress.beatOrigin;
+    const k = origin > 0 ? ((performance.now() - origin) % TEMPO_MS) / TEMPO_MS : this.phase(1);
+    return k < 0.14 || k > 0.9 ? 1 : 0;
+  }
+
+  /** Loops the motion for one step. Returns false when there is nothing to show. */
+  private playDemo(step: StepKey, rice: GhostHand, neta: GhostHand): boolean {
+    const back = chef.facingBack;
+    const yaw = back ? Math.PI : 0;
+    const side = back ? -1 : 1; // the chef's right, in world x
+    const { a, b, c, off } = this;
+
+    switch (step) {
+      case 'soap': {
+        const soap = this.stationPos(StationKind.Soap);
+        if (!soap) return false;
+        const k = this.phase(1.6);
+        a.copy(soap).add(off.set(0, 0.14, 0));
+        b.copy(soap).add(off.set(0, 0.02, 0));
+        rice.pose(this.there(k, a, b), yaw, 0, k > 0.35 && k < 0.65 ? 1 : 0);
+        return true;
+      }
+      case 'washHands': {
+        const sink = this.stationPos(StationKind.Sink);
+        if (!sink) return false;
+        const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.05;
+        rice.pose(a.copy(sink).add(off.set(0.06 * side, 0.1, s)), yaw, 0, 0);
+        neta.pose(b.copy(sink).add(off.set(-0.06 * side, 0.1, -s)), yaw, 0, 0);
+        return true;
+      }
+      case 'towel': {
+        const towel = this.stationPos(StationKind.Towel);
+        if (!towel) return false;
+        const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.06;
+        rice.pose(a.copy(towel).add(off.set(s, 0.04, 0)), yaw, 0.2, 0);
+        return true;
+      }
+      case 'rinseCloth': {
+        const sink = this.stationPos(StationKind.Sink);
+        if (!sink) return false;
+        const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.06;
+        rice.pose(a.copy(sink).add(off.set(0, 0.07, s)), yaw, 0, 1);
+        return true;
+      }
+      case 'takeCloth': {
+        const cloth = this.stationPos(StationKind.WetCloth);
+        if (!cloth) return false;
+        const k = this.phase(1.6);
+        a.copy(cloth).add(off.set(0, 0.13, 0));
+        b.copy(cloth).add(off.set(0, 0.02, 0));
+        rice.pose(this.there(k, a, b), yaw, 0, k > 0.4 ? 1 : 0);
+        return true;
+      }
+      case 'wipeBoard': {
+        const cloth = this.stationPos(StationKind.WetCloth);
+        const board = this.stationPos(StationKind.CuttingBoard);
+        if (!cloth || !board) return false;
+        const k = this.phase(3);
+        if (k < 0.25) {
+          a.copy(cloth).add(off.set(0, 0.12, 0));
+          b.copy(cloth).add(off.set(0, 0.02, 0));
+          rice.pose(this.go(k * 4, a, b), yaw, 0, k > 0.18 ? 1 : 0);
+        } else {
+          const w = (k - 0.25) * Math.PI * 4;
+          rice.pose(a.copy(board).add(off.set(0.25 * Math.sin(w), 0.03, 0.04 * Math.cos(w))), yaw, 0, 1);
+        }
+        return true;
+      }
+      case 'takeSaku':
+      case 'returnSaku': {
+        const board = this.stationPos(StationKind.CuttingBoard);
+        if (!board) return false;
+        // From the case to the board; returning runs from the board to the case.
+        if (step === 'takeSaku') {
+          if (!this.orderedSakuAt(a)) return false;
+          b.copy(board).add(off.set(-0.12, 0, 0));
+        } else {
+          a.copy(progress.sakuAt);
+          b.copy(progress.sakuHome);
+        }
+        a.y += 0.05;
+        b.y += 0.05;
+        const k = this.phase(2.4);
+        if (k < 0.3) {
+          c.copy(a).add(off.set(0, 0.08, 0));
+          neta.pose(this.go(k / 0.3, c, a), yaw, 0, k > 0.22 ? 1 : 0);
+        } else if (k < 0.8) {
+          c.copy(a).lerp(b, 0.5);
+          c.y += 0.1;
+          const kk = (k - 0.3) / 0.5;
+          neta.pose(kk < 0.5 ? this.go(kk * 2, a, c) : this.go((kk - 0.5) * 2, c, b), yaw, 0, 1);
+        } else {
+          neta.pose(b, yaw, 0, 0);
+        }
+        return true;
+      }
+      case 'holdKnife':
+      case 'putKnife': {
+        const knife = this.stationPos(StationKind.Knife);
+        if (!knife) return false;
+        const k = this.phase(1.6);
+        a.copy(knife).add(off.set(0, 0.14, 0.1));
+        b.copy(knife).add(off.set(0, 0.04, 0.1));
+        const closed = k > 0.45;
+        rice.pose(this.there(k, a, b), yaw, (step === 'holdKnife') === closed ? 1 : 0, 0);
+        return true;
+      }
+      case 'cut': {
+        const saku = progress.sakuAt;
+        neta.pose(a.copy(saku).add(off.set(0, 0.06, 0)), yaw, 0.1, 0);
+        // The blade reaches 15 cm ahead of the fist: draw the fist back along the guide.
+        b.copy(saku).add(off.set(0.075, 0.06, 0.09));
+        c.copy(saku).add(off.set(0.075, 0.06, 0.22));
+        rice.pose(this.go(this.phase(2) * 1.4, b, c), yaw, 1, 0);
+        return true;
+      }
+      case 'wipeKnife': {
+        const cloth = this.stationPos(StationKind.WetCloth);
+        if (!cloth) return false;
+        const s = Math.sin(this.phase(1) * Math.PI * 2) * 0.04;
+        rice.pose(a.copy(cloth).add(off.set(0, 0.06, 0.12 + s)), yaw, 1, 0);
+        return true;
+      }
+      case 'takeNeta': {
+        const k = this.phase(1.8);
+        a.copy(progress.sliceAt).add(off.set(0, 0.1, 0));
+        b.copy(progress.sliceAt).add(off.set(0, 0.02, 0));
+        if (k < 0.45) neta.pose(this.go(k / 0.45, a, b), yaw, 0, k > 0.35 ? 1 : 0);
+        else neta.pose(this.go((k - 0.45) / 0.55, b, this.netaHold(c)), yaw, 0, k < 0.85 ? 1 : 0);
+        return true;
+      }
+      case 'tezu': {
+        const tezu = this.stationPos(StationKind.Tezu);
+        if (!tezu) return false;
+        a.copy(tezu).add(off.set(0, 0.13, 0.02));
+        b.copy(tezu).add(off.set(0, 0, 0.02));
+        rice.pose(this.there(this.phase(1.6), a, b), yaw, 0, 0);
+        return true;
+      }
+      case 'rice': {
+        const tub = this.stationPos(StationKind.RiceTub);
+        if (!tub) return false;
+        const k = this.phase(1.8);
+        a.set(0.3, 0.92, -0.2);
+        rice.pose(this.there(k, a, b.copy(tub)), yaw, k > 0.4 && k < 0.6 ? 0.6 : 0.1, 0);
+        return true;
+      }
+      case 'wasabi': {
+        const dish = this.stationPos(StationKind.Wasabi);
+        if (!dish) return false;
+        // The index tip sits about 11 cm ahead of the palm center.
+        a.copy(dish).add(off.set(0.027, 0.03, 0.11));
+        b.copy(progress.pieceAt).add(off.set(0.027, 0.03, 0.11));
+        rice.pose(this.there(this.phase(2), a, b), yaw, 1, 0, true);
+        neta.pose(this.netaHold(c), yaw, 0, 0);
+        return true;
+      }
+      case 'join': {
+        this.netaHold(a);
+        neta.pose(a, yaw, 0, 0);
+        b.copy(a).add(off.set(0.25, 0.06, 0));
+        c.copy(a).add(off.set(0.07, 0.03, 0));
+        rice.pose(this.there(this.phase(1.6), b, c), yaw, 0, 0);
+        return true;
+      }
+      case 'touch1': {
+        this.netaHold(a);
+        neta.pose(a, yaw, 0.2, 0);
+        rice.pose(b.copy(a).add(off.set(0.05, 0.05, 0)), yaw, this.beatCurl(), 0);
+        return true;
+      }
+      case 'flip': {
+        const k = this.phase(1.4);
+        this.netaHold(a);
+        b.copy(a).add(off.set(0, 0, -0.06));
+        neta.pose(this.go(k, a, b), yaw, smooth(k) * 0.5, 0);
+        return true;
+      }
+      case 'touch2':
+      case 'touch3':
+        rice.pose(a.copy(progress.pieceAt).add(off.set(0.03, 0.04, 0.03)), yaw, 0, this.beatCurl());
+        return true;
+      case 'rotate': {
+        const turn = (Math.PI / 2) * smooth(this.phase(1.6) * 1.3);
+        rice.pose(a.copy(progress.pieceAt).add(off.set(0.02, 0.04, 0.02)), yaw - turn, 0, 1);
+        return true;
+      }
+      case 'place': {
+        const geta = this.stationPos(StationKind.Geta);
+        if (!geta) return false;
+        const k = this.phase(2.6);
+        a.copy(progress.pieceAt).add(off.set(0, 0.03, 0));
+        b.copy(geta).add(off.set(0, 0.06, 0));
+        c.copy(a).lerp(b, 0.5);
+        c.y = Math.max(a.y, b.y) + 0.18;
+        const placedYaw = service.customerHandKnown
+          ? yaw + (service.customerLeftHanded ? -1 : 1) * (Math.PI / 4)
+          : yaw + Math.PI / 2;
+        if (k < 0.45) rice.pose(this.go(k / 0.45, a, c), yaw, 0, 1);
+        else if (k < 0.85) rice.pose(this.go((k - 0.45) / 0.4, c, b), placedYaw, 0, 1);
+        else rice.pose(b, placedYaw, 0, 0);
+        return true;
+      }
+      case 'serve': {
+        const geta = this.stationPos(StationKind.Geta);
+        if (!geta) return false;
+        rice.pose(a.copy(geta).add(off.set(0, 0.07, 0.05)), yaw, this.phase(1.4) > 0.2 ? 1 : 0, 0);
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
+  // ---- the master's own body ---------------------------------------------------
+
+  private startGesture(kind: 'nod' | 'shake'): void {
+    this.gesture = kind;
+    this.gestureTime = GESTURE_SECONDS;
+  }
+
+  private updateFigure(delta: number): void {
+    // Face the place the step happens (or the board).
+    const kind = this.step ? this.stepStation(this.step) : null;
+    const info = kind ? stations.get(kind) : stations.get(StationKind.CuttingBoard);
+    if (this.step && PIECE_STEPS.has(this.step)) this.target.copy(progress.pieceAt);
+    else if (info) this.target.copy(info.pos);
+    else this.target.set(0, 0.8, -0.3);
+    const dx = this.target.x - this.figure.position.x;
+    const dz = this.target.z - this.figure.position.z;
+    const want = Math.atan2(-dx, -dz);
+    let diff = want - this.facing;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    this.facing += diff * Math.min(1, delta * FACE_TURN_RATE);
+    this.figure.rotation.y = this.facing;
+
+    // Point with the near hand while speaking or demonstrating.
+    const pointing = this.shownWord !== null || this.demo;
+    const hand = this.handR;
+    this.a.copy(pointing ? this.handPoint : this.handRestR);
+    hand.position.lerp(this.a, Math.min(1, delta * 6));
+
+    // Nod or shake.
+    this.head.rotation.set(0, 0, 0);
+    if (this.gestureTime > 0) {
+      this.gestureTime -= delta;
+      const k = 1 - this.gestureTime / GESTURE_SECONDS;
+      const wave = Math.sin(k * Math.PI * 4) * (1 - k);
+      if (this.gesture === 'nod') this.head.rotation.x = wave * 0.35;
+      else this.head.rotation.y = wave * 0.45;
+    }
+  }
+
+  private sync(delta: number): void {
+    this.syncTime += delta;
+    if (this.syncTime < 0.2) return;
+    this.syncTime = 0;
+    const e = this.entity;
+    e.setValue(Master, 'step', this.step ?? '');
+    e.setValue(Master, 'idle', this.idle);
+    e.setValue(Master, 'lastSaid', this.lastSaid);
+    e.setValue(Master, 'demo', this.demo);
+    let learned = 0;
+    for (const n of this.successes.values()) if (n >= MASTER_LEARNED_COUNT) learned++;
+    e.setValue(Master, 'learnedSteps', learned);
+  }
+}

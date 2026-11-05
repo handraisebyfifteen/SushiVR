@@ -6,6 +6,7 @@ import { DebugHudSystem } from './debug-hud-system.js';
 import { FeedbackSystem } from './feedback.js';
 import { HandsSystem } from './hands.js';
 import { HygieneSystem } from './hygiene-system.js';
+import { MasterSystem } from './master-system.js';
 import { NigiriSystem } from './nigiri-system.js';
 import { StationSystem } from './station-system.js';
 import { TurnSystem } from './turn-system.js';
@@ -22,6 +23,7 @@ World.create(
   world.registerSystem(HygieneSystem);
   world.registerSystem(CuttingSystem);
   world.registerSystem(NigiriSystem);
+  world.registerSystem(MasterSystem);
   world.registerSystem(FeedbackSystem);
   world.registerSystem(DebugHudSystem);
 });

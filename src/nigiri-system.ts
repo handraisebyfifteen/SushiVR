@@ -13,9 +13,10 @@ import {
   type Sprite,
   Vector3,
 } from '@iwsdk/core';
+import { coach, type Grade } from './coach.js';
 import { customerApi } from './customer-system.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { chef, FISH_COLOR, type FishKind, type JudgeKind, service } from './game-state.js';
+import { chef, FISH_COLOR, type FishKind, type JudgeKind, progress, service } from './game-state.js';
 import { hands } from './hands.js';
 import { addPieceDirt } from './hygiene-system.js';
 import { type PieceResult, scorePiece } from './scoring.js';
@@ -269,6 +270,7 @@ export class NigiriSystem extends createSystem({}) {
     this.layout();
     this.updateRhythmVisuals(delta);
     this.updateHints();
+    this.publish();
   }
 
   // ---- steps 2-4: tezu, rice ---------------------------------------------
@@ -282,6 +284,7 @@ export class NigiriSystem extends createSystem({}) {
         state.wet = true;
         this.startMetronome(3);
         feedback.flash(StationKind.Tezu, COLOR_DONE);
+        coach.done('tezu');
         console.log('[Nigiri] tezu (beat 1)');
       }
     }
@@ -303,8 +306,10 @@ export class NigiriSystem extends createSystem({}) {
         this.judges[0] = this.judge(0);
         this.entity.setValue(Nigiri, 'judgeRice', this.judges[0]);
         this.setStage(this.stage === NigiriStage.Neta ? NigiriStage.Rice : this.stage);
+        coach.done('rice');
         console.log(`[Nigiri] rice taken (beat 2: ${this.judges[0]})`);
       } else {
+        coach.nudge();
         console.log('[Nigiri] dry hand: no rice came back');
       }
     }
@@ -323,6 +328,7 @@ export class NigiriSystem extends createSystem({}) {
     this.netaHeld = true;
     state.holding = Held.Neta;
     this.setStage(this.hasRice ? NigiriStage.Rice : NigiriStage.Neta);
+    coach.done('takeNeta');
     console.log('[Nigiri] neta on the palm');
   }
 
@@ -341,6 +347,7 @@ export class NigiriSystem extends createSystem({}) {
       if (riceHand.indexTip.distanceTo(this.tmp) < WASABI_DAB_DISTANCE) {
         this.wasabi = 'neta';
         this.entity.setValue(Nigiri, 'wasabi', true);
+        coach.done('wasabi');
         console.log('[Nigiri] wasabi on the neta');
       }
     }
@@ -358,6 +365,7 @@ export class NigiriSystem extends createSystem({}) {
     chef.boardDirt = Math.min(1, chef.boardDirt + BOARD_DIRT_PER_NIGIRI);
     this.startMetronome(60);
     this.setStage(NigiriStage.Joined);
+    coach.done('join');
     console.log('[Nigiri] rice on the neta');
   }
 
@@ -383,6 +391,7 @@ export class NigiriSystem extends createSystem({}) {
     this.entity.setValue(Nigiri, `judge${n}` as 'judge1' | 'judge2' | 'judge3', judge);
     if (n === 1) this.rice.scale.copy(RICE_SHAPED);
     this.setStage(next);
+    coach.done(n === 1 ? 'touch1' : n === 2 ? 'touch2' : 'touch3');
     console.log(`[Nigiri] touch ${n}: ${judge}`);
   }
 
@@ -406,6 +415,7 @@ export class NigiriSystem extends createSystem({}) {
     if (pushed && curled) {
       this.flipHistory.length = 0;
       this.setStage(NigiriStage.Flipped);
+      coach.done('flip');
       console.log('[Nigiri] rolled over: neta on top');
     }
   }
@@ -432,6 +442,7 @@ export class NigiriSystem extends createSystem({}) {
       this.pieceYaw += 180;
       this.rotateStartYaw = null;
       this.setStage(NigiriStage.Rotated);
+      coach.done('rotate');
       console.log('[Nigiri] turned half round');
     }
   }
@@ -458,6 +469,7 @@ export class NigiriSystem extends createSystem({}) {
     if (overStation(riceHand.grasp, StationKind.Geta)) {
       this.setStage(NigiriStage.Placed);
       feedback.flash(StationKind.Geta, COLOR_DONE);
+      coach.done('place');
       console.log(`[Nigiri] on the geta, heading ${this.normYaw(this.pieceYaw).toFixed(0)} deg`);
     } else {
       // Dropped elsewhere: back onto the neta hand.
@@ -528,6 +540,8 @@ export class NigiriSystem extends createSystem({}) {
     chef.hands[chef.riceSide].wet = false;
     this.resetPiece();
     feedback.flash(StationKind.Geta, COLOR_DONE);
+    coach.done('serve');
+    coach.served(score.grade as Grade);
     console.log(`[Nigiri] served: ${score.grade} ${score.score}`);
   }
 
@@ -720,6 +734,18 @@ export class NigiriSystem extends createSystem({}) {
         feedback.hints.add(StationKind.Geta);
         break;
     }
+  }
+
+  /** Share the piece's progress, for the master. */
+  private publish(): void {
+    progress.stage = this.stage;
+    progress.hasNeta = this.hasNeta;
+    progress.netaHeld = this.netaHeld;
+    progress.hasRice = this.hasRice;
+    progress.wasabi = this.wasabi;
+    progress.beatOrigin = this.phaseStart ?? 0;
+    progress.sliceAt.copy(this.netaOnBoard);
+    progress.pieceAt.copy(this.focus);
   }
 
   /** For the debug panel. */

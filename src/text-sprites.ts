@@ -17,7 +17,14 @@ export function makeTextSprite(
     ctx.fillStyle = options.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-  ctx.font = `bold ${options.fontPx ?? 72}px sans-serif`;
+  let fontPx = options.fontPx ?? 72;
+  ctx.font = `bold ${fontPx}px sans-serif`;
+  // Shrink long words so they fit the canvas.
+  const measured = ctx.measureText(text).width;
+  if (measured > canvas.width - 32) {
+    fontPx = Math.floor((fontPx * (canvas.width - 32)) / measured);
+    ctx.font = `bold ${fontPx}px sans-serif`;
+  }
   ctx.fillStyle = options.color ?? '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -181,5 +188,32 @@ export function makeOrderSprite(fishColor: string, wasabi: boolean): Sprite {
   sprite.scale.set(0.16, 0.08, 1);
   sprite.renderOrder = 900;
   sprite.name = 'OrderCard';
+  return sprite;
+}
+
+/** A curved arrow pointing to the viewer's left: "look left to turn around". */
+export function makeTurnArrowSprite(): Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.strokeStyle = '#FFF6E0';
+  ctx.fillStyle = '#FFF6E0';
+  ctx.lineWidth = 12;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(70, 70, 38, Math.PI * 1.05, Math.PI * 1.95, false);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(14, 74);
+  ctx.lineTo(44, 74);
+  ctx.lineTo(30, 46);
+  ctx.closePath();
+  ctx.fill();
+  const texture = new CanvasTexture(canvas);
+  const sprite = new Sprite(new SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+  sprite.scale.set(0.08, 0.08, 1);
+  sprite.renderOrder = 902;
+  sprite.name = 'TurnArrow';
   return sprite;
 }

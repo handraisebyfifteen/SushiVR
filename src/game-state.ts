@@ -1,3 +1,4 @@
+import { Vector3 } from '@iwsdk/core';
 import { Fish, Held, Judge } from './sushi-components.js';
 import { CHEF_LEFT_HANDED } from './tuning.js';
 
@@ -53,6 +54,30 @@ export const service = {
   customerHandKnown: false,
   /** Pieces already eaten by the seated customer. */
   eatenByCustomer: 0,
+};
+
+/**
+ * Where the current piece stands, written each frame by the cutting, nigiri
+ * and hygiene systems so the master can tell which step comes next.
+ */
+export const progress = {
+  sakuOnBoard: false,
+  /** The saku on the board is not the ordered fish. */
+  sakuWrong: false,
+  knifeHeld: false,
+  clothHeld: false,
+  stage: 'None' as string,
+  hasNeta: false,
+  netaHeld: false,
+  hasRice: false,
+  wasabi: 'none' as 'none' | 'finger' | 'neta',
+  /** performance.now() of the current metronome's first beat, 0 when none. */
+  beatOrigin: 0,
+  sakuAt: new Vector3(),
+  /** The case slot of the saku on the board. */
+  sakuHome: new Vector3(),
+  sliceAt: new Vector3(),
+  pieceAt: new Vector3(),
 };
 
 export const FISH_LABEL: Record<FishKind, string> = {

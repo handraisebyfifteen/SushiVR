@@ -59,3 +59,17 @@ export const DIAGONAL_DEG = 45;
 // --- turning around ---
 export const TURN_YAW_DEG = 75;
 export const TURN_HOLD_SECONDS = 1.0;
+
+// --- master (the guide who shows the basic process) ---
+/** Seconds without progress before the master says the next step. */
+export const MASTER_HINT_IDLE_SECONDS = 8;
+/** Shorter wait before the very first hint of a session. */
+export const MASTER_FIRST_HINT_SECONDS = 3;
+/** Further seconds without progress before the ghost hands show the motion. */
+export const MASTER_DEMO_DELAY_SECONDS = 6;
+/** Seconds a word stays above the station. */
+export const MASTER_WORD_SECONDS = 3;
+/** Successes after which the master stays quiet about a step. */
+export const MASTER_LEARNED_COUNT = 3;
+/** Where the master stands: beside the chef on the left, inside the counter. */
+export const MASTER_POSITION: [number, number, number] = [-0.72, 0, -0.02];

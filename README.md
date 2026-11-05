@@ -83,6 +83,16 @@ wasabi is wanted):
     while carrying to set its heading.
 13. Hold a fist over the geta for a second to serve.
 
+**The master**: an older chef stands at your left and helps with the basic
+process, without text walls. If you stop making progress on a step, he says
+what comes next in two or three words above the place to act (with a wooden
+clack) and points at it. If you stay stuck, see-through blue hands show the
+motion in a loop until you start it yourself. A mistake gets a word right
+away (for example "Not that fish"). After a serve he nods, says "Good." for
+an excellent piece, or shakes his head with "Again." for a bad one. Once you
+have done a step three times he stays quiet about it. The timings are in
+`src/tuning.ts` (`MASTER_*`).
+
 **Serving etiquette**: the first piece for a new customer goes straight
 across the geta; the customer reaches for it and shows which hand they use.
 From then on place pieces diagonally, head end (the thick end of the slice)
