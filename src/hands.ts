@@ -26,12 +26,16 @@ export class HandsSystem extends createSystem({}) {
 
 /**
  * Accumulates how far a palm travels while a condition holds (rubbing,
- * wiping). Resets as soon as the condition breaks.
+ * wiping). Resets as soon as the condition breaks. With `flat`, only the
+ * side-to-side and back-and-forth travel counts, so lowering the hands into
+ * the basin and lifting them out is not rubbing.
  */
 export class RubTracker {
   private last = new Vector3();
   private active = false;
   distance = 0;
+
+  constructor(private readonly flat = false) {}
 
   /** Feed one frame. Returns the accumulated distance while `on` stays true. */
   update(point: Vector3, on: boolean): number {
@@ -40,7 +44,11 @@ export class RubTracker {
       this.distance = 0;
       return 0;
     }
-    if (this.active) this.distance += this.last.distanceTo(point);
+    if (this.active) {
+      this.distance += this.flat
+        ? Math.hypot(point.x - this.last.x, point.z - this.last.z)
+        : this.last.distanceTo(point);
+    }
     this.last.copy(point);
     this.active = true;
     return this.distance;

@@ -51,7 +51,7 @@ export const WORK_COUNTER_TOP = 0.75;
 export const TSUKEDAI_TOP = 0.78;
 /** Customer counter height above the customer floor. */
 export const CUSTOMER_COUNTER_HEIGHT = 0.75;
-export const SINK_TOP = 0.8;
+export const SINK_TOP = 0.85;
 export const CEILING_HEIGHT = 2.4;
 
 // --- eaves (hisashi) over the tsukedai ---
@@ -84,7 +84,7 @@ export const SINK_FRONT_RIM = 0.04;
 /** Top strip on the basin's right (seen facing the sink) that holds the soap. */
 export const SINK_END_STRIP = 0.125;
 /** Hand towel: hung over a small bar on the sink cabinet front, just under the counter lip. */
-export const TOWEL_BAR_Y = 0.735;
+export const TOWEL_BAR_Y = SINK_TOP - 0.065;
 /** From the bar down to the bottom hem of the towel's front panel. */
 export const TOWEL_DROP = 0.205;
 /** How far the towel bar stands off the cabinet front. */
@@ -97,8 +97,8 @@ export const CABINET_GAP = 0.03;
 export const WORKTABLE_WIDTH = 0.4;
 /** Gas range: four burners over an oven with a side cupboard on each side. */
 export const RANGE_WIDTH = 0.7;
-/** Height of the range's top frame (the grates sit just above it). */
-export const RANGE_HEIGHT = 0.8;
+/** Height of the range's top frame (the grates sit just above it): level with the sink. */
+export const RANGE_HEIGHT = SINK_TOP;
 export const BACK_ROW_GAP = 0.01;
 /** Kitchen doorway in the end wall on the player's left (-X), centred on the aisle. */
 export const KITCHEN_DOOR_WIDTH = 0.8;
@@ -148,7 +148,7 @@ type Vec3 = [number, number, number];
 export interface NodeLayout {
   position: Vec3;
   /** Station zone fields to write into the node's Station component. */
-  station?: { width?: number; depth?: number; height?: number; radius?: number };
+  station?: { width?: number; depth?: number; height?: number; radius?: number; below?: number };
 }
 
 const SAKU_Z = NETA_CASE_Z + 0.03;
@@ -184,13 +184,15 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   'sink-unit': { position: [SINK_UNIT_X, 0, SINK_UNIT_Z] },
   sink: {
     position: [SINK_BASIN_X, SINK_TOP, SINK_ZONE_Z],
-    station: { width: SINK_BASIN_WIDTH, depth: SINK_ZONE_DEPTH },
+    // Hands wash down inside the basin, so the zone reaches 15 cm below the rim.
+    station: { width: SINK_BASIN_WIDTH, depth: SINK_ZONE_DEPTH, below: 0.15 },
   },
   soap: {
     position: [SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - SINK_END_STRIP / 2, SINK_TOP, BACK_ROW_Z + 0.045],
   },
   towel: {
-    position: [SINK_BASIN_X + SINK_BASIN_WIDTH / 2 + 0.12, TOWEL_BAR_Y - TOWEL_DROP, SINK_CABINET_FRONT_Z - TOWEL_STANDOFF],
+    // Straight below the basin (clear of the left door's handle), so both hands reach it alike.
+    position: [SINK_BASIN_X - 0.03, TOWEL_BAR_Y - TOWEL_DROP, SINK_CABINET_FRONT_Z - TOWEL_STANDOFF],
     station: { radius: 0.12, height: 0 },
   },
   'dish-cabinet': { position: [CABINET_X, 0, CABINET_Z] },

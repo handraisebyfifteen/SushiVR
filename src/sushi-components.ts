@@ -32,6 +32,8 @@ export const Station = createComponent('Station', {
   width: { type: Types.Float32, default: 0, min: 0, max: 2, step: 0.01 },
   depth: { type: Types.Float32, default: 0, min: 0, max: 2, step: 0.01 },
   height: { type: Types.Float32, default: 0, min: 0, max: 0.5, step: 0.005 },
+  /** How far below the surface the zone still counts (deeper for the sink, where hands go into the basin). */
+  below: { type: Types.Float32, default: 0.05, min: 0, max: 0.5, step: 0.01 },
   /** True for props the player may pinch and move (position is remembered). */
   movable: { type: Types.Boolean, default: false },
 });

@@ -37,8 +37,12 @@ const HAND_FIELDS = [
 export class HygieneSystem extends createSystem({}) {
   private chefEntity!: Entity;
   private handRings!: [Mesh<RingGeometry, MeshBasicMaterial>, Mesh<RingGeometry, MeshBasicMaterial>];
-  private washRub = [new RubTracker(), new RubTracker()];
-  private clothRub = new RubTracker();
+  // Washing in the basin counts only the rubbing (horizontal) travel.
+  private washRub = [new RubTracker(true), new RubTracker(true)];
+  private clothRub = new RubTracker(true);
+  /** One wash (or rinse) per visit: re-armed once the hands (or the cloth) leave the sink. */
+  private washArmed = true;
+  private rinseArmed = true;
   private boardRub = new RubTracker();
   private clothHome = new Vector3();
   private clothHomeSet = false;
@@ -99,8 +103,10 @@ export class HygieneSystem extends createSystem({}) {
     const bothInSink =
       bothFree && L.tracked && R.tracked &&
       overStation(L.palm, StationKind.Sink) && overStation(R.palm, StationKind.Sink);
-    const rub = this.washRub[0].update(L.palm, bothInSink) + this.washRub[1].update(R.palm, bothInSink);
-    if (bothInSink) {
+    if (!bothInSink) this.washArmed = true;
+    const counting = bothInSink && this.washArmed;
+    const rub = this.washRub[0].update(L.palm, counting) + this.washRub[1].update(R.palm, counting);
+    if (counting) {
       this.rubProgress = Math.min(1, rub / RUB_WASH_HANDS);
       if (rub >= RUB_WASH_HANDS) {
         if (!chef.open && !chef.soaped) {
@@ -112,6 +118,7 @@ export class HygieneSystem extends createSystem({}) {
           coach.done('washHands');
           feedback.flash(StationKind.Sink, COLOR_DONE);
         }
+        this.washArmed = false;
         this.washRub[0].reset();
         this.washRub[1].reset();
       }
@@ -211,9 +218,11 @@ export class HygieneSystem extends createSystem({}) {
 
     // Wash the cloth under the faucet: hands get washed along with it.
     const inSink = overStation(this.tmp, StationKind.Sink);
-    const washed = this.clothRub.update(this.tmp, inSink);
-    if (inSink) this.rubProgress = Math.min(1, washed / RUB_WASH_CLOTH);
+    if (!inSink) this.rinseArmed = true;
+    const washed = this.clothRub.update(this.tmp, inSink && this.rinseArmed);
+    if (inSink && this.rinseArmed) this.rubProgress = Math.min(1, washed / RUB_WASH_CLOTH);
     if (washed >= RUB_WASH_CLOTH) {
+      this.rinseArmed = false;
       chef.clothDirty = false;
       this.washed();
       this.clothRub.reset();

@@ -686,8 +686,9 @@ export class MasterSystem extends createSystem({
         const sink = this.stationPos(StationKind.Sink);
         if (!sink) return false;
         const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.05;
-        rice.pose(a.copy(sink).add(off.set(0.06 * side, 0.1, s)), yaw, 0, 0);
-        neta.pose(b.copy(sink).add(off.set(-0.06 * side, 0.1, -s)), yaw, 0, 0);
+        // At the rim, just into the basin, where the hands wash.
+        rice.pose(a.copy(sink).add(off.set(0.06 * side, 0.01, s)), yaw, 0, 0);
+        neta.pose(b.copy(sink).add(off.set(-0.06 * side, 0.01, -s)), yaw, 0, 0);
         return true;
       }
       case 'towel': {
@@ -704,7 +705,7 @@ export class MasterSystem extends createSystem({
         const sink = this.stationPos(StationKind.Sink);
         if (!sink) return false;
         const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.06;
-        rice.pose(a.copy(sink).add(off.set(0, 0.07, s)), yaw, 0, 1);
+        rice.pose(a.copy(sink).add(off.set(0, 0, s)), yaw, 0, 1);
         return true;
       }
       case 'takeCloth': {

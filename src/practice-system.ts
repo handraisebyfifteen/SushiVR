@@ -405,8 +405,9 @@ export class PracticeSystem extends createSystem({
       const x = side === 0 ? -0.07 : 0.07;
       this.run(side, 'Washing hands', [
         move(at, v(x, 0.36, 0), 'palm', 0.35),
-        move(at, v(x, 0.12, 0), 'palm', 0.2),
-        rub(at, v(x, 0.12, 0), 'palm', 1.0, 0.035, 2.5, washedJustNow, side * Math.PI),
+        // Down into the basin, under the faucet: chest-to-belly height for a seated chef.
+        move(at, v(x, -0.06, 0), 'palm', 0.25),
+        rub(at, v(x, -0.06, 0), 'palm', 1.4, 0.035, 2.5, washedJustNow, side * Math.PI),
         move(at, v(x, 0.36, 0), 'palm', 0.2),
         this.rest(side),
       ]);
@@ -476,8 +477,8 @@ export class PracticeSystem extends createSystem({
     if (!at) return;
     this.run(1, 'Rinsing the cloth', [
       move(at, v(0.05, 0.36, 0), 'grasp', 0.35),
-      move(at, v(0.05, 0.1, 0), 'grasp', 0.2),
-      rub(at, v(0.05, 0.1, 0), 'grasp', 1.1, 0.04, 2.5, washedJustNow),
+      move(at, v(0.05, -0.04, 0), 'grasp', 0.25),
+      rub(at, v(0.05, -0.04, 0), 'grasp', 1.6, 0.04, 2.5, washedJustNow),
       move(at, v(0.05, 0.36, 0), 'grasp', 0.2),
       this.rest(1),
     ]);
