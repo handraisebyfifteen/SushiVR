@@ -75,6 +75,10 @@ export const progress = {
   noriHeld: false,
   wrapped: false,
   topped: false,
+  /** Inari: the pouch is on the neta hand, the rice is in it, its mouth is folded shut. */
+  ageHeld: false,
+  stuffed: false,
+  closed: false,
   hasRice: false,
   wasabi: 'none' as 'none' | 'finger' | 'neta',
   /** performance.now() of the current metronome's first beat, 0 when none. */

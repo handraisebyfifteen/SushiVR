@@ -1,6 +1,6 @@
 import { Color, Group, InstancedMesh, Mesh, type Object3D } from '@iwsdk/core';
 import { CASE_ORDER, caseAssetId, type NetaId } from '../menu.js';
-import { caseLook, containerMaterial, lookMaterial, ROE_BOWL_Z } from './lib/neta-look.js';
+import { caseLook, containerMaterial, liquidMaterial, lookMaterial, ROE_BOWL_Z } from './lib/neta-look.js';
 import { seeded } from './lib/neta-paint.js';
 
 /**
@@ -50,6 +50,11 @@ export function createCaseItem(id: NetaId): Group {
     const container = new Mesh(look.container, containerMaterial(id) ?? material);
     container.name = 'Container';
     root.add(container);
+  }
+  if (look.liquid) {
+    const liquid = new Mesh(look.liquid, liquidMaterial());
+    liquid.name = 'Liquid';
+    root.add(liquid);
   }
   if (look.tool) {
     // The spatula lies on the uni, its handle ending at the ori's front rim;

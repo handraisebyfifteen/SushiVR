@@ -65,6 +65,9 @@ const STEP_WORDS: Record<StepKey, string> = {
   takeNori: 'Take a nori strip',
   wrapNori: 'Hands together: wrap',
   spoonTopping: 'Spoon it on',
+  takeAge: 'Take an inari pouch',
+  stuffAge: 'Hands together: fill it',
+  closeAge: 'Fist on the beat: fold',
 };
 
 const MISTAKE_WORDS: Record<MistakeKey, string> = {
@@ -77,7 +80,7 @@ const MISTAKE_WORDS: Record<MistakeKey, string> = {
 };
 
 /** Steps that happen on the piece in the chef's hands: words go above the piece. */
-const PIECE_STEPS = new Set<StepKey>(['join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi', 'wrapNori']);
+const PIECE_STEPS = new Set<StepKey>(['join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi', 'wrapNori', 'stuffAge', 'closeAge']);
 const TURN_STEPS = new Set<StepKey>(['turnBack', 'turnFront']);
 
 const GESTURE_SECONDS = 0.9;
@@ -395,6 +398,7 @@ export class MasterSystem extends createSystem({
       return progress.sakuOnBoard && !progress.sakuWrong ? 'cut' : 'putKnife';
     }
     if ((progress.kind ?? orderKind()) === 'gunkan') return this.gunkanStep();
+    if ((progress.kind ?? orderKind()) === 'inari') return this.inariStep();
     if (!progress.hasNeta) {
       if (progress.sakuOnBoard) return progress.sakuWrong ? 'returnSaku' : 'holdKnife';
       if (chef.boardDirt > 0 && progress.stage === 'None' && !progress.hasRice) return 'wipeBoard';
@@ -440,6 +444,18 @@ export class MasterSystem extends createSystem({
     return progress.topped ? null : 'spoonTopping';
   }
 
+  /** An inari: rice, a pouch from the case, fill it, fold it shut on the beat, then the geta. */
+  private inariStep(): StepKey | null {
+    if (progress.sakuOnBoard) return 'returnSaku';
+    if (progress.stage === 'Done' || progress.stage === 'Carried') return 'place';
+    if (progress.stage === 'Placed') return 'serve';
+    if (!progress.stuffed) {
+      if (!progress.hasRice) return chef.hands[chef.riceSide].wet ? 'rice' : 'tezu';
+      return progress.ageHeld ? 'stuffAge' : 'takeAge';
+    }
+    return progress.closed ? null : 'closeAge';
+  }
+
   private learned(step: StepKey): boolean {
     return (this.successes.get(this.learnKey(step)) ?? 0) >= MASTER_LEARNED_COUNT;
   }
@@ -480,6 +496,7 @@ export class MasterSystem extends createSystem({
       case 'takeSaku':
       case 'returnSaku':
       case 'spoonTopping':
+      case 'takeAge':
         return StationKind.NetaCase;
       case 'takeNori':
         return StationKind.NoriBox;
@@ -513,6 +530,7 @@ export class MasterSystem extends createSystem({
     switch (step) {
       case 'takeSaku':
       case 'spoonTopping':
+      case 'takeAge':
         if (this.orderedSakuAt(out)) {
           out.y += 0.15;
           return;
@@ -884,6 +902,21 @@ export class MasterSystem extends createSystem({
         neta.pose(this.netaHold(c), yaw, 0, 0);
         return true;
       }
+      case 'takeAge': {
+        // The neta hand: into the case for a pouch, back to where it holds the piece.
+        if (!this.orderedSakuAt(a)) return false;
+        a.y += 0.03;
+        b.copy(a).add(off.set(0, 0.08, 0.04));
+        const k = this.phase(2);
+        if (k < 0.45) neta.pose(this.go(k / 0.45, b, a), yaw, 0, k > 0.35 ? 1 : 0);
+        else neta.pose(this.go((k - 0.45) / 0.55, a, this.netaHold(c)), yaw, 0, k < 0.85 ? 1 : 0);
+        return true;
+      }
+      case 'closeAge':
+        // The hand holding the pouch closes into a fist on the beat.
+        neta.pose(this.netaHold(a), yaw, this.beatCurl(), 0);
+        return true;
+      case 'stuffAge':
       case 'wrapNori':
       case 'join': {
         this.netaHold(a);

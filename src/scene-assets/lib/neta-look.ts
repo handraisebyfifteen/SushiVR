@@ -4,7 +4,9 @@ import {
   CylinderGeometry,
   Euler,
   LatheGeometry,
+  type Material,
   Matrix4,
+  MeshStandardMaterial,
   Quaternion,
   SphereGeometry,
   Vector2,
@@ -169,8 +171,49 @@ function eelPiece(): BufferGeometry {
   return patterned(shape(new BoxGeometry(0.034, 0.008, 0.085, 2, 1, 8), 0.085, 0.25, 0.003));
 }
 
+/** One halved, seasoned fried-tofu pouch lying flat, as they are stacked in the case. */
 function pouchPiece(): BufferGeometry {
-  return patterned(new SphereGeometry(1, 12, 8).scale(0.021, 0.0095, 0.013).translate(0, 0.0095, 0));
+  // Soaked halves lie flat and soft, so a pile of ten stays low.
+  return pillow(0.0192, 0.0024, 0.014, 0.65);
+}
+
+/**
+ * The inari in the hand, lying along Z like a nigiri: the opened pouch,
+ * the same pouch filled plump (a Kanto-style tawara), the rice showing in
+ * its open mouth (+Z end), and the mouth folded shut.
+ */
+export function inariShapes(): { open: BufferGeometry; plump: BufferGeometry; rice: BufferGeometry; fold: BufferGeometry } {
+  return {
+    open: pillow(0.019, 0.0045, 0.03, 0.7),
+    plump: pillow(0.019, 0.0135, 0.031, 0.5),
+    rice: paint(new SphereGeometry(1, 12, 8).scale(0.0145, 0.0095, 0.003), (_p, _n, out) => out.set('#F6F2EA')).translate(0, 0.0125, 0.03),
+    // The mouth folded under at the +Z end: a soft lip of pouch.
+    fold: pillow(0.0175, 0.011, 0.0045, 0.6).translate(0, 0.001, 0.029),
+  };
+}
+
+/**
+ * A soft pouch: a sphere pushed toward a rounded box (squareness 0 = box,
+ * 1 = ellipsoid), half-sizes x, y, z, resting on y = 0 with a flattened
+ * bottom and the gentle wrinkles of simmered fried tofu.
+ */
+function pillow(hx: number, hy: number, hz: number, squareness: number): BufferGeometry {
+  const g = new SphereGeometry(1, 28, 18);
+  const pos = g.getAttribute('position');
+  const e = 0.35 + 0.65 * squareness;
+  const v = new Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const sx = Math.sign(v.x) * Math.abs(v.x) ** e;
+    const sy = Math.sign(v.y) * Math.abs(v.y) ** (e * 1.2);
+    const sz = Math.sign(v.z) * Math.abs(v.z) ** e;
+    const wrinkle = 1 + 0.035 * Math.sin(v.x * 23 + v.z * 9) * Math.sin(v.z * 17 - v.y * 5);
+    let y = sy * hy * wrinkle + hy * 0.85;
+    if (y < 0.0005) y = 0.0005;
+    pos.setXYZ(i, sx * hx * wrinkle, y, sz * hz * wrinkle);
+  }
+  g.computeVertexNormals();
+  return patterned(g);
 }
 
 /** Uni lobe length, width and height: a soft tongue, about three times as long as it is wide. */
@@ -257,6 +300,38 @@ function trayGeometry(id: NetaId, depth: number): BufferGeometry {
     box(0.0025, rim, depth, -w / 2 + 0.00125, rim / 2, -depth / 2),
     box(0.0025, rim, depth, w / 2 - 0.00125, rim / 2, -depth / 2),
   ]);
+}
+
+/** The inari pouches' nakago: a stainless insert pan, front edge at z = 0, with a small lip. */
+const PAN_DEPTH = 0.064;
+const PAN_HEIGHT = 0.034;
+const PAN_FLOOR = 0.0015;
+function insertPan(id: NetaId): BufferGeometry {
+  const w = NETA[id].look.width - 0.003;
+  const t = 0.0012;
+  const steel = '#C9CDD2';
+  const box = (bw: number, bh: number, bd: number, x: number, y: number, z: number): [BufferGeometry, Matrix4] => [
+    flat(new BoxGeometry(bw, bh, bd), steel),
+    new Matrix4().makeTranslation(x, y, z),
+  ];
+  return weld([
+    box(w - 0.004, t, PAN_DEPTH - 0.004, 0, t / 2, -PAN_DEPTH / 2),
+    box(w, PAN_HEIGHT, t, 0, PAN_HEIGHT / 2, -t / 2),
+    box(w, PAN_HEIGHT, t, 0, PAN_HEIGHT / 2, -PAN_DEPTH + t / 2),
+    box(t, PAN_HEIGHT, PAN_DEPTH, -w / 2 + t / 2, PAN_HEIGHT / 2, -PAN_DEPTH / 2),
+    box(t, PAN_HEIGHT, PAN_DEPTH, w / 2 - t / 2, PAN_HEIGHT / 2, -PAN_DEPTH / 2),
+    // The rolled lip round the top.
+    box(w + 0.003, 0.0015, 0.003, 0, PAN_HEIGHT, -0.0015),
+    box(w + 0.003, 0.0015, 0.003, 0, PAN_HEIGHT, -PAN_DEPTH + 0.0015),
+    box(0.003, 0.0015, PAN_DEPTH, -w / 2 - 0.0015, PAN_HEIGHT, -PAN_DEPTH / 2),
+    box(0.003, 0.0015, PAN_DEPTH, w / 2 + 0.0015, PAN_HEIGHT, -PAN_DEPTH / 2),
+  ]);
+}
+
+/** The simmering broth in the pan, a little below the top layer of pouches. */
+function broth(id: NetaId): BufferGeometry {
+  const w = NETA[id].look.width - 0.006;
+  return flat(new BoxGeometry(w, 0.0008, PAN_DEPTH - 0.004), '#5E3812').translate(0, 0.019, -PAN_DEPTH / 2);
 }
 
 /**
@@ -366,6 +441,8 @@ export interface CaseLook {
   container: BufferGeometry | null;
   /** The spatula or spoon resting in the tray, if any (taken out while in use). */
   tool: BufferGeometry | null;
+  /** Liquid the pieces sit in (the inari pouches' simmering broth), if any. */
+  liquid: BufferGeometry | null;
   /** Shader pattern and the sizes it is drawn to. */
   pattern: number;
   dims: Dims;
@@ -374,7 +451,7 @@ export interface CaseLook {
 const looks = new Map<NetaId, CaseLook>();
 
 function pieces(geometry: BufferGeometry, matrices: Matrix4[], pattern: number, dims: Dims, perUnit = 1, container: BufferGeometry | null = null): CaseLook {
-  return { geometry, matrices, perUnit, container, pattern, dims, tool: null };
+  return { geometry, matrices, perUnit, container, pattern, dims, tool: null, liquid: null };
 }
 
 export function caseLook(id: NetaId): CaseLook {
@@ -385,11 +462,11 @@ export function caseLook(id: NetaId): CaseLook {
   const rnd = seeded(`${id}-arrange`);
   let look: CaseLook;
   switch (def.look.shape) {
-    case 'saku': look = { ...sakuBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
-    case 'sheet': look = { ...sheetBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
-    case 'tentacle': look = { ...tentacleBody(), matrices: null, perUnit: 1, container: null, tool: null }; break;
-    case 'shell': look = { ...shellBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
-    case 'block': look = { ...blockBody(id), matrices: null, perUnit: 1, container: null, tool: null }; break;
+    case 'saku': look = { ...sakuBody(id), matrices: null, perUnit: 1, container: null, tool: null, liquid: null }; break;
+    case 'sheet': look = { ...sheetBody(id), matrices: null, perUnit: 1, container: null, tool: null, liquid: null }; break;
+    case 'tentacle': look = { ...tentacleBody(), matrices: null, perUnit: 1, container: null, tool: null, liquid: null }; break;
+    case 'shell': look = { ...shellBody(id), matrices: null, perUnit: 1, container: null, tool: null, liquid: null }; break;
+    case 'block': look = { ...blockBody(id), matrices: null, perUnit: 1, container: null, tool: null, liquid: null }; break;
     case 'fillets':
       look = pieces(filletPiece(id), shingle(n, 0.072, 0.0085), def.look.pattern === 'spots' ? NetaPattern.Kohada : NetaPattern.Aji, [0.072, 0.006, 0.028]);
       break;
@@ -401,9 +478,15 @@ export function caseLook(id: NetaId): CaseLook {
       break;
     case 'eels': look = pieces(eelPiece(), shingle(n, 0.085, 0.0065), NetaPattern.SeaEel, [0.085, 0.008, 0.034]); break;
     case 'pouches': {
+      // Straight from the pack into a small stainless insert pan (nakago),
+      // broth and all: the pouches in one loose pile, the top ones above the
+      // broth; the top one is taken first.
       const m: Matrix4[] = [];
-      for (let i = 0; i < n; i++) m.push(place(0, Math.floor(i / 5) * 0.0175, -0.014 - (4 - (i % 5)) * 0.0265, 0, (rnd() - 0.5) * 0.2));
-      look = pieces(pouchPiece(), m, NetaPattern.Pouch, [0.026, 0.019, 0.042]);
+      for (let i = 0; i < n; i++) {
+        m.push(place((rnd() - 0.5) * 0.0016, PAN_FLOOR + i * 0.0034, -PAN_DEPTH / 2 + (rnd() - 0.5) * 0.008, 0.06 * (rnd() - 0.5), (rnd() - 0.5) * 0.16));
+      }
+      look = pieces(pouchPiece(), m, NetaPattern.Pouch, [0.026, 0.019, 0.042], 1, insertPan(id));
+      look.liquid = broth(id);
       break;
     }
     case 'urchin': {
@@ -480,6 +563,8 @@ export function caseLook(id: NetaId): CaseLook {
 const materials = new Map<NetaId, NetaMaterial>();
 let nori: NetaMaterial | null = null;
 let stoneware: NetaMaterial | null = null;
+let steel: Material | null = null;
+let liquid: Material | null = null;
 
 /** Nori (gunkan band and strip), seen from both sides. */
 export function noriMaterial(): NetaMaterial {
@@ -488,10 +573,20 @@ export function noriMaterial(): NetaMaterial {
 }
 
 /** The material for an item's container when it is not the item's own (the roe's stoneware bowl). */
-export function containerMaterial(id: NetaId): NetaMaterial | null {
+export function containerMaterial(id: NetaId): Material | null {
+  if (id === 'InariAge') {
+    steel ??= new MeshStandardMaterial({ color: '#C9CDD2', roughness: 0.28, metalness: 0.8 });
+    return steel;
+  }
   if (id !== 'Ikura') return null;
   stoneware ??= makeNetaMaterial('Stoneware', NetaPattern.Stoneware, '#ECE6DA', '#9E8C74', [0.0278, ROE_BOWL_TOP, 0], 7.3, 0.35);
   return stoneware;
+}
+
+/** The glossy material of a liquid (the inari broth). */
+export function liquidMaterial(): Material {
+  liquid ??= new MeshStandardMaterial({ color: '#5E3812', roughness: 0.08, metalness: 0 });
+  return liquid;
 }
 
 /** The one material of a neta (case item, slices and served pieces share it). */

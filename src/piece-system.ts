@@ -12,6 +12,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { GunkanAssembly } from './assembly/gunkan.js';
+import { InariAssembly } from './assembly/inari.js';
 import { NigiriAssembly } from './assembly/nigiri.js';
 import { type Assembly, normYaw, type PieceCore } from './assembly/types.js';
 import { coach, type Grade } from './coach.js';
@@ -57,6 +58,8 @@ export const pieceApi = {
   cut: (_neta: NetaId, _skinRight: boolean, _at: Vector3): void => undefined,
   /** A ready-cut piece was taken from the case straight onto the neta hand. */
   take: (_neta: NetaId): void => undefined,
+  /** An inari pouch was taken from the case onto the neta hand; false if another piece is in progress. */
+  takeAge: (): boolean => false,
 };
 
 /**
@@ -70,9 +73,10 @@ export const pieceApi = {
  *  - once done: pinch, carry over the case, let go on the geta (turning the
  *    hand turns the piece), hold a fist over the geta to serve; scored.
  * Each kind (src/assembly/) builds the piece up to Done: NigiriAssembly
- * (slice, join, three touches, roll over, half turn) and GunkanAssembly
- * (nori strip, wrap, topping spooned on). The first ingredient decides the
- * kind: a cut or taken slice makes a nigiri, a nori strip a gunkan.
+ * (slice, join, three touches, roll over, half turn), GunkanAssembly
+ * (nori strip, wrap, topping on) and InariAssembly (pouch, fill, fold
+ * shut). The first ingredient decides the kind: a cut or taken slice makes
+ * a nigiri, a nori strip a gunkan, a pouch an inari.
  */
 export class PieceSystem extends createSystem({}) implements PieceCore {
   entity!: Entity;
@@ -96,6 +100,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
 
   private nigiri!: NigiriAssembly;
   private gunkan!: GunkanAssembly;
+  private inari!: InariAssembly;
   private beatRing!: Mesh<RingGeometry, MeshBasicMaterial>;
   private targetRing!: Mesh<RingGeometry, MeshBasicMaterial>;
   private judgeSprites = new Map<JudgeKind, Sprite>();
@@ -112,7 +117,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   private readonly tmp = new Vector3();
 
   private get active(): Assembly | null {
-    return this.kind === 'nigiri' ? this.nigiri : this.kind === 'gunkan' ? this.gunkan : null;
+    return this.kind === 'nigiri' ? this.nigiri : this.kind === 'gunkan' ? this.gunkan : this.kind === 'inari' ? this.inari : null;
   }
 
   init(): void {
@@ -164,10 +169,12 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
 
     this.nigiri = new NigiriAssembly(this);
     this.gunkan = new GunkanAssembly(this, this.world);
+    this.inari = new InariAssembly(this);
 
     pieceApi.hasNeta = () => this.kind !== null;
     pieceApi.cut = (neta, skinRight, at) => this.nigiri.cut(neta, skinRight, at);
     pieceApi.take = (neta) => this.nigiri.take(neta);
+    pieceApi.takeAge = () => this.inari.take();
   }
 
   /** Claims the piece for a kind; false if another kind is already in progress. */
@@ -374,6 +381,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.phaseStart = null;
     this.nigiri.reset();
     this.gunkan.reset();
+    this.inari.reset();
     this.kind = null;
     const e = this.entity;
     e.setValue(Piece, 'kind', PieceKindValue.None);
@@ -501,7 +509,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       return;
     }
     if (this.active) this.active.hints();
-    else this.gunkan.hints();
+    else {
+      this.gunkan.hints();
+      this.inari.hints();
+    }
   }
 
   /** Share the piece's progress, for the master. */
@@ -517,6 +528,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     progress.pieceAt.copy(this.focus);
     this.gunkan.publish();
     this.nigiri.publish();
+    this.inari.publish();
   }
 
   /** For the debug panel. */

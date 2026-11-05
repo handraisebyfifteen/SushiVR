@@ -192,7 +192,13 @@ vec3 netaColor(vec3 p, vec3 n) {
     return c * (0.92 + 0.12 * nNoise(p * 600.0));
   }
   if (pat == 19) {
-    return mix(c, c2, nUp(0.6, 0.75, nNoise(p * 1100.0 + ph))) * (0.93 + 0.1 * fine);
+    // Seasoned fried tofu: golden brown, darker where the simmering broth
+    // soaked in, and the small pores of the fried skin.
+    float soak = nNoise(p * 260.0 + ph * 1.3);
+    float pores = nUp(0.7, 0.8, nNoise(p * 3200.0 + ph));
+    c = mix(c, c2, 0.5 * soak);
+    c = mix(c, c2 * 0.65, 0.6 * pores);
+    return c * (0.9 + 0.14 * fine);
   }
   if (pat == 20) {
     // A uni lobe (length along x): fine granules, a shallow crease along its

@@ -37,7 +37,11 @@ export type StepKey =
   // gunkan
   | 'takeNori'
   | 'wrapNori'
-  | 'spoonTopping';
+  | 'spoonTopping'
+  // inari
+  | 'takeAge'
+  | 'stuffAge'
+  | 'closeAge';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
 export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';

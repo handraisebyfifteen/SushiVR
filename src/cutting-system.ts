@@ -150,6 +150,7 @@ export class CuttingSystem extends createSystem({
       const neta = caseApi.neta(item);
       const def = NETA[neta];
       if (def.prep === 'piece') return this.takePiece(item, neta);
+      if (def.prep === 'age') return this.takeAge(item);
       if (def.prep !== 'saku') return;
       this.held = item;
       state.holding = Held.Saku;
@@ -204,6 +205,21 @@ export class CuttingSystem extends createSystem({
     coach.done('takeSaku');
     feedback.flash(StationKind.NetaCase, COLOR_DONE);
     console.log(`[Cutting] took a piece of ${neta} (${item.getValue(CaseItem, 'remaining')} left)`);
+  }
+
+  /** An inari pouch onto the neta hand, if an inari was ordered. */
+  private takeAge(item: Entity): void {
+    if (pieceApi.hasNeta()) return;
+    if (service.order && orderKind() !== 'inari') {
+      glowObject(item.object3D!, COLOR_WARN);
+      feedback.flash(StationKind.NetaCase, COLOR_WARN);
+      coach.mistake('wrongItem', StationKind.NetaCase);
+      console.log('[Cutting] no inari was ordered');
+      return;
+    }
+    if (caseApi.stock(item) < 1 || !pieceApi.takeAge()) return;
+    caseApi.consume(item, 1);
+    feedback.flash(StationKind.NetaCase, COLOR_DONE);
   }
 
   private wrongHand(item: Entity | null): void {

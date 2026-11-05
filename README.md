@@ -148,6 +148,16 @@ have done a step three times he stays quiet about it. The timings are in
    nori softens, so freshness runs from the wrap; a gunkan has no head end,
    so any heading is fine.
 
+**An inari** (Kanto style, a plump tawara with its mouth folded under):
+
+1. Right hand: tezu and rice as for a nigiri.
+2. Left hand: pinch a seasoned pouch from the case (they sit in a stainless
+   insert pan, straight from the pack with their broth); it lies open on
+   your fingers.
+3. Bring the palms together: the rice goes into the pouch.
+4. Make a fist with the left hand on the beat: the mouth folds shut.
+5. Onto the geta and serve. No wasabi.
+
 **Serving etiquette**: the first piece for a new customer goes straight
 across the geta; the customer reaches for it and shows which hand they use.
 From then on place pieces diagonally, head end (the thick end of the slice)
@@ -182,7 +192,8 @@ nigiri to serving; the keys are listed on a small panel in view. For the
 case: 4 takes what was ordered, 5 takes the selected neta, 6 (Shift+6 back)
 steps through the neta, 7 makes the customer order the selected one, and 8
 restocks the whole case. For a gunkan, Z takes a nori strip, H wraps, and 4
-on a sea urchin or salmon roe order puts the topping on. A key only
+on a sea urchin or salmon roe order puts the topping on. For an inari, 4
+takes a pouch, H fills it and Space folds it shut on the beat. A key only
 moves the emulated hands to a place and makes the gesture there; the game
 judges it exactly as it judges real hands, so mistakes still count. The timed
 gestures happen when you act: hold L to reach into the rice tub and let go on

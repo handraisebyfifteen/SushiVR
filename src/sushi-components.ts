@@ -138,6 +138,14 @@ export const GunkanStage = {
   Wrapped: 'Wrapped',
 } as const;
 
+/** An inari's own stages. */
+export const InariStage = {
+  /** An opened pouch on the neta hand's fingers. */
+  Age: 'Age',
+  /** The rice is in the pouch; the mouth is still open. */
+  Stuffed: 'Stuffed',
+} as const;
+
 export const PieceKindValue = {
   None: 'None',
   Nigiri: 'nigiri',

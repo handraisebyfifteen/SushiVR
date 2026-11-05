@@ -150,8 +150,8 @@ const LOOK_PITCH_DEG = -22;
 const HEAD_TURN_RATE_DEG = 320;
 const TURN_LOOK_DEG = 88;
 const HEADING_STEP_DEG = 45;
-/** What can be ordered from the case, in case order (what 6 steps through): nigiri neta and gunkan toppings. */
-const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => ['saku', 'piece', 'scoop'].includes(NETA[id].prep));
+/** What can be ordered from the case, in case order (what 6 steps through): nigiri neta, gunkan toppings, the inari pouch. */
+const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => ['saku', 'piece', 'scoop', 'age'].includes(NETA[id].prep));
 
 class DriverHand {
   steps: Step[] = [];
@@ -554,7 +554,8 @@ export class PracticeSystem extends createSystem({
   /** 7: the customer orders the selected neta (to try every one). */
   private orderSelected(): void {
     const neta = NIGIRI_NETA[this.selected];
-    const item = menuFor(NETA[neta].prep === 'scoop' ? 'gunkan' : 'nigiri', [neta]);
+    const prep = NETA[neta].prep;
+    const item = menuFor(prep === 'scoop' ? 'gunkan' : prep === 'age' ? 'inari' : 'nigiri', [neta]);
     const customer = this.queries.customer.entities.values().next().value;
     if (!item || !customer) return;
     customer.setValue(Customer, 'item', item);
@@ -585,7 +586,7 @@ export class PracticeSystem extends createSystem({
     const board = this.reachable(StationKind.CuttingBoard);
     if (!at || !board) return;
     const name = NETA[neta].name.toLowerCase();
-    if (NETA[neta].prep === 'piece') {
+    if (NETA[neta].prep === 'piece' || NETA[neta].prep === 'age') {
       this.run(side, `Taking the ${name}`, [
         move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
         move(at, v(0, 0.015, -0.015), 'grasp', 0.2),
@@ -790,7 +791,12 @@ export class PracticeSystem extends createSystem({
     if (!progress.hasRice) return this.say('Take rice first (J, then hold L)');
     if (this.driver[side].busy) return this.say('Rice hand is busy');
     const at = progress.pieceAt.clone();
-    this.run(side, progress.noriHeld ? 'Hands together: the nori wraps the rice' : 'Hands together: touch on the beat (Space)', [
+    const label = progress.noriHeld
+      ? 'Hands together: the nori wraps the rice'
+      : progress.ageHeld
+        ? 'Hands together: fill the pouch, then Space on the beat to fold it'
+        : 'Hands together: touch on the beat (Space)';
+    this.run(side, label, [
       move(at, v(0, 0.12, 0), 'palm', 0.3),
       move(at, v(0, 0.045, 0), 'palm', 0.2),
     ]);
@@ -820,6 +826,11 @@ export class PracticeSystem extends createSystem({
         wait(0.15),
         pinch(0),
       ]);
+    } else if (stage === 'Stuffed') {
+      // Inari: the hand holding the pouch makes a fist on the beat.
+      const neta = chef.netaSide;
+      if (this.driver[neta].busy) return this.say('Neta hand is busy');
+      this.run(neta, 'Folded shut: carry it (M)', [pose('fist'), wait(0.2), pose('default')]);
     } else {
       this.say('Nothing to touch now');
     }
