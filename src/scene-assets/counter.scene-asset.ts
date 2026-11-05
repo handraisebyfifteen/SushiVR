@@ -22,6 +22,15 @@ const paleWood = new MeshStandardMaterial({ color: '#EADBB8', roughness: 0.65 })
 const lacquer = new MeshStandardMaterial({ color: '#1E1A1A', roughness: 0.35 });
 const rice = new MeshStandardMaterial({ color: '#F6F2EA', roughness: 0.9 });
 const tuna = new MeshStandardMaterial({ color: '#C8333A', roughness: 0.5 });
+const water = new MeshStandardMaterial({
+  color: '#9CCBE0',
+  roughness: 0.15,
+  transparent: true,
+  opacity: 0.85,
+});
+const cloth = new MeshStandardMaterial({ color: '#F1EFE6', roughness: 1.0 });
+const ceramic = new MeshStandardMaterial({ color: '#E8E4DA', roughness: 0.4 });
+const wasabi = new MeshStandardMaterial({ color: '#6B9E3A', roughness: 0.8 });
 
 function box(
   w: number,
@@ -39,11 +48,11 @@ function box(
 export function createCounter(): Group {
   const root = new Group();
   root.name = 'Counter';
-  const top = box(1.6, 0.04, 0.5, darkWood, 'CounterTop');
+  const top = box(1.6, 0.04, 0.6, darkWood, 'CounterTop');
   top.position.set(0, 0.73, 0);
   const panel = box(1.6, 0.71, 0.04, darkWood, 'CounterFront');
-  panel.position.set(0, 0.355, -0.23);
-  const shelf = box(1.6, 0.02, 0.5, darkWood, 'CounterShelf');
+  panel.position.set(0, 0.355, -0.28);
+  const shelf = box(1.6, 0.02, 0.6, darkWood, 'CounterShelf');
   shelf.position.set(0, 0.01, 0);
   root.add(top, panel, shelf);
   return root;
@@ -100,5 +109,60 @@ export function createNetaTray(): Group {
     slice.position.set(0, 0.02, -0.045 + i * 0.045);
     root.add(slice);
   }
+  return root;
+}
+
+/** Hand-washing basin: a wooden tub with a water surface. */
+export function createBasin(): Group {
+  const root = new Group();
+  root.name = 'Basin';
+  const tub = new Mesh(new CylinderGeometry(0.11, 0.1, 0.08, 24, 1), lightWood);
+  tub.name = 'Tub';
+  tub.position.y = 0.04;
+  const surface = new Mesh(new CylinderGeometry(0.1, 0.1, 0.004, 24, 1), water);
+  surface.name = 'Water';
+  surface.position.y = 0.07;
+  root.add(tub, surface);
+  return root;
+}
+
+/** Folded hand towel (fukin). */
+export function createTowel(): Group {
+  const root = new Group();
+  root.name = 'Towel';
+  const fold = box(0.16, 0.02, 0.12, cloth, 'Fold');
+  fold.position.y = 0.01;
+  const edge = box(0.16, 0.006, 0.04, cloth, 'Edge');
+  edge.position.set(0, 0.023, 0.03);
+  root.add(fold, edge);
+  return root;
+}
+
+/** Tezu bowl: vinegar water the chef dips fingers in so rice does not stick. */
+export function createTezuBowl(): Group {
+  const root = new Group();
+  root.name = 'TezuBowl';
+  const bowl = new Mesh(new CylinderGeometry(0.06, 0.045, 0.05, 20, 1), ceramic);
+  bowl.name = 'Bowl';
+  bowl.position.y = 0.025;
+  const surface = new Mesh(new CylinderGeometry(0.052, 0.052, 0.004, 20, 1), water);
+  surface.name = 'Water';
+  surface.position.y = 0.042;
+  root.add(bowl, surface);
+  return root;
+}
+
+/** Small dish with a mound of wasabi. */
+export function createWasabiDish(): Group {
+  const root = new Group();
+  root.name = 'WasabiDish';
+  const dish = new Mesh(new CylinderGeometry(0.045, 0.04, 0.015, 20, 1), lacquer);
+  dish.name = 'Dish';
+  dish.position.y = 0.0075;
+  const mound = new Mesh(new SphereGeometry(0.025, 14, 10), wasabi);
+  mound.name = 'Wasabi';
+  mound.scale.set(1, 0.6, 1);
+  mound.position.y = 0.015;
+  root.add(dish, mound);
   return root;
 }

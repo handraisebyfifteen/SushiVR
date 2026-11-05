@@ -28,6 +28,8 @@ const PINCH_OFF = 0.6;
 export class HandReader {
   readonly palm = new Vector3();
   readonly grasp = new Vector3();
+  /** Index fingertip: used to dab wasabi. */
+  readonly indexTip = new Vector3();
   tracked = false;
   /** 0 = open hand, 1 = closed fist. */
   curl = 0;
@@ -83,6 +85,7 @@ export class HandReader {
     this.jointWorld('thumb-tip', joints, grip.matrixWorld, this.a);
     this.jointWorld('index-finger-tip', joints, grip.matrixWorld, this.b);
     this.grasp.addVectors(this.a, this.b).multiplyScalar(0.5);
+    this.indexTip.copy(this.b);
 
     // Curl: how close the three outer fingertips are to their knuckles.
     let curl = 0;

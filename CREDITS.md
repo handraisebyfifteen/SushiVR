@@ -24,7 +24,11 @@ Column meanings:
 | `src/scene-assets/counter.scene-asset.ts` | `geta` (procedural serving stand) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `rice-tub` (procedural ohitsu with rice mound) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/scene-assets/counter.scene-asset.ts` | `neta-tray` (procedural tray with tuna slices) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
-| `src/nigiri-system.ts` | Runtime meshes: rice ball, tuna slice, highlight rings, serve progress bar (primitives) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `basin` (procedural hand-washing tub with water surface) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `towel` (procedural folded hand towel) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `tezu-bowl` (procedural vinegar-water bowl) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/scene-assets/counter.scene-asset.ts` | `wasabi-dish` (procedural dish with wasabi mound) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/nigiri-system.ts` | Runtime meshes: rice ball, tuna slice, wasabi dab, neta box lid, highlight rings, hand-cleanliness rings, progress bar (primitives) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 
 ## Removed assets
 

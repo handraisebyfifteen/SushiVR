@@ -102,7 +102,7 @@
         "position": [
           0,
           0.75,
-          -0.38
+          -0.42
         ]
       },
       "components": {
@@ -126,7 +126,7 @@
         "position": [
           -0.3,
           0.75,
-          -0.4
+          -0.42
         ]
       },
       "components": {
@@ -150,7 +150,7 @@
         "position": [
           0.3,
           0.75,
-          -0.4
+          -0.42
         ]
       },
       "components": {
@@ -174,7 +174,7 @@
         "position": [
           0,
           0.75,
-          -0.6
+          -0.62
         ]
       },
       "components": {
@@ -182,6 +182,102 @@
           "kind": "Geta",
           "radius": 0.13,
           "height": 0.05
+        }
+      }
+    },
+    {
+      "id": "basin",
+      "name": "Basin",
+      "content": {
+        "type": "asset",
+        "asset": "basin",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.5,
+          0.75,
+          -0.24
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Basin",
+          "radius": 0.12,
+          "height": 0.08
+        }
+      }
+    },
+    {
+      "id": "towel",
+      "name": "Towel",
+      "content": {
+        "type": "asset",
+        "asset": "towel",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.5,
+          0.75,
+          -0.24
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Towel",
+          "radius": 0.1,
+          "height": 0.02
+        }
+      }
+    },
+    {
+      "id": "tezu-bowl",
+      "name": "Tezu Bowl",
+      "content": {
+        "type": "asset",
+        "asset": "tezu-bowl",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.16,
+          0.75,
+          -0.24
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Tezu",
+          "radius": 0.07,
+          "height": 0.05
+        }
+      }
+    },
+    {
+      "id": "wasabi-dish",
+      "name": "Wasabi Dish",
+      "content": {
+        "type": "asset",
+        "asset": "wasabi-dish",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.16,
+          0.75,
+          -0.24
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Wasabi",
+          "radius": 0.06,
+          "height": 0.02
         }
       }
     },
