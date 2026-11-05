@@ -34,7 +34,7 @@ import { flat, paint, patterned, seeded, taperedTube, weld } from './neta-paint.
 export const SAKU_LENGTH = 0.13;
 export const CASE_ITEM_DEPTH = 0.135;
 
-type Dims = [number, number, number];
+export type Dims = [number, number, number];
 
 const SAKU_PATTERN: Partial<Record<Pattern, number>> = {
   plain: NetaPattern.SakuPlain,
@@ -47,7 +47,7 @@ const SAKU_PATTERN: Partial<Record<Pattern, number>> = {
 };
 
 /** A box with softly rounded edges, exactly L x H x W, from x = 0, y = 0, centred in z. */
-function roundedBlock(L: number, H: number, W: number, r: number): BufferGeometry {
+export function roundedBlock(L: number, H: number, W: number, r: number): BufferGeometry {
   const g = bevelBox(L, H, W, r, r, 2);
   g.computeBoundingBox();
   const b = g.boundingBox!;
@@ -645,6 +645,15 @@ export function lookMaterial(id: NetaId): NetaMaterial {
     materials.set(id, m);
   }
   return m;
+}
+
+/**
+ * A neta's material for a bigger cut of it (a prep material): the case
+ * item's pattern and colours, sized to that cut's own L x H x W.
+ */
+export function prepMaterial(id: NetaId, dims: Dims): NetaMaterial {
+  const def = NETA[id];
+  return makeNetaMaterial(`${id}-prep`, caseLook(id).pattern, def.look.color, def.look.color2, dims, seeded(id)() * 20, def.look.gloss);
 }
 
 /** True for the block shapes that are sliced on the board. */

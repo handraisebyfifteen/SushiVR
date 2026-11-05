@@ -9,7 +9,7 @@ import {
   type Sprite,
   Vector3,
 } from '@iwsdk/core';
-import { caseStock, type Order, service } from './game-state.js';
+import { caseStock, chef, type Order, prep, service } from './game-state.js';
 import { MENU, type MenuId, NETA } from './menu.js';
 import type { Score } from './scoring.js';
 import { stations } from './station-system.js';
@@ -73,7 +73,8 @@ export class CustomerSystem extends createSystem({}) {
   private icons = new Map<IconKind, Sprite>();
   private resultGroup!: Group;
   private resultTime = 0;
-  private phase: 'waiting' | 'reaching' | 'returning' | 'leaving' | 'arriving' = 'waiting';
+  /** 'closed' until the bar opens (the morning prep): nobody is seated. */
+  private phase: 'closed' | 'waiting' | 'reaching' | 'returning' | 'leaving' | 'arriving' = 'waiting';
   private t = 0;
   private piece: Entity | null = null;
   private readonly getaPos = new Vector3();
@@ -119,7 +120,12 @@ export class CustomerSystem extends createSystem({}) {
 
     this.entity = this.world.createTransformEntity(this.figure);
     this.entity.addComponent(Customer, {});
-    this.newCustomer(true);
+    if (prep.active && !chef.open) {
+      this.phase = 'closed';
+      this.figure.visible = false;
+    } else {
+      this.newCustomer(true);
+    }
     customerApi.serve = (score, piece) => this.serve(score, piece);
   }
 
@@ -215,6 +221,13 @@ export class CustomerSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    if (this.phase === 'closed') {
+      service.order = null;
+      if (!chef.open) return;
+      // Open: the first customer walks in.
+      this.figure.visible = true;
+      this.newCustomer(false);
+    }
     this.syncOrder();
     if (this.resultTime > 0) {
       this.resultTime -= delta;

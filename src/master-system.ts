@@ -16,7 +16,7 @@ import {
 } from '@iwsdk/core';
 import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
 import { debugLines } from './debug.js';
-import { chef, holdingAnything, orderKind, orderNeta, progress, service } from './game-state.js';
+import { chef, holdingAnything, orderKind, orderNeta, prep, progress, service } from './game-state.js';
 import { hands } from './hands.js';
 import { MENU, NETA } from './menu.js';
 import { playClack } from './sfx.js';
@@ -74,6 +74,10 @@ const STEP_WORDS: Record<StepKey, string> = {
   rollMaki: 'Push to roll',
   squeezeRoll: 'Both fists on the beat',
   cutRoll: 'Cut on the line',
+  takeMaterial: 'Take it from the ice',
+  cutPrep: 'Pull along the line',
+  pullSquid: 'Pull the legs out',
+  stockSaku: 'Into the case',
 };
 
 const MISTAKE_WORDS: Record<MistakeKey, string> = {
@@ -400,6 +404,8 @@ export class MasterSystem extends createSystem({
       if (chef.clothDirty) return back ? 'turnFront' : 'takeCloth';
       if (back) return 'turnFront';
     }
+    // The morning prep, before the bar opens.
+    if (prep.active) return back ? null : this.prepStep();
     if (!chef.open || back) return null;
     // A roll uses the knife too: its own recipe decides about the knife.
     if ((progress.kind ?? orderKind()) === 'maki') return this.makiStep();
@@ -438,6 +444,25 @@ export class MasterSystem extends createSystem({
         return 'place';
       case 'Placed':
         return 'serve';
+    }
+    return null;
+  }
+
+  /** The morning prep: a material from the ice box onto the board, its cuts, then each saku into the case. */
+  private prepStep(): StepKey | null {
+    if (progress.knifeHeld) {
+      if (prep.next === 'cut') return 'cutPrep';
+      return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
+    }
+    switch (prep.next) {
+      case 'take':
+        return 'takeMaterial';
+      case 'cut':
+        return 'holdKnife';
+      case 'pull':
+        return 'pullSquid';
+      case 'stock':
+        return 'stockSaku';
     }
     return null;
   }
@@ -550,6 +575,13 @@ export class MasterSystem extends createSystem({
         return StationKind.Makisu;
       case 'takeNori':
         return StationKind.NoriBox;
+      case 'takeMaterial':
+        return StationKind.IceBox;
+      case 'cutPrep':
+      case 'pullSquid':
+        return StationKind.CuttingBoard;
+      case 'stockSaku':
+        return StationKind.NetaCase;
       case 'holdKnife':
       case 'putKnife':
         return StationKind.Knife;
@@ -592,6 +624,18 @@ export class MasterSystem extends createSystem({
         return;
       case 'cutRoll':
         out.copy(progress.guideAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'takeMaterial':
+        out.copy(prep.boxAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'cutPrep':
+        out.copy(prep.guideAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'pullSquid':
+        out.copy(prep.materialAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'stockSaku':
+        out.copy(prep.slotAt).add(this.tmp.set(0, 0.18, 0));
         return;
       case 'placeFilling':
         if (this.netaAt(this.nextFilling(), out)) {
@@ -1033,6 +1077,50 @@ export class MasterSystem extends createSystem({
         const at = progress.pieceAt;
         neta.pose(a.copy(at).add(off.set(-0.05, 0.04, 0.02)), yaw, this.beatCurl(), 0);
         rice.pose(b.copy(at).add(off.set(0.05, 0.04, 0.02)), yaw, this.beatCurl(), 0);
+        return true;
+      }
+      case 'takeMaterial':
+      case 'stockSaku': {
+        const board = this.stationPos(StationKind.CuttingBoard);
+        if (!board) return false;
+        if (step === 'takeMaterial') {
+          a.copy(prep.boxAt);
+          b.copy(board).add(off.set(0, 0.03, 0));
+        } else {
+          a.copy(prep.productAt);
+          b.copy(prep.slotAt).add(off.set(0, 0.04, 0));
+        }
+        a.y += 0.02;
+        const k = this.phase(2.4);
+        if (k < 0.3) {
+          c.copy(a).add(off.set(0, 0.08, 0));
+          neta.pose(this.go(k / 0.3, c, a), yaw, 0, k > 0.22 ? 1 : 0);
+        } else if (k < 0.8) {
+          c.copy(a).lerp(b, 0.5);
+          c.y += 0.1;
+          const kk = (k - 0.3) / 0.5;
+          neta.pose(kk < 0.5 ? this.go(kk * 2, a, c) : this.go((kk - 0.5) * 2, c, b), yaw, 0, 1);
+        } else {
+          neta.pose(b, yaw, 0, 0);
+        }
+        return true;
+      }
+      case 'cutPrep': {
+        const g = prep.guideAt;
+        neta.pose(a.copy(prep.materialAt).add(off.set(-0.06, 0.04, 0)), yaw, 0.1, 0);
+        // The blade reaches 15 cm ahead of the fist: draw the fist back along the line.
+        b.copy(g).add(off.set(0, 0.05, 0.09));
+        c.copy(g).add(off.set(0, 0.05, 0.22));
+        rice.pose(this.go(this.phase(2) * 1.4, b, c), yaw, 1, 0);
+        return true;
+      }
+      case 'pullSquid': {
+        // The neta hand holds the body; the rice hand pinches the legs and draws them out toward the chef.
+        neta.pose(a.copy(prep.pullNeta), yaw, 0, 1);
+        const k = this.phase(2);
+        b.copy(prep.pullRice);
+        c.copy(prep.pullRice).add(off.set(0.03, 0.03, 0.12));
+        rice.pose(k < 0.25 ? b : this.go(Math.min(1, (k - 0.25) / 0.5), b, c), yaw, 0, k > 0.15 && k < 0.8 ? 1 : 0);
         return true;
       }
       case 'cutRoll': {

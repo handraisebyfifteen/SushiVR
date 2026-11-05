@@ -42,7 +42,9 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 the customer side. You sit in the middle of a 1 m chef's aisle. In front of
 you is the 1 m cutting board (36 cm deep) on a stainless cold table, with the wasabi dish and tezu bowl
 (vinegar water) side by side at its right-back corner (pinch to move either;
-the spot is remembered), the nori box at its left-back corner, the bamboo
+the spot is remembered), the nori box at its left-back corner, the styrofoam
+ice box of the morning's fish on the counter beside the board's left end
+(put away once the bar opens), the bamboo
 mat (makisu) rolled up at its left edge (it lies open in front of you while
 a roll is ordered), and the knife and wet cloth on the right. Beyond the board the
 raised tsukedai (30 cm) carries the 1.5 m glass neta case (see below) and,
@@ -76,18 +78,41 @@ neighbours are easy to tell apart. Twenty of them make nigiri: twelve are
 cut from a block (the tuna, bonito, white fish, cured mackerel, squid,
 octopus, abalone, tamago) and get a slice shorter with every cut; eight are
 ready-cut and taken one piece at a time (sweet shrimp two at a time). When
-one is used up it is sold out: its place is empty and nobody orders it (the
-coming prep mode restocks). Counts and order are in `src/menu.ts`.
+one is used up it is sold out: its place is empty and nobody orders it until
+the next morning's prep. Counts and order are in `src/menu.ts`.
 
 **Turn around**: look far to the left and hold for a second. The view blinks
 and the bar turns 180 degrees. Do the same to turn back. Turning is blocked
 while you hold fish, rice, the knife or a finished piece (the wet cloth is
 fine: it gets washed at the sink).
 
+**The morning prep** (仕込み): every day starts before opening, with no
+customer yet. The case items you prep start empty; the rest are full (the
+easy difficulty, `DIFFICULTY` in `src/tuning.ts`).
+
+1. Wash your hands first (soap, faucet, towel, as below): the fish is not
+   touched with unwashed hands.
+2. Left hand: pinch a material in the ice box and let go over the board. It
+   lies with its length toward you.
+3. With the left hand steadying it, grip the knife and draw it toward you
+   along each white line. The tuna belly (a 1/8 or 1/16 belly cut from the
+   tuna dealer) takes two cuts: fatty, medium fatty and lean. The bonito
+   quarter loses its blood line in one cut. For the squid, first pinch the
+   body with the left hand and the legs with the right and pull them apart
+   (the legs go back on the ice), then cut the body open along its length.
+4. Pinch each saku and let go over the case: it fills its place.
+5. When everything is prepped, wipe and put the knife down and wash again
+   with soap: the bar opens and the first customer walks in. Your cuts are
+   graded (how close to the line); the total shows over the board.
+
+Later stages add the gas range (octopus on a high flame, conger eel held at
+90 degrees, gourd strips and abalone cooked until the liquid is gone) and
+filleting whole white fish; until then those items start full.
+
 **Opening**: turn to the sink, pinch the soap pump, rub both hands under the
 faucet, then put both hands on the towel hanging under the sink and grip it
-(two fists). Service starts when your hands are dry. During
-service wash with water only; soap now would make the food smell of it.
+(two fists). Once the prep is done, service starts when your hands are dry.
+During service wash with water only; soap now would make the food smell of it.
 
 **One order** (the card above the customer shows a picture of the item, its
 name and whether wasabi is wanted):
@@ -212,7 +237,10 @@ step of the work, from the opening wash through the saku, the knife and the
 nigiri to serving; the keys are listed on a small panel in view. For the
 case: 4 takes what was ordered, 5 takes the selected neta, 6 (Shift+6 back)
 steps through the neta, 7 makes the customer order the selected one, and 8
-restocks the whole case. For a gunkan, Z takes a nori strip, H wraps, and 4
+restocks the whole case. In the morning prep, 9 carries the next material from
+the ice box to the board (or the next saku into the case), 0 pulls the squid
+apart, and X (knife in hand) cuts along the line; O skips the prep and opens
+the bar. For a gunkan, Z takes a nori strip, H wraps, and 4
 on a sea urchin or salmon roe order puts the topping on. For an inari, 4
 takes a pouch, H fills it and Space folds it shut on the beat. For a roll,
 Z lays the nori on the mat, U spreads the rice, 4 lays the next filling, I
@@ -231,6 +259,7 @@ emulator.
 | `iwsdk.config.json` | Project authority: active scene, asset/component modules, XR and world features |
 | `src/index.ts` | App entry point: `World.create()` and system registration |
 | `src/menu.ts` | The menu and the neta case: every item, how it is prepared, which hand takes it, how many pieces a block or tray gives, its look, and the case order |
+| `src/prep.ts` | The morning prep: each task, what it is made from and which case items it fills |
 | `src/layout.ts` | Every bar dimension (counter depths, aisle width, heights, the reach model); run `npm run layout` after editing |
 | `src/assets.ts` | Asset catalog shared by the runtime and the editor |
 | `src/components.ts` | Component catalog shared by the runtime and the editor |

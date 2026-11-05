@@ -24,6 +24,8 @@ export const StationKind = {
   NoriBox: 'NoriBox',
   /** The bamboo mat, laid out on the board while a roll is ordered. */
   Makisu: 'Makisu',
+  /** The morning's materials on ice in a styrofoam box, at the counter's left end. */
+  IceBox: 'IceBox',
 } as const;
 
 /**

@@ -8,7 +8,7 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { chef, orderKind, orderNeta, progress, service } from './game-state.js';
+import { chef, orderKind, orderNeta, prep, progress, service } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { hands } from './hands.js';
 import { SEATED_EYE_HEIGHT } from './layout.js';
@@ -321,6 +321,8 @@ export class PracticeSystem extends createSystem({
         caseApi.restockAll();
         this.say('Case restocked');
       },
+      Digit9: () => this.prepCarry(),
+      Digit0: () => this.pullSquid(),
     };
     const caseKey = caseKeys[e.code];
     if (caseKey) {
@@ -748,6 +750,7 @@ export class PracticeSystem extends createSystem({
     const neta = chef.netaSide;
     if (chef.hands[rice].holding !== Held.Knife) return this.say('Hold the knife first (K)');
     if (progress.kind === 'maki') return this.cutRoll();
+    if (prep.active) return this.cutPrep();
     if (!progress.sakuOnBoard) return this.say('Put a saku on the board first (4 or 5)');
     if (progress.hasNeta) return this.say('A slice is already cut');
     if (this.driver[rice].busy || !this.ready(neta, Held.None)) return;
@@ -764,6 +767,98 @@ export class PracticeSystem extends createSystem({
       move(guide, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
       move(guide, v(0, 0.06, 0.09), 'palm', 0.15),
       move(guide, v(0, 0.06, 0.23), 'palm', 0.5),
+      move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
+      moveLocal(KNIFE_READY, 'palm', 0.3),
+    ]);
+  }
+
+  /** 9 in the morning prep: a material from the ice box onto the board, or the next saku into the case. */
+  private prepCarry(): void {
+    if (!prep.active) return this.say('The prep is over: the bar is open');
+    const side = chef.netaSide;
+    if (prep.next !== 'take' && prep.next !== 'stock') return this.say(prep.next === 'cut' ? 'Cut it first (K, X)' : prep.next === 'pull' ? 'Pull the legs out first (0)' : 'Nothing to carry');
+    if (!this.ready(side, Held.None)) return;
+    if (prep.next === 'take') {
+      const board = this.reachable(StationKind.CuttingBoard);
+      if (!board) return;
+      const at = prep.boxAt.clone();
+      this.run(side, 'From the ice box to the board', [
+        move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
+        move(at, v(0, 0.005, 0), 'grasp', 0.2),
+        wait(0.2),
+        pinch(1),
+        wait(0.12),
+        move(at, v(0, 0.14, 0), 'grasp', 0.25),
+        move(board, v(0, 0.14, 0.06), 'grasp', 0.4),
+        move(board, v(0, 0.06, 0.06), 'grasp', 0.15),
+        pinch(0),
+        wait(0.1),
+        this.rest(side),
+      ]);
+      return;
+    }
+    const at = prep.productAt.clone();
+    const slot = prep.slotAt.clone();
+    this.run(side, 'Saku into the case', [
+      move(at, v(0, 0.1, 0.03), 'grasp', 0.35),
+      move(at, v(0, 0.005, 0), 'grasp', 0.2),
+      wait(0.2),
+      pinch(1),
+      wait(0.12),
+      move(at, v(0, 0.14, 0), 'grasp', 0.25),
+      move(slot, v(0, 0.12, 0.05), 'grasp', 0.4),
+      move(slot, v(0, 0.05, 0), 'grasp', 0.2),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
+  /** 0 in the morning prep: the neta hand holds the squid's body, the rice hand pulls the legs out. */
+  private pullSquid(): void {
+    if (!prep.active || prep.next !== 'pull') return this.say('Nothing to pull apart');
+    const neta = chef.netaSide;
+    const rice = chef.riceSide;
+    if (!this.ready(neta, Held.None) || !this.ready(rice, Held.None)) return;
+    const body = prep.pullNeta.clone();
+    const legs = prep.pullRice.clone();
+    this.run(neta, 'Holding the body', [
+      move(body, v(0, 0.08, 0), 'grasp', 0.3),
+      move(body, v(0, 0, 0), 'grasp', 0.15),
+      wait(0.2),
+      pinch(1),
+      wait(1.3),
+      pinch(0),
+      wait(0.1),
+      this.rest(neta),
+    ]);
+    this.run(rice, 'Pulling the legs out', [
+      move(legs, v(0, 0.08, 0.02), 'grasp', 0.3),
+      move(legs, v(0, 0, 0), 'grasp', 0.15),
+      wait(0.3),
+      pinch(1),
+      wait(0.15),
+      move(legs, v(0.03, 0.03, 0.13), 'grasp', 0.6),
+      pinch(0),
+      wait(0.1),
+      this.rest(rice),
+    ]);
+  }
+
+  /** X in the morning prep: the neta hand steadies the material, the blade is drawn toward the chef along the line. */
+  private cutPrep(): void {
+    const rice = chef.riceSide;
+    const neta = chef.netaSide;
+    if (prep.next !== 'cut') return this.say(prep.next === 'take' ? 'Put a material on the board first (9)' : 'Nothing to cut now');
+    if (this.driver[rice].busy || this.driver[neta].busy) return this.say('Hands are busy');
+    const material = prep.materialAt.clone();
+    const guide = prep.guideAt.clone();
+    this.run(neta, 'Hand on the fish', [move(material, v(-0.06, 0.04, 0), 'palm', 0.3), wait(1.25), this.rest(neta)]);
+    this.run(rice, 'Cutting along the line', [
+      wait(0.3),
+      move(guide, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
+      move(guide, v(0, 0.05, 0.09), 'palm', 0.15),
+      move(guide, v(0, 0.05, 0.23), 'palm', 0.5),
       move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
       moveLocal(KNIFE_READY, 'palm', 0.3),
     ]);
@@ -1297,10 +1392,10 @@ export class PracticeSystem extends createSystem({
   private buildPanel(): void {
     this.canvas = document.createElement('canvas');
     this.canvas.width = 720;
-    this.canvas.height = 540;
+    this.canvas.height = 584;
     this.texture = new CanvasTexture(this.canvas);
     this.panel = new Mesh(
-      new PlaneGeometry(0.27, 0.2025),
+      new PlaneGeometry(0.27, 0.219),
       new MeshBasicMaterial({ map: this.texture, transparent: true, depthTest: false, depthWrite: false }),
     );
     this.panel.name = 'PracticePanel';
@@ -1334,6 +1429,7 @@ export class PracticeSystem extends createSystem({
       'Y wasabi   H hands   Z nori   U spread   I roll',
       'Space touch on the beat   F flip   G half turn',
       'M carry / let go   Q E turn 45   S serve',
+      'Prep: 9 ice box to board / saku to case   0 pull the squid apart',
       `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}`,
     ];
     lines.forEach((line, i) => ctx.fillText(line, 20, 90 + i * 44));

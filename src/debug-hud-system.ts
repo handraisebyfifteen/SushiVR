@@ -10,7 +10,7 @@ import {
   SpriteMaterial,
 } from '@iwsdk/core';
 import { debug, debugLines } from './debug.js';
-import { chef, service } from './game-state.js';
+import { chef, prep, service } from './game-state.js';
 import { hands } from './hands.js';
 import { HygieneSystem } from './hygiene-system.js';
 import { PieceSystem } from './piece-system.js';
@@ -90,6 +90,11 @@ export class DebugHudSystem extends createSystem({
             h.dirt = 0;
           }
           chef.open = true;
+          if (prep.active) {
+            prep.active = false;
+            prep.done = true;
+            caseApi.restockAll();
+          }
           console.log('[Debug] bar opened by shortcut');
         }
       };

@@ -100,6 +100,40 @@ export const progress = {
   pieceAt: new Vector3(),
 };
 
+/** What the morning prep asks for next (for the master, practice and hints). */
+export type PrepNext = 'take' | 'cut' | 'pull' | 'stock';
+
+/** The morning prep (仕込み), from the start of the day until the bar opens. */
+export const prep = {
+  active: true,
+  /** Every prep task is finished. */
+  done: false,
+  /** Burners still lit (the gas range, a later stage): the bar does not open with the fire on. */
+  burnersOn: 0,
+  tasksDone: 0,
+  tasksTotal: 0,
+  next: null as PrepNext | null,
+  /** The material on the board ('' when none). */
+  onBoard: '',
+  /** World points for the next action: the material to take from the ice box... */
+  boxAt: new Vector3(),
+  /** ...the middle of the material on the board, the middle of the next guide line and its length... */
+  materialAt: new Vector3(),
+  guideAt: new Vector3(),
+  guideLength: 0,
+  /** ...the two parts the hands pull apart (neta hand, rice hand)... */
+  pullNeta: new Vector3(),
+  pullRice: new Vector3(),
+  /** ...and the next saku to stock and its place in the case. */
+  productAt: new Vector3(),
+  slotAt: new Vector3(),
+};
+
+/** The bar may open: the prep is finished and the fire is out (or there was no prep). */
+export function prepReady(): boolean {
+  return !prep.active || (prep.done && prep.burnersOn === 0);
+}
+
 /** The kind of the current order (nigiri, gunkan...), or null. */
 export function orderKind(): PieceKind | null {
   return service.order ? MENU[service.order.item].kind : null;

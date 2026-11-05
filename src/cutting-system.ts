@@ -1,7 +1,7 @@
 import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, orderKind, orderNeta, progress, service } from './game-state.js';
+import { chef, orderKind, orderNeta, prep, progress, service } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
@@ -125,6 +125,8 @@ export class CuttingSystem extends createSystem({
     const side = chef.netaSide;
     const hand = hands.all[side];
     const state = chef.hands[side];
+    // The morning prep fills the case (src/prep-cut-system.ts); nothing is taken from it yet.
+    if (prep.active) return;
     // The rice hand reaching for the neta hand's items: say so.
     const rice = hands.all[chef.riceSide];
     if (rice.tracked && rice.pinchStart) {

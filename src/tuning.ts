@@ -12,6 +12,18 @@ export const CHEF_LEFT_HANDED = false;
 /** Kinds of piece the customers order. */
 export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri', 'gunkan', 'inari', 'maki'];
 
+// --- prep (仕込み), before service ---
+/** 'easy' fills every case item that is not prepped; 'full' (a later stage) keeps what is left. */
+export const DIFFICULTY: 'easy' | 'full' = 'easy';
+/** Prep stages built so far (src/prep.ts); the items of later stages start the day full. */
+export const PREP_STAGE = 1;
+/** Blade off the guide line (average over the stroke) for each grade of a prep cut. */
+export const PREP_CUT_EXCELLENT = 0.006;
+export const PREP_CUT_GOOD = 0.012;
+export const PREP_CUT_POOR = 0.02;
+/** How far apart the hands must pull to draw the squid's legs out of its body. */
+export const SQUID_PULL_DISTANCE = 0.08;
+
 // --- customers ---
 export const LEFT_HANDED_CUSTOMER_RATIO = 0.3;
 export const PIECES_PER_CUSTOMER = 3;

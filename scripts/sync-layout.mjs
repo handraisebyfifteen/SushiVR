@@ -89,6 +89,20 @@ order.forEach((id, i) => {
   console.log(`${id.padEnd(18)} ${xs[i].toFixed(3).padStart(7)}  ${door}    ${def.hand.padEnd(4)}  ${lean > 0 ? `${(lean * 100).toFixed(0)} cm` : 'ok'}${stile}`);
 });
 
+// --- reach report: the ice box of the morning prep, near end of each material (neta hand) ---
+{
+  const sx = -layout.SHOULDER_HALF_WIDTH;
+  const y = layout.WORK_COUNTER_TOP + layout.ICE_BOX_ICE_TOP + 0.03;
+  const z = layout.ICE_BOX_Z + layout.ICE_BOX_DEPTH / 2 - layout.ICE_BOX_WALL - 0.04;
+  console.log('ice box material     x       lean');
+  // Box-local x of each material (src/prep-cut-system.ts SLOT_X).
+  for (const [name, bx] of [['TunaBelly', 0.08], ['BonitoLoin', -0.03], ['Squid', -0.105]]) {
+    const x = layout.ICE_BOX_X + bx;
+    const lean = Math.hypot(x - sx, y - shoulderY, z - layout.SHOULDER_BEHIND_EYES) - reach;
+    console.log(`${name.padEnd(18)} ${x.toFixed(3).padStart(7)}  ${lean > 0 ? `${(lean * 100).toFixed(0)} cm` : 'ok'}`);
+  }
+}
+
 if (check) {
   const changed = after !== before;
   console.log(changed ? 'layout: the scene is out of date (run npm run layout)' : 'layout: the scene is up to date');

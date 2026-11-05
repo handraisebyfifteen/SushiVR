@@ -2,7 +2,7 @@ import { Color, createSystem, type Entity, Mesh, MeshBasicMaterial, RingGeometry
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { progress } from './game-state.js';
-import { chef, type Side } from './game-state.js';
+import { chef, prep, prepReady, type Side } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { overStation, stations } from './station-system.js';
 import { Bar, Chef, Held, StationKind } from './sushi-components.js';
@@ -150,9 +150,12 @@ export class HygieneSystem extends createSystem({}) {
       feedback.flash(StationKind.Towel, COLOR_DONE);
       coach.done('towel');
       console.log('[Hygiene] hands dried');
-      if (!chef.open) {
+      if (!chef.open && prepReady()) {
         chef.open = true;
+        prep.active = false;
         console.log('[Hygiene] bar is open');
+      } else if (!chef.open) {
+        console.log(`[Hygiene] not opening yet: ${prep.done ? 'the fire is still on' : 'the prep is not finished'}`);
       }
     }
 

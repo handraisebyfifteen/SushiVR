@@ -48,7 +48,12 @@ export type StepKey =
   | 'placeFilling'
   | 'rollMaki'
   | 'squeezeRoll'
-  | 'cutRoll';
+  | 'cutRoll'
+  // morning prep
+  | 'takeMaterial'
+  | 'cutPrep'
+  | 'pullSquid'
+  | 'stockSaku';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
 export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';

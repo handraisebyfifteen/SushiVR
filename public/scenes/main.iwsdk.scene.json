@@ -238,6 +238,31 @@
       }
     },
     {
+      "id": "ice-box",
+      "name": "Ice Box (styrofoam)",
+      "content": {
+        "type": "asset",
+        "asset": "ice-box",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.69,
+          0.75,
+          -0.29
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "IceBox",
+          "width": 0.3,
+          "depth": 0.28,
+          "height": 0.075
+        }
+      }
+    },
+    {
       "id": "knife",
       "name": "Knife (yanagiba)",
       "content": {

@@ -191,6 +191,16 @@ export interface NodeLayout {
 export const NETA_CASE_HEIGHT = 0.27;
 const DISH_Z = MANAITA_Z - 0.1;
 
+/** The styrofoam ice box of the morning's materials: on the counter, left of the board. */
+export const ICE_BOX_WIDTH = 0.34;
+export const ICE_BOX_DEPTH = 0.32;
+export const ICE_BOX_HEIGHT = 0.13;
+/** Top of the ice bed inside, where the materials lie (box-local y). */
+export const ICE_BOX_ICE_TOP = 0.075;
+export const ICE_BOX_WALL = 0.02;
+export const ICE_BOX_X = -MANAITA_WIDTH / 2 - 0.02 - ICE_BOX_WIDTH / 2;
+export const ICE_BOX_Z = MANAITA_Z + 0.03;
+
 /** Scene node id -> where `npm run layout` puts it. Nodes not listed are left alone. */
 export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   'chef-platform': {
@@ -208,6 +218,10 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   'nori-box': { position: [-0.38, MANAITA_TOP, DISH_Z] },
   // Left of centre, toward the chef, where both hands reach it (rolled up at the board's left edge when not in use).
   makisu: { position: [-0.2, MANAITA_TOP, MANAITA_Z + 0.07], station: { width: 0.24, depth: 0.22, height: 0.004 } },
+  'ice-box': {
+    position: [ICE_BOX_X, WORK_COUNTER_TOP, ICE_BOX_Z],
+    station: { width: ICE_BOX_WIDTH - 2 * ICE_BOX_WALL, depth: ICE_BOX_DEPTH - 2 * ICE_BOX_WALL, height: ICE_BOX_ICE_TOP },
+  },
   knife: { position: [0.57, WORK_COUNTER_TOP, MANAITA_Z + 0.03] },
   'wet-cloth': { position: [0.66, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
   ledge: { position: [0, 0, TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2] },

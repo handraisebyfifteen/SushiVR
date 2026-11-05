@@ -9,6 +9,7 @@ import { HygieneSystem } from './hygiene-system.js';
 import { MasterSystem } from './master-system.js';
 import { NetaCaseSystem } from './neta-case-system.js';
 import { PieceSystem } from './piece-system.js';
+import { PrepCutSystem } from './prep-cut-system.js';
 import { RiceTubSystem } from './rice-tub-system.js';
 import { StationSystem } from './station-system.js';
 import { TurnSystem } from './turn-system.js';
@@ -26,6 +27,7 @@ World.create(
   world.registerSystem(NetaCaseSystem);
   world.registerSystem(RiceTubSystem);
   world.registerSystem(CuttingSystem);
+  world.registerSystem(PrepCutSystem);
   world.registerSystem(PieceSystem);
   world.registerSystem(MasterSystem);
   world.registerSystem(FeedbackSystem);
