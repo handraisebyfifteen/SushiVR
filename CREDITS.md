@@ -47,6 +47,7 @@ Column meanings:
 | `src/master-system.ts` | Runtime meshes: master figure in Japanese-style work clothes (sphere, cylinder, boxes; crossed collar, sash, apron, sleeves) and see-through ghost hands (boxes); his words and the turn arrow drawn on canvas with the browser default font | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/sfx.ts` | Sounds synthesized with the Web Audio API at runtime, including the master's wooden clack (no audio files) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 | `src/debug-hud-system.ts` | Debug-only labels and status panel drawn on canvas with the browser default font (no font file) | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
+| `src/practice-system.ts` | Development-only practice mode: key guide panel drawn on canvas with the browser default font (no font file); not in production builds | Original (this project) | by fifteen | MIT (see `LICENSE`) | Yes | No | 2026-11-05 |
 
 ## Removed assets
 

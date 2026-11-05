@@ -26,4 +26,9 @@ World.create(
   world.registerSystem(MasterSystem);
   world.registerSystem(FeedbackSystem);
   world.registerSystem(DebugHudSystem);
+  // Keyboard practice mode for the desktop emulator (P key). Dev builds only:
+  // the import is dropped from production bundles.
+  if (import.meta.env.DEV) {
+    void import('./practice-system.js').then(({ PracticeSystem }) => world.registerSystem(PracticeSystem));
+  }
 });

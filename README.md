@@ -128,6 +128,15 @@ panel (hands, hygiene, order, piece). During `npm run dev` the D key toggles
 it and the O key opens the bar with clean hands. Neither key exists in
 production builds, and nothing shows without the flag.
 
+Practice mode (desktop emulator, `npm run dev` only): press P in the running
+app to play from the keyboard. Dragging the mouse looks around, holding T
+looks far left to turn around, and each number or letter key performs one
+step of the work (soap, washing, the towel, the wet cloth and so on); the keys
+are listed on a small panel in view. A key only moves the emulated hands to a
+place and makes the gesture there; the game judges it exactly as it judges
+real hands, so mistakes and timing still count. Press P again to hand control
+back to the emulator.
+
 ## Project layout
 
 | Path | Purpose |
