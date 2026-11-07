@@ -1,4 +1,4 @@
-import { Color, DoubleSide, FrontSide, MeshStandardMaterial, Vector3 } from '@iwsdk/core';
+import { Color, DoubleSide, FrontSide, type Material, MeshStandardMaterial, Vector3 } from '@iwsdk/core';
 
 /**
  * The neta material: a standard material whose colour is worked out per
@@ -48,6 +48,8 @@ export const NetaPattern = {
    * nori ring, rice, and the filling(s) (colour2, colour3) in the middle.
    */
   MakiRoll: 27,
+  /** Shari: packed rice grains (about 5 x 2.5 mm), each a soft lighter blob, darker between them. */
+  Shari: 28,
 } as const;
 
 const GLSL = /* glsl */ `
@@ -263,6 +265,28 @@ vec3 netaColor(vec3 p, vec3 n) {
     c = mix(c, vec3(0.8), 0.3 * nLine(p.x, 0.0012));
     return mix(c, c2, 0.6 * nLine(fract((p.z - abs(p.x) * 0.7) * 120.0) - 0.5, 0.06));
   }
+  if (pat == 28) {
+    // Distance to the nearest and second-nearest grain centre: the gap between grains is where they meet.
+    vec3 q = p * vec3(250.0, 330.0, 330.0) + ph;
+    vec3 i = floor(q);
+    vec3 f = fract(q);
+    float d1 = 9.0;
+    float d2 = 9.0;
+    for (int gx = -1; gx <= 1; gx++)
+    for (int gy = -1; gy <= 1; gy++)
+    for (int gz = -1; gz <= 1; gz++) {
+      vec3 g = vec3(float(gx), float(gy), float(gz));
+      vec3 o = vec3(nHash(i + g), nHash(i + g + 17.0), nHash(i + g + 31.0));
+      vec3 r = g + o - f;
+      float d = dot(r, r);
+      if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
+    }
+    // Each grain a soft bright blob, a little shadow where grains meet.
+    float body = 1.0 - smoothstep(0.18, 0.62, sqrt(d1));
+    float seam = 1.0 - smoothstep(0.0, 0.12, sqrt(d2) - sqrt(d1));
+    float lit = clamp(0.55 + 0.45 * body - 0.18 * seam, 0.0, 1.0);
+    return mix(c2 * 0.86, c, lit) * (0.97 + 0.05 * fine);
+  }
   return c;
 }
 `;
@@ -294,9 +318,13 @@ export class NetaMaterial extends MeshStandardMaterial {
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute float aFlat;\nvarying vec3 vNetaPos;\nvarying vec3 vNetaNormal;\nvarying float vNetaFlat;',
+        '#include <common>\nattribute float aFlat;\n#ifdef NETA_REST\nattribute vec3 aRest;\n#endif\nvarying vec3 vNetaPos;\nvarying vec3 vNetaNormal;\nvarying float vNetaFlat;',
       )
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvNetaPos = position;\nvNetaNormal = normal;\nvNetaFlat = aFlat;');
+      // A shaped part (a draped neta, the shari) keeps its pattern on its rest shape (src/scene-assets/lib/nigiri-form.ts).
+      .replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\n#ifdef NETA_REST\nvNetaPos = aRest;\n#else\nvNetaPos = position;\n#endif\nvNetaNormal = normal;\nvNetaFlat = aFlat;',
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${GLSL}`)
       .replace(
@@ -307,8 +335,34 @@ export class NetaMaterial extends MeshStandardMaterial {
   }
 
   override customProgramCacheKey(): string {
-    return 'neta-pattern-1';
+    return 'neta-pattern-2';
   }
+
+  /** Copies keep the defines too (the rest-shape switch), which a standard material's copy resets. */
+  override copy(source: MeshStandardMaterial): this {
+    super.copy(source);
+    this.defines = { ...(source.defines ?? {}) };
+    return this;
+  }
+}
+
+const restVariants = new WeakMap<Material, Material>();
+
+/**
+ * The same neta material for a part that is shaped on the CPU (it carries
+ * `aRest`): its pattern is read from the rest shape. One variant per
+ * material, shared; other materials come back unchanged.
+ */
+export function restMaterial(m: Material): Material {
+  if (!(m instanceof NetaMaterial)) return m;
+  let r = restVariants.get(m);
+  if (!r) {
+    r = m.clone();
+    r.defines = { ...r.defines, NETA_REST: '' };
+    r.name = `${m.name}_rest`;
+    restVariants.set(m, r);
+  }
+  return r;
 }
 
 /**

@@ -24,6 +24,14 @@ const FIST_ON = 0.8;
 const FIST_OFF = 0.55;
 const PINCH_ON = 0.85;
 const PINCH_OFF = 0.6;
+/**
+ * A hand the headset loses for less than this keeps its last pose, pinch and
+ * fist. Hand tracking drops a hand now and then (one hand hiding the other
+ * while shaping a piece, a fast move), and every pinch would otherwise let
+ * go of what it holds (Meta's hand design guides ask apps to decide this).
+ * Longer than this, the hand is gone and lets go.
+ */
+export const LOST_GRACE_MS = 400;
 
 export class HandReader {
   readonly palm = new Vector3();
@@ -45,6 +53,8 @@ export class HandReader {
   pinchStart = false;
   pinchEnd = false;
 
+  /** When the hand went missing (ms, performance.now), -1 while it is seen. */
+  private lostAt = -1;
   private jointIndex = new Map<string, number>();
   private indexedCount = -1;
   private readonly mat = new Matrix4();
@@ -63,6 +73,11 @@ export class HandReader {
     this.fistStart = this.fistEnd = this.pinchStart = this.pinchEnd = false;
     if (!joints || !grip || adapter.jointSpaces.length === 0) {
       if (this.tracked) {
+        // Lost only for a moment: hold the last pose and grip.
+        const now = performance.now();
+        if (this.lostAt < 0) this.lostAt = now;
+        if (now - this.lostAt < LOST_GRACE_MS) return;
+        this.lostAt = -1;
         this.tracked = false;
         this.fistEnd = this.fist;
         this.pinchEnd = this.pinch;
@@ -72,6 +87,7 @@ export class HandReader {
       return;
     }
     this.tracked = true;
+    this.lostAt = -1;
     if (this.indexedCount !== adapter.jointSpaces.length) {
       this.jointIndex.clear();
       adapter.jointSpaces.forEach((space, i) =>

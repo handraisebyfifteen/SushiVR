@@ -3,9 +3,11 @@ import { coach, type Grade } from './coach.js';
 import { knifeApi } from './cutting-system.js';
 import { debugLines } from './debug.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { chef, prep, type Side } from './game-state.js';
+import { chef, prep, type Side, staff } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
+import { ledger } from './ledger.js';
 import { NETA, type NetaId } from './menu.js';
+import { scrapsApi } from './opening-system.js';
 import { ICE_BOX_ORDER, isPrepped, PREP, type PrepId, prepTasks } from './prep.js';
 import { type PrepMaterialLook, type PrepProduct, type PrepStep, paperSheet, prepMaterialLook } from './scene-assets/lib/prep-look.js';
 import { overStation, stations } from './station-system.js';
@@ -13,11 +15,17 @@ import { CaseItem, Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import {
   BOARD_DIRT_PER_CUT,
+  COOK_MINUTES,
+  COOK_MINUTES_PER_CASE_ITEM,
+  COOK_SECONDS,
   CUT_STROKE,
+  DIFFICULTY,
+  FISH_SHOP_PRICE,
   PREP_CUT_EXCELLENT,
   PREP_CUT_GOOD,
   PREP_CUT_POOR,
   PREP_STAGE,
+  PREP_YIELD_LOSS,
   RESULT_SECONDS,
   RUB_WIPE_BOARD,
   SQUID_PULL_DISTANCE,
@@ -48,7 +56,8 @@ interface Material {
   root: Object3D;
   /** The root's place in the ice box (world). */
   slot: Vector3;
-  state: 'box' | 'held' | 'board' | 'done';
+  /** 'cook': taken to the back by the cook (src/staff-system.ts). */
+  state: 'box' | 'held' | 'board' | 'cook' | 'done';
   step: number;
   parts: Map<string, Object3D>;
   /** Each part's bounding-box centre relative to its position (root-local). */
@@ -70,6 +79,8 @@ interface Loose {
   /** Lying across the board (X) rather than toward the chef (Z). */
   alongX?: boolean;
   product: PrepProduct | null;
+  /** Slices this saku gives (fewer after crooked cuts). */
+  stock?: number;
   done: boolean;
 }
 
@@ -94,6 +105,11 @@ const usedPaper = new MeshStandardMaterial({ color: '#D9D2C2', roughness: 0.95 }
  *  - Each saku is let go over the case (it fills its item), the bonito belly
  *    over the ice (it waits for the range). Scraps stay on the board until
  *    they are dropped in the trash bin at the chef's left foot.
+ *  - Money: the fish shop bills every material it delivers. A crooked cut
+ *    wastes flesh, so the saku gives fewer slices to sell. With the cook in
+ *    (the plaque by the phone) the fish still in the ice box go to the back
+ *    and come out as full saku, for wages; on the easy difficulty the cook
+ *    has readied every case item the chef does not prep.
  */
 export class PrepCutSystem extends createSystem({
   items: { required: [CaseItem] },
@@ -116,6 +132,12 @@ export class PrepCutSystem extends createSystem({
   private guide!: Mesh<BoxGeometry, MeshBasicMaterial>;
   private summary!: Sprite;
   private summaryTime = 0;
+  /** The material the cook is on, and seconds until it is done. */
+  private cooking: Material | null = null;
+  private cookLeft = 0;
+  /** Slices the saku gave, against what perfect cuts would give. */
+  private yieldGot = 0;
+  private yieldFull = 0;
   private built = false;
   private cleared = false;
   private readonly tmp = new Vector3();
@@ -138,6 +160,12 @@ export class PrepCutSystem extends createSystem({
     this.cleanupFuncs.push(this.queries.items.subscribe('qualify', (e) => this.seeCaseItem(e)));
     for (const e of this.queries.items.entities) this.seeCaseItem(e);
     prep.tasksTotal = prepTasks(PREP_STAGE).filter((id) => PREP[id].kind !== 'simmer').length;
+    scrapsApi.clear = () => this.clearScraps();
+    if (prep.active && DIFFICULTY === 'easy') {
+      // Everything the chef does not prep, the cook has readied: wages.
+      const items = (Object.keys(NETA) as NetaId[]).filter((n) => !isPrepped(n, PREP_STAGE)).length;
+      ledger.wage('cook', `case items (${items})`, items * COOK_MINUTES_PER_CASE_ITEM);
+    }
     debugLines.push(() => {
       if (!prep.active) return 'Prep: done, the bar is open';
       const board = this.boardMaterial();
@@ -176,9 +204,10 @@ export class PrepCutSystem extends createSystem({
       root.position.copy(slot);
       this.world.createTransformEntity(root);
       this.materials.push({ id, look, root, slot, state: 'box', step: 0, parts, centres, grades: [], loose: [] });
+      ledger.fishShop(FISH_SHOP_PRICE[id] ?? 0);
     }
     this.built = true;
-    console.log('[Prep] the delivery is in the ice box');
+    console.log(`[Prep] the delivery is in the ice box (fish shop ¥${this.materials.reduce((sum, m) => sum + (FISH_SHOP_PRICE[m.id] ?? 0), 0)})`);
   }
 
   update(delta: number): void {
@@ -188,8 +217,13 @@ export class PrepCutSystem extends createSystem({
       this.summaryTime -= delta;
       if (this.summaryTime <= 0) this.summary.visible = false;
     }
+    // The empty styrofoam box is put away once every fish in it is prepped (the user's shop).
     const box = stations.get(StationKind.IceBox);
-    if (box?.entity.object3D) box.entity.object3D.visible = prep.delivered && prep.active;
+    if (box?.entity.object3D) {
+      const shown = prep.delivered && prep.active && !prep.done;
+      if (box.entity.object3D.visible && !shown && prep.done) console.log('[Prep] the empty ice box is put away');
+      box.entity.object3D.visible = shown;
+    }
     if (!prep.active) {
       if (!this.cleared) this.clearAway();
       return;
@@ -199,6 +233,7 @@ export class PrepCutSystem extends createSystem({
       return;
     }
     if (!this.built) this.build();
+    this.updateCook(delta);
     this.updateCarried(chef.netaSide);
     this.updateCarried(chef.riceSide);
     const board = this.boardMaterial();
@@ -268,7 +303,7 @@ export class PrepCutSystem extends createSystem({
     const loose = paperBox ? null : this.looseAt(at, board, step);
     if (loose) {
       if (state.needsWash && loose.kind === 'product') return this.washFirst(StationKind.CuttingBoard);
-      this.carried[side] = { kind: 'loose', loose };
+      this.carry(side, { kind: 'loose', loose });
       state.holding = Held.Saku;
       this.grabOffset[side].copy(this.worldOf(loose, 0)).sub(hand.grasp);
       return;
@@ -276,7 +311,7 @@ export class PrepCutSystem extends createSystem({
     if (paperBox) {
       const mesh = paperSheet();
       this.world.createTransformEntity(mesh);
-      this.carried[side] = { kind: 'paper', mesh, used: false };
+      this.carry(side, { kind: 'paper', mesh, used: false });
       state.holding = Held.Paper;
       this.wipeRub.reset();
       console.log('[Prep] a sheet of kitchen paper');
@@ -286,7 +321,7 @@ export class PrepCutSystem extends createSystem({
     const m = this.materialAt(at);
     if (!m) return;
     if (state.needsWash) return this.washFirst(StationKind.IceBox);
-    this.carried[side] = { kind: 'material', m };
+    this.carry(side, { kind: 'material', m });
     m.state = 'held';
     state.holding = Held.Saku;
     this.grabOffset[side].copy(m.root.position).sub(hand.grasp);
@@ -344,13 +379,19 @@ export class PrepCutSystem extends createSystem({
 
   // ---- carrying and letting go ---------------------------------------------------------
 
+  /** What a hand carries of the prep; shared, as chef.hands' holding does not cover it. */
+  private carry(side: Side, c: Carried | null): void {
+    this.carried[side] = c;
+    prep.carrying[side] = c !== null;
+  }
+
   private updateCarried(side: Side): void {
     const c = this.carried[side];
     if (!c) return;
     const hand = hands.all[side];
     if (hand.tracked) this.follow(c, side);
     if (hand.tracked && !hand.pinchEnd) return;
-    this.carried[side] = null;
+    this.carry(side, null);
     chef.hands[side].holding = Held.None;
     const at = hand.grasp;
     if (c.kind === 'material') return this.releaseMaterial(c.m, at);
@@ -379,6 +420,7 @@ export class PrepCutSystem extends createSystem({
       m.root.position.set(board.pos.x, board.pos.y, board.pos.z);
       m.state = 'board';
       m.step = 0;
+      prep.boardUsed = true;
       feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
       coach.done('takeMaterial');
       console.log(`[Prep] the ${PREP[m.id].name.toLowerCase()} is on the board`);
@@ -417,10 +459,13 @@ export class PrepCutSystem extends createSystem({
     if (product.dest === 'case' && overStation(at, StationKind.NetaCase)) {
       l.done = true;
       for (const p of l.parts) p.visible = false;
-      this.caseItems.get(product.neta)?.setValue(CaseItem, 'remaining', NETA[product.neta].stock);
+      const stock = l.stock ?? NETA[product.neta].stock;
+      this.caseItems.get(product.neta)?.setValue(CaseItem, 'remaining', stock);
+      this.yieldGot += stock;
+      this.yieldFull += NETA[product.neta].stock;
       feedback.flash(StationKind.NetaCase, COLOR_DONE);
       coach.done('stockSaku');
-      console.log(`[Prep] ${product.neta} in the case (${NETA[product.neta].stock})`);
+      console.log(`[Prep] ${product.neta} in the case (${stock} of ${NETA[product.neta].stock})`);
     } else if (product.dest === 'ice' && overStation(at, StationKind.IceBox)) {
       l.done = true;
       // Back on the ice where the bonito lay, to be seared later.
@@ -575,16 +620,68 @@ export class PrepCutSystem extends createSystem({
     m.step++;
     feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
     if (m.step < m.look.steps.length) return;
-    // Every step done: the saku lie ready.
+    // Every step done: the saku lie ready. Each crooked cut cost a slice or more, shared out among them.
+    let loss = m.grades.reduce((sum, g) => sum + PREP_YIELD_LOSS[g], 0);
+    const forCase = m.look.products.filter((p) => p.dest === 'case');
+    const lost = forCase.map(() => 0);
+    for (let i = 0; loss > 0 && forCase.length; i++, loss--) lost[i % forCase.length]++;
     for (const product of m.look.products) {
       const parts = product.parts.map((n) => m.parts.get(n)!);
+      const full = NETA[product.neta].stock;
+      const k = forCase.indexOf(product);
       const l: Loose = {
         kind: 'product', m, parts, home: parts.map((p) => p.position.clone()), centre: m.centres.get(product.parts[0])!.clone(),
-        length: this.lengthOf(m, product.parts[0]), product, done: false,
+        length: this.lengthOf(m, product.parts[0]), product, stock: k < 0 ? full : Math.max(Math.ceil(full / 2), full - lost[k]), done: false,
       };
       m.loose.push(l);
       this.loose.push(l);
     }
+  }
+
+  // ---- the cook and the part-timer ---------------------------------------------------
+
+  /** With the cook asked (and at the ice box), the fish still in it go to the back one by one and come out as full saku. */
+  private updateCook(delta: number): void {
+    staff.boxLeft = this.materials.filter((x) => x.state === 'box').length;
+    if (!this.cooking && staff.cook && staff.cookReady) {
+      const m = this.materials.filter((x) => x.state === 'box').sort((a, b) => b.slot.y - a.slot.y)[0];
+      if (m) {
+        staff.cookReady = false;
+        m.state = 'cook';
+        m.root.visible = false;
+        this.cooking = m;
+        this.cookLeft = COOK_SECONDS;
+        staff.cookOn = PREP[m.id].name;
+        console.log(`[Prep] the cook takes the ${PREP[m.id].name.toLowerCase()} to the back`);
+      }
+    }
+    const m = this.cooking;
+    if (!m) return;
+    this.cookLeft -= delta;
+    if (this.cookLeft > 0) return;
+    this.cooking = null;
+    staff.cookOn = '';
+    for (const product of m.look.products) {
+      if (product.dest !== 'case') continue;
+      const stock = NETA[product.neta].stock;
+      this.caseItems.get(product.neta)?.setValue(CaseItem, 'remaining', stock);
+      this.yieldGot += stock;
+      this.yieldFull += stock;
+    }
+    ledger.wage('cook', 'saku-taking', COOK_MINUTES[m.id] ?? 0);
+    feedback.flash(StationKind.NetaCase, COLOR_DONE);
+    console.log(`[Prep] the cook has put the ${PREP[m.id].name.toLowerCase()} saku in the case`);
+    this.finish(m);
+  }
+
+  /** The part-timer's cleaning: every scrap on the board into the trash (one in a hand stays there). */
+  private clearScraps(): void {
+    for (const l of this.loose) {
+      if (l.kind !== 'scrap' || l.done || this.carried.some((c) => c?.kind === 'loose' && c.loose === l)) continue;
+      l.done = true;
+      for (const p of l.parts) p.visible = false;
+    }
+    prep.scrapsLeft = this.loose.filter((l) => l.kind === 'scrap' && !l.done).length + this.carried.filter((c) => c?.kind === 'paper').length;
   }
 
   private lengthOf(m: Material, name: string): number {
@@ -617,19 +714,22 @@ export class PrepCutSystem extends createSystem({
   private finish(m: Material): void {
     m.state = 'done';
     prep.tasksDone++;
-    const score = Math.round(m.grades.reduce((s, g) => s + GRADE_POINTS[g], 0) / Math.max(1, m.grades.length));
-    console.log(`[Prep] ${PREP[m.id].name} done: ${score}`);
+    if (m.grades.length) {
+      const score = Math.round(m.grades.reduce((s, g) => s + GRADE_POINTS[g], 0) / m.grades.length);
+      console.log(`[Prep] ${PREP[m.id].name} done: ${score}`);
+    }
     if (prep.tasksDone < prep.tasksTotal) return;
     prep.done = true;
     const all = this.materials.flatMap((x) => x.grades);
     const total = Math.round(all.reduce((s, g) => s + GRADE_POINTS[g], 0) / Math.max(1, all.length));
     const grade: Grade = total >= 90 ? 'Excellent' : total >= 75 ? 'Good' : total >= 55 ? 'Poor' : 'Bad';
-    setSpriteText(this.summary, `Prep done: ${grade} ${total}`);
+    const pct = Math.round((100 * this.yieldGot) / Math.max(1, this.yieldFull));
+    setSpriteText(this.summary, all.length ? `Prep done: ${grade}, yield ${pct}%` : 'Prep done by the cook');
     const board = stations.get(StationKind.CuttingBoard);
     if (board) this.summary.position.copy(board.pos).add(this.tmp.set(0, 0.32, -0.05));
     this.summary.visible = true;
     this.summaryTime = RESULT_SECONDS * 2;
-    console.log(`[Prep] all prep done: ${grade} ${total}; now clean up`);
+    console.log(`[Prep] all prep done${all.length ? `: ${grade} ${total}` : ' by the cook'}, yield ${this.yieldGot}/${this.yieldFull} slices; now clean up`);
   }
 
   // ---- what comes next (master, practice, hints) ------------------------------------

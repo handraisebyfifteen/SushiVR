@@ -24,6 +24,7 @@ import {
   NETA_DOOR_COUNT,
   NETA_DOOR_PITCH,
   NETA_HOUSING_WIDTH,
+  RICE_TUB_TOP,
   TSUKEDAI_DEPTH,
   TSUKEDAI_TOP,
   WORK_COUNTER_DEPTH,
@@ -429,13 +430,13 @@ const copper = new MeshStandardMaterial({ color: '#B87333', roughness: 0.4, meta
 const riceWhite = new MeshStandardMaterial({ color: '#F2EFE6', roughness: 0.9 });
 
 /**
- * Ohitsu: the rice tub low on the chef's right, a cypress tub with two copper
- * hoops on a low stand, and a wooden lid (`Lid`) that RiceTubSystem slides
+ * Ohitsu: the rice tub on the chef's right, a cypress tub with two copper
+ * hoops on a low stand (between knee and waist), and a wooden lid (`Lid`) that RiceTubSystem slides
  * aside while the rice hand reaches in. Origin: the rice surface (the rice
  * tub station's height); the stand reaches down to the floor, which is
  * standHeight + 0.12 below it.
  */
-export function createRiceTub(standHeight = 0.28): Group {
+export function createRiceTub(standHeight = RICE_TUB_TOP - 0.12): Group {
   const root = new Group();
   root.name = 'RiceTub';
   const R = 0.16;

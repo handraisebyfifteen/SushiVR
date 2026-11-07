@@ -9,12 +9,12 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { coach } from './coach.js';
-import { chef, holdingAnything } from './game-state.js';
+import { chef } from './game-state.js';
 import { Bar } from './sushi-components.js';
-import { TURN_HOLD_SECONDS, TURN_YAW_DEG } from './tuning.js';
-/** The head must come back within this yaw (degrees) before another turn can start. */
-const REARM_YAW_DEG = 30;
-/** Blink: seconds to fade to black, to hold black, and to fade back in. */
+import { FACING_BACK_DEG, FACING_FRONT_DEG } from './tuning.js';
+/** Looking almost straight up or down, the head gives no clear direction: the facing is kept. */
+const MIN_LEVEL = 0.2;
+/** Blink (the practice turn): seconds to fade to black, to hold black, and to fade back in. */
 const BLINK_CLOSE_SECONDS = 0.18;
 const BLINK_HOLD_SECONDS = 0.08;
 const BLINK_OPEN_SECONDS = 0.22;
@@ -22,12 +22,16 @@ const BLINK_OPEN_SECONDS = 0.22;
 type Phase = 'idle' | 'closing' | 'hold' | 'opening';
 
 /**
- * Turning around without leaving the stool: look far to the left (or the right) and hold.
- * The view blinks to black and the whole bar is rotated 180 degrees around the
- * player's head, so the washing station behind the chef is now in front.
- * The same gesture turns back. Rotating the player rig instead of the scene
- * keeps every station where the scene authored it. While the chef holds
- * anything (saku, knife, neta, rice, sushi, cloth) no turn happens.
+ * Which way the chef faces: the bar, or the back row behind (the sink, the
+ * work table and range, the office corner). In the headset the whole room
+ * is all around, so the chef simply turns round on the stool; the facing
+ * follows the head, with a wide band between (60 to 120 degrees off the
+ * bar) where it is kept, so a look to the side (the office corner, the
+ * range) changes nothing.
+ *
+ * Practice mode on the desktop turns with a key instead (turnAround): the
+ * view blinks and the player rig is rotated half a turn around the head,
+ * which keeps every station where the scene authored it.
  */
 export class TurnSystem extends createSystem({
   bar: { required: [Bar] },
@@ -35,8 +39,6 @@ export class TurnSystem extends createSystem({
   private blink!: Mesh<SphereGeometry, MeshBasicMaterial>;
   private phase: Phase = 'idle';
   private t = 0;
-  private holdTime = 0;
-  private armed = true;
   barEntity!: Entity;
   /** Current head yaw relative to the rig, degrees; positive = left. */
   yawDeg = 0;
@@ -70,22 +72,8 @@ export class TurnSystem extends createSystem({
 
   update(delta: number): void {
     this.yawDeg = this.headYawDeg();
-
-    if (this.phase === 'idle') {
-      if (!this.armed && Math.abs(this.yawDeg) < REARM_YAW_DEG) this.armed = true;
-      // Nothing in the hands: a chef carrying fish, rice or the knife stays put.
-      // Either way: past the left (the range side) or the right (the telephone and the shelves).
-      const looking = this.armed && !holdingAnything() && Math.abs(this.yawDeg) > TURN_YAW_DEG;
-      this.holdTime = looking ? this.holdTime + delta : 0;
-      if (this.holdTime >= TURN_HOLD_SECONDS) {
-        this.holdTime = 0;
-        this.armed = false;
-        this.phase = 'closing';
-        this.t = 0;
-        this.blink.visible = true;
-      }
-      return;
-    }
+    this.updateFacing();
+    if (this.phase === 'idle') return;
 
     this.t += delta;
     const m = this.blink.material;
@@ -109,6 +97,29 @@ export class TurnSystem extends createSystem({
         this.blink.visible = false;
       }
     }
+  }
+
+  /** Practice mode's turn: the view blinks and the rig turns half round about the head. */
+  turnAround(): void {
+    if (this.phase !== 'idle') return;
+    this.phase = 'closing';
+    this.t = 0;
+    this.blink.visible = true;
+  }
+
+  /** The facing, from where the head looks in the room: past 120 degrees off the bar the back row, within 60 the bar. */
+  private updateFacing(): void {
+    this.player.head.getWorldQuaternion(this.q);
+    this.fwd.set(0, 0, -1).applyQuaternion(this.q);
+    if (Math.hypot(this.fwd.x, this.fwd.z) < MIN_LEVEL) return;
+    const off = Math.abs((Math.atan2(-this.fwd.x, -this.fwd.z) * 180) / Math.PI);
+    const back = chef.facingBack ? off > FACING_FRONT_DEG : off > FACING_BACK_DEG;
+    if (back === chef.facingBack) return;
+    chef.facingBack = back;
+    coach.done(back ? 'turnBack' : 'turnFront');
+    this.barEntity.setValue(Bar, 'facingBack', back);
+    this.barEntity.setValue(Bar, 'turns', (this.barEntity.getValue(Bar, 'turns') ?? 0) + 1);
+    console.log(`[Turn] now facing ${back ? 'the washing station' : 'the bar'}`);
   }
 
   /** Head direction in rig space, as a yaw angle: 0 = forward, +90 = left. */
@@ -135,12 +146,6 @@ export class TurnSystem extends createSystem({
     this.player.rotateY(Math.PI);
     this.player.position.x += 2 * (this.headBefore.x - this.player.position.x);
     this.player.position.z += 2 * (this.headBefore.z - this.player.position.z);
-
-    const facingBack = !this.barEntity.getValue(Bar, 'facingBack');
-    chef.facingBack = facingBack;
-    coach.done(facingBack ? 'turnBack' : 'turnFront');
-    this.barEntity.setValue(Bar, 'facingBack', facingBack);
-    this.barEntity.setValue(Bar, 'turns', (this.barEntity.getValue(Bar, 'turns') ?? 0) + 1);
-    console.log(`[Turn] now facing ${facingBack ? 'the washing station' : 'the bar'}`);
+    // The facing follows on the next frame, from the head.
   }
 }

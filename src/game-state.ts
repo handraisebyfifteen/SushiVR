@@ -54,6 +54,35 @@ export const service = {
   customerHandKnown: false,
   /** Pieces already eaten by the seated customer. */
   eatenByCustomer: 0,
+  /** The customer has finished and waits for the check (お勘定): point at them and pinch. */
+  check: false,
+  /** The seated customer's head (world), to point at. */
+  customerAt: new Vector3(),
+};
+
+/**
+ * The customer's tea (お茶), asked for now and then and made out of the
+ * customers' sight at the office corner (src/tea-system.ts): by the
+ * part-timer when called in, otherwise by the chef, who points at the urn
+ * and then sets the cup on the tsukedai.
+ */
+export const tea = {
+  /** The seated customer asked for tea and has not had it. */
+  wanted: false,
+  /**
+   * The cup: none; being poured at the urn by the chef; waiting at hand;
+   * held; the part-timer's (poured at the office, then carried out); served
+   * before the customer.
+   */
+  cup: 'none' as 'none' | 'pouring' | 'atHand' | 'held' | 'partTimer' | 'served',
+  /** The cup has just been set before the customer (the customer thanks, then clears this). */
+  justServed: false,
+  /** The customer has left: the cup is cleared away (the tea system clears this). */
+  clear: false,
+  /** The urn (to point at), the cup, and the spot on the tsukedai before the customer (world). */
+  urnAt: new Vector3(),
+  cupAt: new Vector3(),
+  serveAt: new Vector3(),
 };
 
 /**
@@ -127,8 +156,12 @@ export const prep = {
   done: false,
   /** Scraps still on the board or in a hand (thrown away before opening). */
   scrapsLeft: 0,
+  /** Each hand (left, right) carries something of the prep: the fish from the ice box, a scrap, a sheet of paper. */
+  carrying: [false, false] as [boolean, boolean],
   /** The board has been washed at the sink, dried and put back. */
   boardWashed: false,
+  /** Something was cut on the board this morning (a board nobody used needs no wash). */
+  boardUsed: false,
   /** The hands were washed (soap) after the prep and cleaning. */
   washedAfter: false,
   /** What the next step says (the master's word for a cut or a pull). */
@@ -165,6 +198,43 @@ export const prep = {
   norenAt: new Vector3(),
 };
 
+/**
+ * The cook and the part-timer (src/staff-system.ts). Nobody is out in the
+ * bar by default: during the prep the chef calls one in with their button
+ * on the office wall (src/office-system.ts), and they come out of the
+ * kitchen for the job and go back when it is done. The cook takes the fish
+ * still in the ice box, the part-timer does the cleaning once the prep is
+ * done. Each is paid for the minutes of work done (src/ledger.ts).
+ */
+export const staff = {
+  /** Asked to work today. */
+  cook: false,
+  partTimer: false,
+  /** Where the office's call buttons and the phone's handset are (world), for pointing at them. */
+  cookButtonAt: new Vector3(),
+  partTimerButtonAt: new Vector3(),
+  phoneAt: new Vector3(),
+  /** The cook stands at the ice box, ready to take a fish; the fish he is on ('' when none); fish left in the box. */
+  cookReady: false,
+  cookOn: '',
+  boxLeft: 0,
+  /** Cleaning wants doing (prep done, scraps or an unwashed board, the board at home); the part-timer is at the board; under way. */
+  cleanupWanted: false,
+  partTimerReady: false,
+  cleaning: false,
+  /** A customer waits at the entrance to be shown in; the part-timer has come to the door for them. */
+  guestAtDoor: false,
+  guideReady: false,
+};
+
+/** The end of the day: the noren taken in (last orders), then the last customer gone. */
+export const day = {
+  /** Seconds since the bar opened. */
+  openFor: 0,
+  closing: false,
+  closed: false,
+};
+
 /** Cleaning is done after the prep: no scraps, the board washed and back, the knife wiped and down. */
 export function prepCleaned(): boolean {
   return prep.done && prep.scrapsLeft === 0 && prep.boardWashed && !progress.knifeHeld && !chef.knifeDirty;
@@ -178,6 +248,13 @@ export function prepReady(): boolean {
 /** The kind of the current order (nigiri, gunkan...), or null. */
 export function orderKind(): PieceKind | null {
   return service.order ? MENU[service.order.item].kind : null;
+}
+
+/** The order takes this neta as its topping (either one, for a pair of pieces); true with no order. */
+export function orderTakes(neta: NetaId): boolean {
+  if (!service.order) return true;
+  const m = MENU[service.order.item];
+  return m.pair ? m.neta.includes(neta) : m.neta[0] === neta;
 }
 
 /** The neta of the current order's first ingredient (the topping of a nigiri). */

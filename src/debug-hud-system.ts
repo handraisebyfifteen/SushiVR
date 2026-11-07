@@ -16,11 +16,13 @@ import { HygieneSystem } from './hygiene-system.js';
 import { PieceSystem } from './piece-system.js';
 import { MENU, NETA } from './menu.js';
 import { caseApi } from './neta-case-system.js';
+import type { Kind } from './station-system.js';
 import { Bar, CaseItem, Station } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
 
 /** Label text per station kind (English only, shown with ?debug=1). */
-const STATION_LABELS: Record<string, string> = {
+/** Every station kind has a label (a new kind without one is a type error, not a "?" in the overlay). */
+const STATION_LABELS: Record<Kind, string> = {
   CuttingBoard: 'Cutting board',
   NetaCase: 'Neta case',
   Geta: 'Geta',
@@ -34,6 +36,10 @@ const STATION_LABELS: Record<string, string> = {
   Towel: 'Hand towel',
   NoriBox: 'Nori',
   Makisu: 'Makisu',
+  IceBox: 'Ice box (morning fish)',
+  TrashBin: 'Trash bin',
+  PaperBox: 'Kitchen paper',
+  Phone: 'Telephone',
 };
 const LABEL_LIFT = 0.1;
 const PANEL_REFRESH_SECONDS = 0.2;
@@ -106,7 +112,7 @@ export class DebugHudSystem extends createSystem({
     const labelStation = (entity: Entity) =>
       this.addLabel(
         entity,
-        STATION_LABELS[entity.getValue(Station, 'kind') as string] ?? '?',
+        STATION_LABELS[entity.getValue(Station, 'kind') as Kind] ?? '?',
         LABEL_LIFT + (entity.getValue(Station, 'height') ?? 0),
       );
     this.cleanupFuncs.push(

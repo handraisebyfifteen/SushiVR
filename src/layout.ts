@@ -205,14 +205,54 @@ export const ICE_BOX_Z = MANAITA_Z + 0.03;
 export const TRASH_BIN_X = -0.36;
 export const TRASH_BIN_Z = TSUKEDAI_CHEF_Z + WORK_COUNTER_DEPTH + 0.14;
 export const TRASH_BIN_TOP = 0.42;
+/**
+ * The rice tub (ohitsu) on a low stand at the chef's right, between knee and
+ * waist (the user's shop): under the counter, out of the customers' sight,
+ * yet high enough for the headset's cameras to see the hand going in (hands
+ * down by the thighs are not tracked). RICE_TUB_TOP is the rice surface.
+ */
+export const RICE_TUB_X = 0.48;
+export const RICE_TUB_Z = 0.12;
+export const RICE_TUB_TOP = 0.6;
 /** The kitchen paper box on the board's back edge, between the nori box and the work. */
 export const PAPER_BOX_X = -0.2;
-/** The black telephone on the sink's left end (seen facing the sink), at its front edge. */
-export const PHONE_X = 0.42;
-export const PHONE_Z = BACK_ROW_Z + 0.1;
-/** The food shelf against the aisle's right end wall (seen from the bar), facing the aisle. */
-export const FOOD_SHELF_X = ROOM_END_X - WALL_THICKNESS / 2 - 0.18;
-export const FOOD_SHELF_Z = AISLE_CENTER_Z;
+/**
+ * The office corner (帳場) on the aisle's right end wall (seen from the bar;
+ * the left wall seen from the customers), out of the customers' way: the
+ * food shelf toward the front, and toward the back, by the dish cabinet, the
+ * day's books on the wall over the black telephone on its shelf. All face
+ * the aisle (-X); the phone is out of reach from the seat: it is pointed at.
+ */
+export const END_WALL_X = ROOM_END_X - WALL_THICKNESS / 2;
+export const FOOD_SHELF_X = END_WALL_X - 0.18;
+export const FOOD_SHELF_Z = AISLE_CENTER_Z - 0.1;
+/** The phone and the books, between the food shelf and the dish cabinet. */
+export const OFFICE_BACK_Z = AISLE_CENTER_Z + 0.5;
+export const PHONE_SHELF_Y = 1.0;
+export const BOOKS_BOARD_Y = 1.5;
+/**
+ * The staff call board: two buttons (the cook, the part-timer) on the wall
+ * over the food shelf. Pointed at from the seat like the phone, so the
+ * buttons stand well apart across the wall (see src/pointing.ts).
+ */
+export const STAFF_BUTTONS_Y = 1.78;
+export const STAFF_BUTTONS_Z = FOOD_SHELF_Z - 0.17;
+/**
+ * The tea things (お茶), made out of the customers' sight: a low cabinet
+ * under the phone, hidden from the seats behind the food shelf, with the
+ * hot-water urn, the powdered tea and the cups. Pointed at, like the phone.
+ */
+export const TEA_STATION_Z = OFFICE_BACK_Z - 0.01;
+/** Where a cup the chef makes is set down at hand: the stainless strip right of the board, past the cloth. */
+export const TEA_CUP_X = 0.68;
+export const TEA_CUP_Z = TSUKEDAI_CHEF_Z + 0.1;
+/** Where the tea goes before the customer: the tsukedai's front strip, right of the geta. */
+export const TEA_SERVE_X = 0.24;
+/** The long noren (長のれん) in the kitchen doorway and in the passage to the customer room at the bar's right end. */
+export const LONG_NOREN_LENGTH = 1.45;
+/** The menu board (お品書き) high on the back wall over the sink, the work table and the range, clear of the dish cabinet. */
+export const MENU_BOARD_X = -0.36;
+export const MENU_BOARD_Y = 1.81;
 /** The shop's entrance, beyond the customer's seat on the left, facing the bar. */
 export const ENTRANCE_X = -0.8;
 export const ENTRANCE_Z = CUSTOMER_SEAT_Z - 1.1;
@@ -236,7 +276,14 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   makisu: { position: [-0.2, MANAITA_TOP, MANAITA_Z + 0.07], station: { width: 0.24, depth: 0.22, height: 0.004 } },
   'paper-box': { position: [PAPER_BOX_X, MANAITA_TOP, DISH_Z], station: { radius: 0.08, height: 0.06 } },
   'trash-bin': { position: [TRASH_BIN_X, 0, TRASH_BIN_Z], station: { radius: 0.14, height: TRASH_BIN_TOP } },
-  phone: { position: [PHONE_X, SINK_TOP, PHONE_Z], station: { radius: 0.12, height: 0.12 } },
+  'rice-tub': { position: [RICE_TUB_X, RICE_TUB_TOP, RICE_TUB_Z] },
+  // The phone's body, 11 cm out from the wall, on its shelf.
+  phone: { position: [END_WALL_X - 0.11, PHONE_SHELF_Y, OFFICE_BACK_Z], station: { radius: 0.12, height: 0.12 } },
+  'phone-shelf': { position: [END_WALL_X, PHONE_SHELF_Y, OFFICE_BACK_Z] },
+  'books-board': { position: [END_WALL_X, BOOKS_BOARD_Y, OFFICE_BACK_Z] },
+  'staff-buttons': { position: [END_WALL_X, STAFF_BUTTONS_Y, STAFF_BUTTONS_Z] },
+  'tea-station': { position: [END_WALL_X, 0, TEA_STATION_Z] },
+  'menu-board': { position: [MENU_BOARD_X, MENU_BOARD_Y, BACK_WALL_Z] },
   'food-shelf': { position: [FOOD_SHELF_X, 0, FOOD_SHELF_Z] },
   entrance: { position: [ENTRANCE_X, -STEP_HEIGHT, ENTRANCE_Z] },
   'ice-box': {

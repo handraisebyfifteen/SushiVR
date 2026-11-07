@@ -1,8 +1,9 @@
-import type { Entity, Group, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from '@iwsdk/core';
+import type { Entity, Group, Mesh, Vector3 } from '@iwsdk/core';
 import type { JudgeKind } from '../game-state.js';
 import type { HandReader } from '../hand-reader.js';
 import type { NetaId, PieceKind } from '../menu.js';
 import type { PieceResult } from '../scoring.js';
+import type { Shari } from '../scene-assets/lib/nigiri-form.js';
 
 /**
  * What every kind of piece shares, owned by PieceSystem: the piece group
@@ -14,7 +15,10 @@ export interface PieceCore {
   readonly entity: Entity;
   /** Everything of the piece in progress hangs off this group (yaw = pieceYaw). */
   readonly piece: Group;
-  readonly rice: Mesh<SphereGeometry, MeshStandardMaterial>;
+  readonly rice: Mesh;
+  /** The rice's shape (src/scene-assets/lib/nigiri-form.ts), and the stage it is being shaped toward (0 loose ... 4 finished). */
+  readonly shari: Shari;
+  shariLevel: number;
   readonly wasabiBlob: Mesh;
   /** World position of the piece this frame (after layout). */
   readonly focus: Vector3;

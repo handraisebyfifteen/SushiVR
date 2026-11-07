@@ -107,7 +107,16 @@ function drawTopping(ctx: CanvasRenderingContext2D, def: NetaDef, x: number, y: 
 function drawItem(ctx: CanvasRenderingContext2D, item: MenuId, x: number, y: number, w: number, h: number): void {
   const m = MENU[item];
   const rice = '#F6F2EA';
-  if (m.kind === 'nigiri') {
+  if (m.kind === 'nigiri' && m.pair) {
+    // Two pieces side by side, one of each.
+    m.neta.forEach((n, i) => {
+      const px = x + i * w * 0.5;
+      ctx.fillStyle = rice;
+      round(ctx, px + w * 0.04, y + h * 0.46, w * 0.42, h * 0.36, h * 0.16);
+      ctx.fill();
+      drawTopping(ctx, NETA[n], px, y + h * 0.22, w * 0.5, h * 0.36);
+    });
+  } else if (m.kind === 'nigiri') {
     ctx.fillStyle = rice;
     round(ctx, x + w * 0.08, y + h * 0.42, w * 0.84, h * 0.48, h * 0.22);
     ctx.fill();

@@ -13,7 +13,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { NETA, type NetaId, type Pattern } from '../../menu.js';
-import { bevelBox } from './hardsurface.js';
+import { bevelBox, LoftSurface, type TubeSection } from './hardsurface.js';
 import { makeNetaMaterial, type NetaMaterial, NetaPattern } from './neta-material.js';
 import { flat, paint, patterned, seeded, taperedTube, weld } from './neta-paint.js';
 
@@ -705,16 +705,30 @@ export interface SliceLook {
 
 const slices = new Map<NetaId, SliceLook>();
 
-/** A slice centred on the origin, thick at the head end and thinner toward the tail (+X). */
-function slab(L: number, th: number, W: number): BufferGeometry {
-  const g = new BoxGeometry(L, th, W, 10, 1, 2);
-  const pos = g.getAttribute('position');
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i) / (L / 2);
-    if (x > 0) pos.setY(i, pos.getY(i) * (1 - 0.55 * x));
+/** A nigiri slice of a saku (the user's shop's normal size for lean tuna): length and thickness (m). */
+const SLICE_LENGTH = 0.075;
+const SLICE_THICK = 0.006;
+
+/**
+ * A slice of a saku for a nigiri: a soft-edged slab along X (head end -X),
+ * its bottom on y = 0, easing a little thinner toward the tail, its ends
+ * rounded off like a cut slice. Many stations along it, so it bends
+ * smoothly over the shari (src/scene-assets/lib/nigiri-form.ts).
+ */
+function sliceSlab(L: number, th: number, W: number): BufferGeometry {
+  const r = 0.003;
+  const n = 24;
+  const sections: TubeSection[] = [];
+  const alongs: number[] = [];
+  for (let i = 0; i <= n; i++) {
+    const z = -L / 2 + (L * i) / n;
+    const thick = th * (1 - 0.22 * (i / n));
+    const fromEnd = L / 2 - Math.abs(z);
+    const end = fromEnd >= r ? 1 : Math.max(0.6, Math.sqrt(1 - ((r - fromEnd) / r) ** 2));
+    sections.push({ z, halfW: (W / 2) * (0.9 + 0.1 * end), hUp: (thick / 2) * end, hDown: (thick / 2) * end, cy: thick / 2, power: 3.2 });
+    alongs.push(z);
   }
-  g.computeVertexNormals();
-  return g;
+  return LoftSurface.tube(sections).build(alongs, 20, true).rotateY(Math.PI / 2);
 }
 
 /** What a nigiri's topping looks like for this neta (case pieces are their own topping). */
@@ -729,11 +743,12 @@ export function sliceLook(id: NetaId): SliceLook {
   switch (def.look.shape) {
     case 'saku':
     case 'sheet': {
-      const th = def.look.shape === 'sheet' ? 0.007 : 0.011;
+      // About 3 cm wide, 5-7 mm thick; bottom on y = 0, the top shows the full colour.
+      const th = def.look.shape === 'sheet' ? 0.005 : SLICE_THICK;
+      const w = Math.min(0.031, Math.max(0.026, def.look.width - 0.009));
       slice = {
-        // Bottom 6 mm below the origin, like the slice the nigiri was laid out for; the top shows full colour.
-        geometry: patterned(slab(0.08, th, W).translate(0, th / 2 - 0.006, 0)),
-        material: makeNetaMaterial(`${id}_slice`, look.pattern, def.look.color, def.look.color2, [0.08, th - 0.006, W], phase, def.look.gloss),
+        geometry: patterned(sliceSlab(SLICE_LENGTH, th, w)),
+        material: makeNetaMaterial(`${id}_slice`, look.pattern, def.look.color, def.look.color2, [SLICE_LENGTH, th, w], phase, def.look.gloss),
         blockAxes: true,
       };
       break;

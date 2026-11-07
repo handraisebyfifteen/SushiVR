@@ -219,12 +219,19 @@ export interface MenuDef {
   weight: number;
   /** Pieces one roll is cut into: kanpyo into six, the others into eight. */
   pieces?: 6 | 8;
+  /**
+   * An order of two pieces, one of each (bonito with no part named: back
+   * and belly), served one at a time in either order.
+   */
+  pair?: readonly MenuId[];
 }
 
 export const Menu = {
   LeanTunaNigiri: 'LeanTunaNigiri',
   MediumFattyTunaNigiri: 'MediumFattyTunaNigiri',
   FattyTunaNigiri: 'FattyTunaNigiri',
+  /** Bonito with no part named: two pieces, back and belly. */
+  BonitoPair: 'BonitoPair',
   BonitoNigiri: 'BonitoNigiri',
   BonitoBellyNigiri: 'BonitoBellyNigiri',
   FlounderNigiri: 'FlounderNigiri',
@@ -268,8 +275,17 @@ export const MENU: Record<MenuId, MenuDef> = {
   LeanTunaNigiri: nigiri('LeanTuna', 3),
   MediumFattyTunaNigiri: nigiri('MediumFattyTuna', 2),
   FattyTunaNigiri: nigiri('FattyTuna', 1.5),
-  BonitoNigiri: nigiri('Bonito'),
-  BonitoBellyNigiri: nigiri('BonitoBelly'),
+  BonitoPair: {
+    name: 'Bonito, back and belly',
+    kind: 'nigiri',
+    neta: ['Bonito', 'BonitoBelly'],
+    wasabi: 'ask',
+    weight: 1,
+    pair: ['BonitoNigiri', 'BonitoBellyNigiri'],
+  },
+  // One piece, the part named.
+  BonitoNigiri: nigiri('Bonito', 0.4),
+  BonitoBellyNigiri: nigiri('BonitoBelly', 0.4),
   FlounderNigiri: nigiri('Flounder'),
   StripedJackNigiri: nigiri('StripedJack'),
   YellowtailNigiri: nigiri('Yellowtail', 1.5),
@@ -298,6 +314,17 @@ export const MENU: Record<MenuId, MenuDef> = {
   UmeCucumberRoll: { name: 'Plum and cucumber roll', kind: 'maki', neta: ['UmePaste', 'Cucumber'], wasabi: 'never', weight: 0.7, pieces: 8 },
 };
 
+/** True when a piece of `served` fills the order `ordered` (one piece of a pair counts). */
+export function orderAccepts(ordered: MenuId, served: MenuId): boolean {
+  return ordered === served || !!MENU[ordered].pair?.includes(served);
+}
+
+/** What is left of a pair order once one of its pieces is served (null: nothing, it was one piece). */
+export function pairRest(ordered: MenuId, served: MenuId): MenuId | null {
+  const pair = MENU[ordered].pair;
+  return pair?.includes(served) ? (pair.find((id) => id !== served) ?? null) : null;
+}
+
 /** The menu item a finished piece is, from its kind and neta (null if none matches). */
 export function menuFor(kind: PieceKind, neta: readonly NetaId[]): MenuId | null {
   for (const id of Object.keys(MENU) as MenuId[]) {
@@ -306,3 +333,42 @@ export function menuFor(kind: PieceKind, neta: readonly NetaId[]): MenuId | null
   }
   return null;
 }
+
+/**
+ * The menu board (お品書き) high on the back wall, read right to left: one
+ * wooden plaque per item, its name in Japanese (the one place with Japanese
+ * text, the shop owner's choice) over its price from src/tuning.ts. The
+ * bonito's plaque shows the price of one piece, back or belly.
+ */
+export const MENU_BOARD: ReadonlyArray<{ ja: string; item: MenuId }> = [
+  { ja: '大とろ', item: 'FattyTunaNigiri' },
+  { ja: '中とろ', item: 'MediumFattyTunaNigiri' },
+  { ja: '赤身', item: 'LeanTunaNigiri' },
+  { ja: '平目', item: 'FlounderNigiri' },
+  { ja: 'しまあじ', item: 'StripedJackNigiri' },
+  { ja: 'はまち', item: 'YellowtailNigiri' },
+  { ja: 'かつお', item: 'BonitoNigiri' },
+  { ja: 'こはだ', item: 'KohadaNigiri' },
+  { ja: 'あじ', item: 'HorseMackerelNigiri' },
+  { ja: 'しめさば', item: 'CuredMackerelNigiri' },
+  { ja: 'いか', item: 'SquidNigiri' },
+  { ja: 'げそ', item: 'GesoNigiri' },
+  { ja: 'たこ', item: 'OctopusNigiri' },
+  { ja: '車海老', item: 'PrawnNigiri' },
+  { ja: '甘海老', item: 'SweetShrimpNigiri' },
+  { ja: '帆立', item: 'ScallopNigiri' },
+  { ja: '赤貝', item: 'ArkShellNigiri' },
+  { ja: 'とり貝', item: 'CockleNigiri' },
+  { ja: 'あわび', item: 'AbaloneNigiri' },
+  { ja: '穴子', item: 'SeaEelNigiri' },
+  { ja: '玉子', item: 'TamagoNigiri' },
+  { ja: 'うに', item: 'UniGunkan' },
+  { ja: 'いくら', item: 'IkuraGunkan' },
+  { ja: 'いなり', item: 'Inari' },
+  { ja: '鉄火巻', item: 'TunaRoll' },
+  { ja: 'かっぱ巻', item: 'CucumberRoll' },
+  { ja: 'かんぴょう巻', item: 'KanpyoRoll' },
+  { ja: 'おしんこ巻', item: 'PickleRoll' },
+  { ja: '梅しそ巻', item: 'UmeShisoRoll' },
+  { ja: '梅きゅう巻', item: 'UmeCucumberRoll' },
+];

@@ -61,7 +61,11 @@ export type StepKey =
   | 'washBoard'
   | 'leanBoard'
   | 'returnBoard'
-  | 'hangNoren';
+  | 'hangNoren'
+  // customer care
+  | 'check'
+  | 'makeTea'
+  | 'serveTea';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
 export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';

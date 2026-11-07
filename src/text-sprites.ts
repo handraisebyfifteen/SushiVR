@@ -171,7 +171,7 @@ export function makeIconSprite(kind: IconKind): Sprite {
   return sprite;
 }
 
-/** A curved arrow pointing to the viewer's left: "look left to turn around". */
+/** A curved arrow pointing to the viewer's left: "turn around" (to the sink behind). */
 export function makeTurnArrowSprite(): Sprite {
   const canvas = document.createElement('canvas');
   canvas.width = 128;

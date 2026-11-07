@@ -16,13 +16,13 @@ import {
 } from '@iwsdk/core';
 import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
 import { debugLines } from './debug.js';
-import { chef, holdingAnything, orderKind, orderNeta, prep, progress, service } from './game-state.js';
+import { chef, holdingAnything, orderKind, orderNeta, prep, progress, service, staff, tea } from './game-state.js';
 import { hands } from './hands.js';
 import { MENU, NETA } from './menu.js';
 import { playClack } from './sfx.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { type BoxPart, mergeGeometries, partMatrix } from './scene-assets/lib/batch.js';
-import { CaseItem, Master, StationKind } from './sushi-components.js';
+import { CaseItem, Held, Master, StationKind } from './sushi-components.js';
 import { makeTextSprite, makeTurnArrowSprite } from './text-sprites.js';
 import {
   MASTER_DEMO_DELAY_SECONDS,
@@ -36,8 +36,8 @@ import {
 
 /** Fixed words for each step; takeSaku and place depend on the order. */
 const STEP_WORDS: Record<StepKey, string> = {
-  turnBack: 'Turn: look left',
-  turnFront: 'Turn: look left',
+  turnBack: 'Turn around: behind you',
+  turnFront: 'Turn back to the bar',
   soap: 'Soap first',
   washHands: 'Rub under the tap',
   towel: 'Dry your hands',
@@ -86,6 +86,9 @@ const STEP_WORDS: Record<StepKey, string> = {
   leanBoard: 'Stand it to drain',
   returnBoard: 'Board back on the counter',
   hangNoren: 'Point at the noren, pinch',
+  check: 'The check: point at them, pinch',
+  makeTea: 'Tea: point at the urn, pinch',
+  serveTea: 'Tea: onto the tsukedai',
 };
 
 const MISTAKE_WORDS: Record<MistakeKey, string> = {
@@ -403,8 +406,8 @@ export class MasterSystem extends createSystem({
       if (!back && chef.boardDirt > 0) return 'wipeBoard';
       return back ? 'turnFront' : null;
     }
-    // The morning prep starts with the call to the fish shop (the phone is behind you).
-    if (prep.active && !prep.ordered && !holdingAnything()) return back ? 'callFishShop' : 'turnBack';
+    // The morning prep starts with the call to the fish shop (the phone in the office corner, pointed at).
+    if (prep.active && !prep.ordered && !holdingAnything()) return 'callFishShop';
     if (!holdingAnything()) {
       if (L.needsWash || R.needsWash) {
         if (!back) return 'turnBack';
@@ -417,6 +420,13 @@ export class MasterSystem extends createSystem({
     // The morning prep, before the bar opens.
     if (prep.active) return this.prepStep(back);
     if (!chef.open || back) return null;
+    // Customer care between pieces: the check, and the tea when the part-timer is not there to make it.
+    if (chef.hands.some((h) => h.holding === Held.Tea)) return 'serveTea';
+    if (progress.kind === null && !progress.sakuOnBoard && !progress.knifeHeld && !progress.hasNeta && !progress.hasRice) {
+      if (service.check) return 'check';
+      if (tea.cup === 'atHand') return 'serveTea';
+      if (tea.wanted && tea.cup === 'none' && !staff.partTimer) return 'makeTea';
+    }
     // A roll uses the knife too: its own recipe decides about the knife.
     if ((progress.kind ?? orderKind()) === 'maki') return this.makiStep();
 
@@ -695,6 +705,15 @@ export class MasterSystem extends createSystem({
         return;
       case 'hangNoren':
         out.copy(prep.norenAt).add(this.tmp.set(0, 0.5, 0));
+        return;
+      case 'check':
+        out.copy(service.customerAt).add(this.tmp.set(0, 0.42, 0));
+        return;
+      case 'makeTea':
+        out.copy(tea.urnAt).add(this.tmp.set(0, 0.2, 0));
+        return;
+      case 'serveTea':
+        out.copy(tea.cup === 'held' ? tea.serveAt : tea.cupAt).add(this.tmp.set(0, 0.2, 0));
         return;
       case 'placeFilling':
         if (this.netaAt(this.nextFilling(), out)) {

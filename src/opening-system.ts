@@ -1,19 +1,28 @@
 import { createSystem, type Material, type Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { chef, prep, prepCleaned, prepReady, type Side } from './game-state.js';
+import { chef, day, prep, prepCleaned, prepReady, type Side, staff } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { BACK_ROW_Z, MANAITA_DEPTH, MANAITA_THICKNESS, MANAITA_WIDTH, SINK_TOP } from './layout.js';
+import { ledger } from './ledger.js';
+import { GAZE_CONE_DEG, gazeOff, GazePinch } from './gaze.js';
+import { heldOut, POINT_LATCH_SECONDS, pointsAt } from './pointing.js';
+
+/** Looking at the noren: the cloth, roughly (eye tracking). */
+const NOREN_LOOK_RADIUS = 0.3;
 import { overStation, stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
-import { BOARD_DRY_SECONDS, RUB_WASH_CLOTH } from './tuning.js';
+import { BOARD_DRY_SECONDS, CLEANUP_MINUTES, CLEANUP_SECONDS, CLOSE_AFTER_SECONDS, RUB_WASH_CLOTH } from './tuning.js';
+import { playPress } from './sfx.js';
+
+/** How the part-timer clears the scraps off the board (set by src/prep-cut-system.ts). */
+export const scrapsApi = {
+  clear: (): void => undefined,
+};
 
 /** The trash bin's lid opens when a hand is this close above it. */
 const LID_NEAR = 0.3;
 const LID_OPEN = 1.25;
-/** Pointing at the noren: within this many degrees across (the aim that matters, it is far), and loosely up or down. */
-const POINT_ACROSS_DEG = 10;
-const POINT_UPDOWN_DEG = 75;
 /** Things that stand on the manaita and sink to the counter while it is away. */
 const ON_BOARD = [StationKind.NoriBox, StationKind.Wasabi, StationKind.Tezu, StationKind.Makisu, StationKind.PaperBox] as const;
 
@@ -26,6 +35,9 @@ const ON_BOARD = [StationKind.NoriBox, StationKind.Wasabi, StationKind.Tezu, Sta
  *  - once the prep and the cleaning are done the hands need washing, and
  *    after that wash (src/hygiene-system.ts) the noren may be hung out:
  *    point at it at the entrance and pinch. The bar opens.
+ *  - with the part-timer in (src/staff-system.ts), the scraps and the board
+ *    are seen to once the prep is done, for wages;
+ *  - at the end of the day the noren is taken in the same way: last orders.
  */
 export class OpeningSystem extends createSystem({}) {
   private lid: Object3D | null = null;
@@ -46,15 +58,29 @@ export class OpeningSystem extends createSystem({}) {
   private readonly tmp = new Vector3();
   private readonly rig = new Quaternion();
   private readonly lastPointed = [-10, -10];
+  private readonly gazePinch = new GazePinch<true>();
   private time = 0;
-  private readonly dir = new Vector3();
-  private readonly to = new Vector3();
+  private cleanLeft = 0;
+  private cleanupPaid = false;
+  private readonly head = new Vector3();
 
   update(delta: number): void {
     this.time += delta;
     this.updateLid(delta);
-    if (!prep.active) return;
+    if (!prep.active) {
+      if (chef.open) {
+        day.openFor += delta;
+        this.updateNoren();
+      }
+      return;
+    }
+    if (prep.done && !prep.boardUsed && !prep.boardWashed) {
+      // Nothing was cut on it this morning: no wash needed.
+      prep.boardWashed = true;
+      console.log('[Opening] the board was not used: no wash needed');
+    }
     this.updateBoard(delta);
+    this.updatePartTimer(delta);
     if (prepCleaned() && !this.washAsked) {
       // Fish on the hands, the board scrubbed: a wash with soap before opening.
       this.washAsked = true;
@@ -207,51 +233,89 @@ export class OpeningSystem extends createSystem({}) {
     if (!down) this.sunk.clear();
   }
 
+  // ---- the part-timer -----------------------------------------------------------------
+
+  /** Once the prep is done, the part-timer (at the board, src/staff-system.ts) throws out the scraps and washes the board. */
+  private updatePartTimer(delta: number): void {
+    staff.cleanupWanted = prep.done && (prep.scrapsLeft > 0 || !prep.boardWashed) && this.boardState === 'home';
+    const work = staff.partTimer && staff.cleanupWanted && staff.partTimerReady;
+    if (!work) {
+      staff.cleaning = false;
+      this.cleanLeft = CLEANUP_SECONDS;
+      return;
+    }
+    if (!staff.cleaning) console.log('[Opening] the part-timer starts the cleaning');
+    staff.cleaning = true;
+    this.cleanLeft -= delta;
+    if (this.cleanLeft > 0) return;
+    scrapsApi.clear();
+    prep.boardWashed = true;
+    chef.boardDirt = 0;
+    staff.cleaning = false;
+    feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
+    if (!this.cleanupPaid) {
+      this.cleanupPaid = true;
+      ledger.wage('partTimer', 'cleaning', CLEANUP_MINUTES);
+    }
+    console.log('[Opening] the part-timer has cleared the scraps and washed the board');
+  }
+
   // ---- the noren -------------------------------------------------------------------
 
+  /** Hung out to open (after the prep), taken in to close (last orders). */
   private updateNoren(): void {
     if (!this.norenIn) {
       this.norenIn = this.world.scene.getObjectByName('NorenInside') ?? null;
       this.norenOut = this.world.scene.getObjectByName('NorenOutside') ?? null;
-      const cloth = this.norenIn?.getObjectByName('Cloth') as (Object3D & { material?: Material }) | undefined;
-      this.norenCloth = cloth?.material ?? null;
       if (!this.norenIn) return;
     }
-    const pole = this.norenIn.getObjectByName('Pole');
+    const closing = chef.open;
+    if (closing && day.closing) return;
+    const noren = closing ? this.norenOut : this.norenIn;
+    const cloth = noren?.getObjectByName('Cloth') as (Object3D & { material?: Material }) | undefined;
+    this.norenCloth = cloth?.material ?? null;
+    const pole = noren?.getObjectByName('Pole');
     if (pole) pole.getWorldPosition(prep.norenAt);
     prep.norenAt.y -= 0.25;
-    const ready = prepReady();
+    const ready = closing ? day.openFor >= CLOSE_AFTER_SECONDS : prepReady();
     let pointing = false;
+    let chose = false;
+    this.player.head.getWorldPosition(this.head);
     for (const side of [chef.netaSide, chef.riceSide] as Side[]) {
       const hand = hands.all[side];
       if (!hand.tracked || chef.hands[side].holding !== Held.None) continue;
-      if (this.pointsAt(side, prep.norenAt)) {
+      // Only with the hand held out pointing (a pinch at work on the board does not touch the noren).
+      if (!heldOut(hand, this.head)) {
+        if (hand.pinchStart) this.lastPointed[side] = -10;
+        continue;
+      }
+      if (pointsAt(hand, prep.norenAt)) {
         pointing = true;
         this.lastPointed[side] = this.time;
       }
       // The pinch bends the index finger: it counts if it pointed just before.
-      if (!hand.pinchStart || this.time - this.lastPointed[side] > 0.4) continue;
+      if (!hand.pinchStart || this.time - this.lastPointed[side] > POINT_LATCH_SECONDS) continue;
+      chose = true;
+      break;
+    }
+    // Eye tracking (the glasses): look at the noren and pinch with an empty hand.
+    const seen = gazeOff(this.player, prep.norenAt, NOREN_LOOK_RADIUS) < GAZE_CONE_DEG;
+    if (seen) pointing = true;
+    if (chose) this.gazePinch.cancel();
+    else if (this.gazePinch.update(seen ? true : null)) chose = true;
+    if (chose) {
       if (!ready) {
         coach.nudge();
-        console.log('[Opening] not yet: finish the prep and the cleaning, and wash your hands');
-        continue;
+        console.log(closing ? '[Opening] just opened: serve a while first' : '[Opening] not yet: finish the prep and the cleaning, and wash your hands');
+      } else {
+        playPress();
+        if (closing) this.takeIn();
+        else this.hangOut();
+        return;
       }
-      this.hangOut();
-      return;
     }
     const glow = this.norenCloth as (Material & { emissive?: { setRGB(r: number, g: number, b: number): void } }) | null;
     glow?.emissive?.setRGB(pointing && ready ? 0.12 : 0, pointing && ready ? 0.12 : 0, pointing && ready ? 0.2 : 0);
-  }
-
-  /** The index finger (wrist to fingertip) points at a far point. */
-  private pointsAt(side: Side, target: Vector3): boolean {
-    const hand = hands.all[side];
-    this.dir.copy(hand.indexTip).sub(hand.wrist);
-    this.to.copy(target).sub(hand.indexTip);
-    const across = Math.abs(Math.atan2(this.dir.x * this.to.z - this.dir.z * this.to.x, this.dir.x * this.to.x + this.dir.z * this.to.z));
-    const upDir = Math.atan2(this.dir.y, Math.hypot(this.dir.x, this.dir.z));
-    const upTo = Math.atan2(this.to.y, Math.hypot(this.to.x, this.to.z));
-    return across < (POINT_ACROSS_DEG * Math.PI) / 180 && Math.abs(upDir - upTo) < (POINT_UPDOWN_DEG * Math.PI) / 180;
   }
 
   private hangOut(): void {
@@ -259,8 +323,19 @@ export class OpeningSystem extends createSystem({}) {
     if (this.norenOut) this.norenOut.visible = true;
     chef.open = true;
     prep.active = false;
+    day.openFor = 0;
     coach.done('hangNoren');
     console.log('[Opening] the noren is hung out: the bar is open');
+  }
+
+  /** The end of the day: the noren back inside, the seated customer's order is the last. */
+  private takeIn(): void {
+    const glow = this.norenCloth as (Material & { emissive?: { setRGB(r: number, g: number, b: number): void } }) | null;
+    glow?.emissive?.setRGB(0, 0, 0);
+    if (this.norenOut) this.norenOut.visible = false;
+    if (this.norenIn) this.norenIn.visible = true;
+    day.closing = true;
+    console.log('[Opening] the noren is taken in: last orders');
   }
 
   // ---- what comes next ---------------------------------------------------------------

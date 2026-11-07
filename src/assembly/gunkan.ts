@@ -25,8 +25,13 @@ import { GunkanStage, Held, NigiriStage, StationKind } from '../sushi-components
 import { JOIN_DISTANCE } from '../tuning.js';
 import type { Assembly, PieceCore } from './types.js';
 
-/** The rice inside the nori band: a low oval filling its lower part. */
-const RICE_GUNKAN = new Vector3(0.8, 0.45, 0.62);
+/**
+ * The rice inside the nori band: a low oval filling its lower part (about
+ * 4.8 x 3.7 cm, 2.7 cm high), the shari shaped once (stage 3) and stretched
+ * to the band.
+ */
+const RICE_GUNKAN = new Vector3(0.98, 1.3, 1.57);
+const RICE_GUNKAN_STAGE = 3;
 /** The nori band stands higher than the rice, so the topping sits inside it like a boat. */
 const BAND_HEIGHT = 0.036;
 /** The topping rests here on the rice (piece-local y). */
@@ -199,6 +204,8 @@ export class GunkanAssembly implements Assembly {
     core.hasNeta = true;
     core.cutAge = 0;
     core.rice.scale.copy(RICE_GUNKAN);
+    core.rice.rotation.set(0, 0, 0);
+    core.shariLevel = RICE_GUNKAN_STAGE;
     core.setStage(GunkanStage.Wrapped);
     coach.done('wrapNori');
     console.log('[Gunkan] rice wrapped in nori');
@@ -266,7 +273,8 @@ export class GunkanAssembly implements Assembly {
     this.strip.position.set(0, 0.004, 0);
     this.band.visible = this.wrapped;
     if (this.wrapped) {
-      this.core.rice.position.set(0, 0.0135, 0);
+      // The shari's origin is its flat bottom.
+      this.core.rice.position.set(0, 0, 0);
       this.core.wasabiBlob.position.set(0, TOP_Y - 0.002, 0);
     }
     return this.wrapped;

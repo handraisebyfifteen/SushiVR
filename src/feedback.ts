@@ -9,15 +9,20 @@ import {
   Object3D,
   RingGeometry,
 } from '@iwsdk/core';
+import { chef } from './game-state.js';
 import { hands } from './hands.js';
+import { playDone, playPick, playPut, playWarn } from './sfx.js';
 import { type Kind, overStation, stations } from './station-system.js';
-import { StationKind } from './sushi-components.js';
+import { Held, StationKind } from './sushi-components.js';
 
 export const COLOR_HINT = new Color('#8fd3ff');
 export const COLOR_READY = new Color('#ffffff');
 export const COLOR_DONE = new Color('#7CFC8C');
 export const COLOR_WARN = new Color('#F2B134');
 const FLASH_SECONDS = 0.4;
+/** The same result sound is not repeated sooner than this (ms). */
+const SOUND_GAP_MS = 120;
+let lastSoundAt = -1e9;
 
 /** Shared feedback channel: systems hint where to act and flash results. */
 export const feedback = {
@@ -30,6 +35,12 @@ export const feedback = {
     this.flashKind = kind;
     this.flashColor = color;
     this.flashTime = FLASH_SECONDS;
+    // Hands have no vibration: a result is heard as well as seen.
+    const now = performance.now();
+    if (now - lastSoundAt < SOUND_GAP_MS) return;
+    lastSoundAt = now;
+    if (color === COLOR_WARN) playWarn();
+    else if (color === COLOR_DONE) playDone();
   },
 };
 
@@ -63,6 +74,8 @@ export function glowObject(object: Object3D, color: Color | null): void {
  */
 export class FeedbackSystem extends createSystem({}) {
   private marks = new Map<Kind, { group: Group; material: MeshBasicMaterial }>();
+  /** What each hand held last frame, so a take or a put is heard. */
+  private readonly held: string[] = [Held.None, Held.None];
 
   init(): void {
     for (const kind of Object.values(StationKind)) {
@@ -102,6 +115,15 @@ export class FeedbackSystem extends createSystem({}) {
 
   update(delta: number): void {
     feedback.flashTime = Math.max(0, feedback.flashTime - delta);
+    // A take or a put is heard (the rice has its own rustle in the tub).
+    for (let side = 0; side < 2; side++) {
+      const now: string = chef.hands[side].holding;
+      const was = this.held[side];
+      if (now === was) continue;
+      this.held[side] = now;
+      if (was === Held.None && now !== Held.Rice) playPick();
+      else if (now === Held.None && was !== Held.Rice) playPut();
+    }
     for (const [kind, mark] of this.marks) {
       const info = stations.get(kind);
       if (!info) {

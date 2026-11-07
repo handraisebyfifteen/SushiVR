@@ -1237,7 +1237,7 @@
       "transform": {
         "position": [
           0.48,
-          0.4,
+          0.6,
           0.12
         ]
       },
@@ -1345,9 +1345,14 @@
       },
       "transform": {
         "position": [
-          0.42,
-          0.85,
-          0.6
+          1.36,
+          1,
+          0.5
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
         ]
       },
       "components": {
@@ -1356,6 +1361,111 @@
           "radius": 0.12,
           "height": 0.12
         }
+      }
+    },
+    {
+      "id": "phone-shelf",
+      "name": "Phone Shelf",
+      "content": {
+        "type": "asset",
+        "asset": "phone-shelf",
+        "receiveShadow": true,
+        "castShadow": false
+      },
+      "transform": {
+        "position": [
+          1.47,
+          1,
+          0.5
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      }
+    },
+    {
+      "id": "books-board",
+      "name": "Day's Books Board",
+      "content": {
+        "type": "asset",
+        "asset": "books-board",
+        "receiveShadow": true,
+        "castShadow": false
+      },
+      "transform": {
+        "position": [
+          1.47,
+          1.5,
+          0.5
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      }
+    },
+    {
+      "id": "staff-buttons",
+      "name": "Staff Call Buttons (cook, part-timer)",
+      "content": {
+        "type": "asset",
+        "asset": "staff-buttons",
+        "receiveShadow": true,
+        "castShadow": false
+      },
+      "transform": {
+        "position": [
+          1.47,
+          1.78,
+          -0.27
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      }
+    },
+    {
+      "id": "tea-station",
+      "name": "Tea Station (urn, powdered tea, cups)",
+      "content": {
+        "type": "asset",
+        "asset": "tea-station",
+        "receiveShadow": true,
+        "castShadow": false
+      },
+      "transform": {
+        "position": [
+          1.47,
+          0,
+          0.49
+        ],
+        "rotationDeg": [
+          0,
+          90,
+          0
+        ]
+      }
+    },
+    {
+      "id": "menu-board",
+      "name": "Menu Board (Japanese plaques)",
+      "content": {
+        "type": "asset",
+        "asset": "menu-board",
+        "receiveShadow": true,
+        "castShadow": false
+      },
+      "transform": {
+        "position": [
+          -0.36,
+          1.81,
+          1.05
+        ]
       }
     },
     {
@@ -1423,7 +1533,7 @@
         "position": [
           1.29,
           0,
-          0
+          -0.1
         ],
         "rotationDeg": [
           0,
@@ -1570,6 +1680,70 @@
           0,
           0.8,
           0.6
+        ],
+        "fov": 70,
+        "role": "diagnostic"
+      },
+      {
+        "id": "passage",
+        "projection": "perspective",
+        "position": [
+          0.3,
+          1.3,
+          -2.4
+        ],
+        "target": [
+          1.25,
+          1,
+          -0.65
+        ],
+        "fov": 70,
+        "role": "diagnostic"
+      },
+      {
+        "id": "kitchen-door",
+        "projection": "perspective",
+        "position": [
+          0,
+          1.25,
+          0
+        ],
+        "target": [
+          -1.5,
+          1.05,
+          0
+        ],
+        "fov": 70,
+        "role": "diagnostic"
+      },
+      {
+        "id": "office",
+        "projection": "perspective",
+        "position": [
+          0,
+          1.25,
+          0
+        ],
+        "target": [
+          1.47,
+          1.45,
+          0.1
+        ],
+        "fov": 70,
+        "role": "diagnostic"
+      },
+      {
+        "id": "customer",
+        "projection": "perspective",
+        "position": [
+          0,
+          1,
+          -1.27
+        ],
+        "target": [
+          1,
+          1.2,
+          0
         ],
         "fov": 70,
         "role": "diagnostic"

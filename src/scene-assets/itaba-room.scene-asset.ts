@@ -14,14 +14,17 @@ import {
 import {
   AISLE_CENTER_Z,
   BACK_ROW_Z,
+  BAR_LENGTH,
   BACK_WALL_Z,
   CEILING_HEIGHT,
   EAVES_BACK_OVERLAP,
   EAVES_HEIGHT,
+  EAVES_Z,
   KITCHEN_DEPTH,
   KITCHEN_DOOR_HEIGHT,
   KITCHEN_DOOR_WIDTH,
   MANAITA_Z,
+  LONG_NOREN_LENGTH,
   ROOM_END_X,
   TSUKEDAI_CHEF_Z,
   TSUKEDAI_CUSTOMER_Z,
@@ -33,8 +36,12 @@ import { type BoxPart, boxBatch, instances } from './lib/batch.js';
  * The chef's room (itaba) around the aisle: plaster back and end walls with a
  * wooden wainscot, a header wall that meets the eaves, a board ceiling with
  * fluorescent work-light fixtures, and the kitchen doorway in the left end
- * wall: a door frame, a plain noren, and a bright kitchen beyond it whose
- * light spills onto the aisle floor.
+ * wall: a door frame, a long indigo noren (長のれん), and a bright kitchen
+ * beyond it that shows through the slit and under the noren and whose light
+ * spills onto the aisle floor. At the bar's right end, between the
+ * eaves post and the right end wall, the passage to the customer room: a
+ * lintel carrying on the eaves beam, a plaster header above it, and a long
+ * indigo noren (長のれん) that screens the office corner from the seats.
  *
  * Nothing here is a light source. The tubes, the kitchen and the spill are
  * unlit or emissive materials that only look bright; the scene's single key
@@ -49,12 +56,8 @@ const steel = new MeshStandardMaterial({ color: '#B9BEC4', roughness: 0.35, meta
 const tube = new MeshBasicMaterial({ color: '#F3F8FF' });
 /** The kitchen is drawn unlit, so it reads as a brighter room than the bar. */
 const kitchenLit = new MeshBasicMaterial({ color: '#FFFFFF' });
-const kitchenNoren = new MeshStandardMaterial({
-  color: '#E9E3D3',
-  emissive: '#FFE2AE',
-  emissiveIntensity: 0.35,
-  roughness: 1.0,
-});
+/** The long indigo noren (長のれん) of the kitchen doorway and the passage to the customer room. */
+const longNoren = new MeshStandardMaterial({ color: '#24365A', roughness: 1.0 });
 const spill = new MeshBasicMaterial({
   vertexColors: true,
   transparent: true,
@@ -151,15 +154,32 @@ export function createItabaRoom(): Group {
   kitchen.instanceColor!.needsUpdate = true;
   root.add(kitchen);
 
-  // --- kitchen noren: two plain panels in the doorway, lit from behind ---
+  // --- kitchen noren: a long noren in two panels; the bright kitchen shows through the slit and under it ---
   const slit = 0.02;
   const panelD = (KITCHEN_DOOR_WIDTH - 0.04 - slit) / 2;
-  const panelLen = 0.95;
+  const panelLen = LONG_NOREN_LENGTH;
   const panel = new BoxGeometry(0.004, panelLen, panelD);
   const panelMats = [-1, 1].map((s) =>
     new Matrix4().makeTranslation(-X + 0.03, DH - 0.03 - panelLen / 2, AISLE_CENTER_Z + s * (panelD + slit) / 2),
   );
-  root.add(instances('KitchenNoren', panel, kitchenNoren, panelMats));
+  root.add(instances('KitchenNoren', panel, longNoren, panelMats));
+
+  // --- passage to the customer room: lintel, header, rod and a long noren in two panels ---
+  const passX0 = BAR_LENGTH / 2 + 0.06 + 0.045; // the eaves post's outer face
+  const passW = X - passX0;
+  const passX = (passX0 + X) / 2;
+  const lintelTop = EAVES_HEIGHT + 0.12;
+  root.add(boxBatch('PassageFrame', wood, [
+    { w: passW, h: 0.12, d: 0.09, x: passX, y: EAVES_HEIGHT + 0.06, z: EAVES_Z },
+    { w: passW, h: 0.02, d: 0.02, x: passX, y: EAVES_HEIGHT - 0.03, z: EAVES_Z },
+  ]));
+  root.add(boxBatch('PassageHeader', plaster, [{ w: passW, h: H - lintelTop, d: 0.05, x: passX, y: (H + lintelTop) / 2, z: EAVES_Z }]));
+  const longW = (passW - 0.02 - slit) / 2;
+  const longPanel = new BoxGeometry(longW, LONG_NOREN_LENGTH, 0.004);
+  const longMats = [-1, 1].map((s) =>
+    new Matrix4().makeTranslation(passX + s * (longW + slit) / 2, EAVES_HEIGHT - 0.04 - LONG_NOREN_LENGTH / 2, EAVES_Z),
+  );
+  root.add(instances('PassageNoren', longPanel, longNoren, longMats));
 
   // --- light spill on the aisle floor in front of the doorway ---
   const spillLen = 0.95;

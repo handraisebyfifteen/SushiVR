@@ -8,6 +8,7 @@ import {
   MeshStandardMaterial,
   RingGeometry,
   SphereGeometry,
+  type Material,
   type Sprite,
   Vector3,
 } from '@iwsdk/core';
@@ -28,6 +29,8 @@ import { type PieceResult, scorePiece } from './scoring.js';
 import { playRustle, playTone } from './sfx.js';
 import { overStation, stations } from './station-system.js';
 import { Held, Judge, NigiriStage, Piece, PieceKindValue, StationKind } from './sushi-components.js';
+import { makeNetaMaterial, NetaPattern, restMaterial } from './scene-assets/lib/neta-material.js';
+import { ownPieceGeometry, Shari } from './scene-assets/lib/nigiri-form.js';
 import { makeTextSprite } from './text-sprites.js';
 import {
   FRESH_SECONDS,
@@ -48,8 +51,10 @@ const TUB_MAX_Y = 0.65;
 const TUB_MIN_X = 0.25;
 const TUB_MIN_Z = -0.15;
 const COUNTER_Y = 0.72;
-export const RICE_LOOSE = new Vector3(0.85, 0.85, 0.85);
-export const RICE_ROUND = new Vector3(1, 0.9, 1);
+/** How fast the shari takes its next shape when pressed (stages per second: a touch shows in about 0.2 s). */
+const SHAPE_RATE = 5;
+/** Shari: packed grains of slightly warm white rice. */
+const SHARI_MATERIAL = restMaterial(makeNetaMaterial('shari', NetaPattern.Shari, '#F4F0E7', '#DCD2BF', [0.05, 0.02, 0.023], 0.7, 0.3));
 
 /** Let the cutting system start a nigiri without importing this class. */
 export const pieceApi = {
@@ -83,7 +88,9 @@ export const pieceApi = {
 export class PieceSystem extends createSystem({}) implements PieceCore {
   entity!: Entity;
   piece!: Group;
-  rice!: Mesh<SphereGeometry, MeshStandardMaterial>;
+  rice!: Mesh<Shari['geometry'], Material>;
+  readonly shari = new Shari();
+  shariLevel = 0;
   wasabiBlob!: Mesh<SphereGeometry, MeshStandardMaterial>;
   readonly focus = new Vector3();
   readonly netaOnBoard = new Vector3();
@@ -141,8 +148,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
 
     this.piece = new Group();
     this.piece.name = 'Piece';
-    this.rice = new Mesh(new SphereGeometry(0.03, 16, 12), new MeshStandardMaterial({ color: '#F6F2EA', roughness: 0.9 }));
+    this.rice = new Mesh(this.shari.geometry, SHARI_MATERIAL);
     this.rice.name = 'Shari';
+    // Yaw to lie along the neta, then (before the roll-over) upside down about its length.
+    this.rice.rotation.order = 'YXZ';
     this.wasabiBlob = new Mesh(new SphereGeometry(0.008, 10, 8), new MeshStandardMaterial({ color: '#6B9E3A', roughness: 0.8 }));
     this.wasabiBlob.name = 'WasabiDab';
     this.piece.add(this.rice, this.wasabiBlob);
@@ -203,6 +212,12 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   update(delta: number): void {
     const riceHand = hands.all[chef.riceSide];
     const riceState = chef.hands[chef.riceSide];
+    // The shari takes the shape it is being pressed toward (a short ease, not a jump).
+    const at = this.shari.stage;
+    if (Math.abs(at - this.shariLevel) > 1e-4) {
+      const step = SHAPE_RATE * delta;
+      this.shari.shape(at < this.shariLevel ? Math.min(this.shariLevel, at + step) : Math.max(this.shariLevel, at - step));
+    }
 
     // Freshness clock (paused while the chef faces the washing station).
     if (this.hasNeta && !chef.facingBack) {
@@ -260,7 +275,12 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       if (state.wet && free) {
         this.hasRice = true;
         state.holding = Held.Rice;
-        this.rice.scale.copy(RICE_LOOSE);
+        // A new loose lump from the tub.
+        this.rice.scale.set(1, 1, 1);
+        this.rice.rotation.set(0, 0, 0);
+        this.shari.reseed(1 + Math.random() * 6);
+        this.shariLevel = 0;
+        this.shari.shape(0);
         this.rice.visible = true;
         this.judges[0] = this.judge(0);
         this.entity.setValue(Piece, 'judgeRice', this.judges[0]);
@@ -273,7 +293,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       }
     }
     // Fist with the rice still on the rice hand: it rounds up.
-    if (this.hasRice && hand.fistStart && state.holding === Held.Rice) this.rice.scale.copy(RICE_ROUND);
+    if (this.hasRice && hand.fistStart && state.holding === Held.Rice) this.shariLevel = Math.max(this.shariLevel, 1);
   }
 
   updateWasabi(riceHand: HandReader, canTake: boolean): void {
@@ -350,6 +370,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     const result: PieceResult = {
       judges: this.judges.slice(0, active.judgeSlots),
       itemOk: false,
+      served: null,
       wasabiOk: !!order && order.wasabi === (this.wasabi === 'neta'),
       headOk: true,
       angleOk: true,
@@ -374,7 +395,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     // Hand a copy of the piece to the customer; it disappears when taken.
     const served = this.piece.clone();
     served.name = 'ServedPiece';
-    customerApi.serve(score, this.world.createTransformEntity(served));
+    // The working shari and neta are reshaped for the next piece: the served one keeps its own.
+    ownPieceGeometry(served);
+    const item = result.itemOk && order ? (result.served ?? order.item) : null;
+    customerApi.serve(score, this.world.createTransformEntity(served), item);
 
     addPieceDirt();
     chef.hands[chef.riceSide].wet = false;
@@ -393,7 +417,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.pieceYaw = 0;
     this.cutAge = 0;
     this.rice.visible = this.wasabiBlob.visible = false;
-    this.rice.scale.copy(RICE_LOOSE);
+    this.rice.scale.set(1, 1, 1);
+    this.rice.rotation.set(0, 0, 0);
+    this.shariLevel = 0;
+    this.shari.shape(0);
     this.metronomeUntil = 0;
     this.phaseStart = null;
     this.nigiri.reset();
@@ -506,7 +533,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     const riceOnPiece = this.active ? this.active.layout() : false;
     if (!riceOnPiece && this.hasRice) {
       // Rice on its own palm: placed in world space through the piece group.
-      this.piece.worldToLocal(this.rice.position.copy(riceHand.palm).add(this.tmp.set(0, 0.025, 0)));
+      // Its flat side (the origin) on the palm.
+      this.piece.worldToLocal(this.rice.position.copy(riceHand.palm).add(this.tmp.set(0, 0.004, 0)));
     }
     if (this.wasabi === 'finger') this.piece.worldToLocal(this.wasabiBlob.position.copy(riceHand.indexTip));
   }

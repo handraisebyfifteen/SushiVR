@@ -15,7 +15,7 @@ export const StationKind = {
   WetCloth: 'WetCloth',
   Tezu: 'Tezu',
   Wasabi: 'Wasabi',
-  /** The rice tub, kept low on the chef's right, out of view. */
+  /** The rice tub on a low stand at the chef's right, under the counter, out of the customers' view. */
   RiceTub: 'RiceTub',
   Sink: 'Sink',
   Soap: 'Soap',
@@ -68,7 +68,8 @@ export const Bar = createComponent('Bar', {
   /** True once the opening hand wash (with soap) is done and service starts. */
   open: { type: Types.Boolean, default: false },
   served: { type: Types.Int32, default: 0 },
-  totalScore: { type: Types.Int32, default: 0 },
+  /** Yen taken today. */
+  sales: { type: Types.Int32, default: 0 },
 });
 
 export const Held = {
@@ -94,6 +95,8 @@ export const Held = {
   Board: 'Board',
   /** The telephone handset. */
   Phone: 'Phone',
+  /** A cup of tea, on its way to the customer. */
+  Tea: 'Tea',
 } as const;
 
 /** The chef's hands and tools, mirrored from the game state for inspection. */
@@ -120,6 +123,8 @@ export const CustomerState = {
   Waiting: 'Waiting',
   Reaching: 'Reaching',
   Eating: 'Eating',
+  /** Done, waiting for the check. */
+  Paying: 'Paying',
   Leaving: 'Leaving',
 } as const;
 
@@ -132,6 +137,9 @@ export const Customer = createComponent('Customer', {
   /** True after the customer has reached for a piece, revealing their hand. */
   handKnown: { type: Types.Boolean, default: false },
   eaten: { type: Types.Int32, default: 0 },
+  /** Orders this customer will make (good pieces bring more), and how many are done. */
+  orders: { type: Types.Int32, default: 3 },
+  ordersDone: { type: Types.Int32, default: 0 },
   state: { type: Types.Enum, enum: CustomerState, default: CustomerState.Waiting },
   lastGrade: { type: Types.String, default: '' },
 });

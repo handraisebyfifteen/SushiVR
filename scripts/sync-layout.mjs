@@ -109,7 +109,7 @@ order.forEach((id, i) => {
   };
   row('TrashBin', layout.TRASH_BIN_X, layout.TRASH_BIN_TOP + 0.05, layout.TRASH_BIN_Z, -layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
   row('PaperBox', layout.PAPER_BOX_X, layout.MANAITA_TOP + 0.06, layout.MANAITA_Z - 0.1, -layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
-  row('Phone handset', layout.PHONE_X, layout.SINK_TOP + 0.12, layout.PHONE_Z - 0.04, layout.SHOULDER_HALF_WIDTH, -layout.SHOULDER_BEHIND_EYES);
+  row('RiceTub', layout.RICE_TUB_X, layout.RICE_TUB_TOP + 0.03, layout.RICE_TUB_Z, layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
 }
 
 if (check) {

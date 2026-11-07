@@ -1,11 +1,26 @@
-import { Color, CylinderGeometry, DoubleSide, Group, Matrix4, Mesh, MeshStandardMaterial, SphereGeometry, TorusGeometry } from '@iwsdk/core';
+import {
+  type BufferGeometry,
+  CircleGeometry,
+  Color,
+  CylinderGeometry,
+  DoubleSide,
+  Group,
+  Matrix4,
+  Mesh,
+  MeshStandardMaterial,
+  Shape,
+  ShapeGeometry,
+  SphereGeometry,
+  TorusGeometry,
+} from '@iwsdk/core';
 import { boxBatch, type BoxPart, mergeBoxes, mergeGeometries } from './lib/batch.js';
 import { seeded } from './lib/neta-paint.js';
 
 /**
  * Small shop props for the morning prep and the opening: the trash bin with
- * its lid, the kitchen-paper box, the black dial telephone, the food shelf
- * and the shop entrance with its noren. Each origin is at floor (or counter)
+ * its lid, the kitchen-paper box, the black dial telephone, the food shelf,
+ * the shop entrance with its noren, and the office corner's phone shelf,
+ * books board and staff call buttons. Each origin is at floor (or counter)
  * contact; each front faces -Z unless noted. Moving parts are named groups
  * (Lid, Handset, NorenInside, NorenOutside) that the systems animate.
  */
@@ -237,4 +252,136 @@ function norenOn(name: string, z: number, visible: boolean): Group {
   ]);
   g.add(pole, cloth, hooks);
   return g;
+}
+
+const hookBrass = new MeshStandardMaterial({ color: '#A88A4A', roughness: 0.4, metalness: 0.6 });
+
+/**
+ * A small wooden wall shelf for the telephone: a plank on two angled
+ * brackets. Origin: wall contact at the middle of the plank's top (where the
+ * phone stands); front -Z; 0.3 wide, 0.24 deep.
+ */
+export function createPhoneShelf(): Group {
+  const root = new Group();
+  root.name = 'PhoneShelf';
+  const parts: BoxPart[] = [
+    { w: 0.3, h: 0.022, d: 0.24, x: 0, y: -0.011, z: -0.12 },
+    // Brackets: an upright on the wall and a strut under the plank.
+    { w: 0.02, h: 0.16, d: 0.02, x: -0.11, y: -0.1, z: -0.01 },
+    { w: 0.02, h: 0.16, d: 0.02, x: 0.11, y: -0.1, z: -0.01 },
+    { w: 0.02, h: 0.02, d: 0.2, x: -0.11, y: -0.1, z: -0.09, rx: -0.65 },
+    { w: 0.02, h: 0.02, d: 0.2, x: 0.11, y: -0.1, z: -0.09, rx: -0.65 },
+  ];
+  const shelf = new Mesh(mergeBoxes(parts), shelfWood);
+  shelf.name = 'Shelf';
+  root.add(shelf);
+  return root;
+}
+
+/** The books board's paper: where the system writes the day's books. */
+export const BOOKS_SHEET_WIDTH = 0.26;
+export const BOOKS_SHEET_HEIGHT = 0.34;
+
+/**
+ * The day's books (帳簿) hung on the wall over the phone: a wooden board
+ * with a sheet of paper ('BooksSheet') under a clip. The system writes the
+ * takings, the fish shop's bill and the wages on it. Origin: wall contact at
+ * the board's middle; front -Z; 0.3 x 0.4.
+ */
+export function createBooksBoard(): Group {
+  const root = new Group();
+  root.name = 'BooksBoard';
+  const board = new Mesh(mergeBoxes([{ w: 0.3, h: 0.4, d: 0.012, x: 0, y: 0, z: -0.006 }]), shelfWood);
+  board.name = 'Board';
+  const sheet = new Mesh(mergeBoxes([{ w: BOOKS_SHEET_WIDTH, h: BOOKS_SHEET_HEIGHT, d: 0.002, x: 0, y: -0.015, z: -0.013 }]), paperWhite);
+  sheet.name = 'BooksSheet';
+  const clip = new Mesh(mergeBoxes([
+    { w: 0.1, h: 0.035, d: 0.012, x: 0, y: 0.165, z: -0.019 },
+    { w: 0.02, h: 0.012, d: 0.016, x: 0, y: 0.19, z: -0.016 },
+  ]), hookBrass);
+  clip.name = 'Clip';
+  root.add(board, sheet, clip);
+  return root;
+}
+
+/** Where each staff call button sits on its board, board-local x (the cook on the left, seen from the front). */
+export const STAFF_BUTTON_X = { cook: 0.15, partTimer: -0.15 } as const;
+export const STAFF_BUTTON_Y = -0.015;
+/** The pilot lamp over each button: dark until the system lights it. */
+export const STAFF_LAMP_Y = 0.085;
+/** The buttons are drawn at this scale, to read from the seat. */
+const STAFF_BUTTON_SCALE = 1.25;
+const brass = new MeshStandardMaterial({ color: '#B08A4A', roughness: 0.35, metalness: 0.7 });
+const lampOff = new MeshStandardMaterial({ color: '#4A2E1E', roughness: 0.2 });
+const cookFace = new MeshStandardMaterial({ color: '#23305A', roughness: 0.5 });
+const partTimerFace = new MeshStandardMaterial({ color: '#EDE6D4', roughness: 0.5 });
+const coatWhite = new MeshStandardMaterial({ color: '#F4F2EC', roughness: 0.6 });
+const uniformNavy = new MeshStandardMaterial({ color: '#2F3A4A', roughness: 0.6 });
+const apronBrown = new MeshStandardMaterial({ color: '#7A5638', roughness: 0.6 });
+
+/** A person's silhouette on a button face (head and shoulders), facing +Z before it is turned. */
+function silhouette(cap: boolean): Array<[BufferGeometry, Matrix4]> {
+  const body = new Shape();
+  body.moveTo(-0.027, -0.036);
+  body.lineTo(0.027, -0.036);
+  body.lineTo(0.021, -0.002);
+  body.quadraticCurveTo(0, 0.008, -0.021, -0.002);
+  body.closePath();
+  const parts: Array<[BufferGeometry, Matrix4]> = [
+    [new ShapeGeometry(body, 6), new Matrix4()],
+    [new CircleGeometry(0.0115, 18), new Matrix4().makeTranslation(0, 0.017, 0)],
+  ];
+  // The cook's tall white cap.
+  if (cap) parts.push([mergeBoxes([{ w: 0.021, h: 0.016, d: 0.0005, x: 0, y: 0.034, z: 0 }]), new Matrix4()]);
+  return parts;
+}
+
+/**
+ * The staff call board in the office corner: a wooden board with two round
+ * push buttons, the cook (a white figure with his cap, on indigo) on the
+ * left and the part-timer (a navy figure in a brown apron, on cream) on the
+ * right, each under a pilot lamp that is lit while they are asked. The
+ * system finds the buttons and lamps by name ('CookButton', 'CookLamp',
+ * 'PartTimerButton', 'PartTimerLamp'). Origin: wall contact at the board's
+ * middle; front -Z; 0.6 x 0.22.
+ */
+export function createStaffButtons(): Group {
+  const root = new Group();
+  root.name = 'StaffButtons';
+  const board = new Mesh(mergeBoxes([{ w: 0.6, h: 0.22, d: 0.018, x: 0, y: 0, z: -0.009 }]), shelfWood);
+  board.name = 'StaffBoard';
+  root.add(board);
+  // Flat parts are made facing +Z and turned to face the front (-Z).
+  const toFront = (z: number) => new Matrix4().makeTranslation(0, 0, z).multiply(new Matrix4().makeRotationY(Math.PI));
+  const ring = new CylinderGeometry(0.06, 0.06, 0.014, 28).rotateX(Math.PI / 2);
+  const disc = new CylinderGeometry(0.05, 0.05, 0.002, 28).rotateX(Math.PI / 2);
+  for (const who of ['cook', 'partTimer'] as const) {
+    const cook = who === 'cook';
+    const name = cook ? 'Cook' : 'PartTimer';
+    const button = new Group();
+    button.name = name + 'Button';
+    // Scaled up to read from the seat; its parts start at the board's face (z = -0.018) and stay there.
+    button.position.set(STAFF_BUTTON_X[who], STAFF_BUTTON_Y, 0.018 * (STAFF_BUTTON_SCALE - 1));
+    button.scale.setScalar(STAFF_BUTTON_SCALE);
+    const bezel = new Mesh(mergeGeometries([[ring, new Matrix4().makeTranslation(0, 0, -0.025)]]), brass);
+    bezel.name = name + 'Bezel';
+    const face = new Mesh(mergeGeometries([[disc, new Matrix4().makeTranslation(0, 0, -0.033)]]), cook ? cookFace : partTimerFace);
+    face.name = name + 'Face';
+    const figure = new Mesh(
+      mergeGeometries(silhouette(cook).map(([g, m]): [BufferGeometry, Matrix4] => [g, toFront(-0.0345).multiply(m)])),
+      cook ? coatWhite : uniformNavy,
+    );
+    figure.name = name + 'Figure';
+    button.add(bezel, face, figure);
+    if (!cook) {
+      const apron = new Mesh(mergeBoxes([{ w: 0.024, h: 0.03, d: 0.0005, x: 0, y: -0.021, z: -0.0352 }]), apronBrown);
+      apron.name = 'PartTimerApron';
+      button.add(apron);
+    }
+    const lamp = new Mesh(new SphereGeometry(0.012, 14, 10), lampOff);
+    lamp.name = name + 'Lamp';
+    lamp.position.set(STAFF_BUTTON_X[who], STAFF_LAMP_Y, -0.02);
+    root.add(button, lamp);
+  }
+  return root;
 }

@@ -52,22 +52,32 @@ raised tsukedai (30 cm) carries the 1.5 m glass neta case (see below) and,
 in front of the case, the serving stand (geta); the lower
 customer counter (40 cm) lies beyond it. Over the tsukedai a light tiled
 eave on timber posts, left over from the sushi-stall days, carries a short
-plain noren and four paper lanterns. The rice tub (ohitsu) sits low on your
-right, out of your usual view; its lid slides aside as your hand reaches in
+plain noren and four paper lanterns. The rice tub (ohitsu) sits on a low
+stand at your right, between knee and waist, under the counter where the
+customers do not see it (high enough for the headset to see your hand go
+in); its lid slides aside as your hand reaches in
 and closes once you have the rice. Behind you are the prep sink with its faucet, the soap and a hand
 towel hanging on a bar under the sink's front edge; on the sink's right
 stand a stainless work table (a three-sho gas rice cooker underneath, the
 hangiri, paddle and fan hung on the wall above) and a four-burner gas range
-with an oven; on its left a black dial telephone at the sink's end, a
-glass-door dish cabinet against the back wall and an open food shelf at the
-aisle's end. The shop's entrance, a lattice door with its noren, is beyond
-the customer's seat. The kitchen
-doorway, with its noren and the brighter kitchen beyond, is at the
-left end of the aisle. Fluorescent work lights hang over the board and the
-sink.
+with an oven; on its left a glass-door dish cabinet against the back wall.
+High on the back wall over the sink and the range hangs the menu board, a
+row of wooden plaques with each item's name in Japanese (the one place
+with Japanese text; no prices on the plaques). The office corner, out of
+the customers' way, is on the aisle's right end wall: an open food shelf
+with the staff call board over it (two round buttons, the cook and the
+part-timer), and between it and the dish cabinet a black dial telephone on
+a small shelf under the day's books. Beside it, at the bar's right end, the
+passage to the customer room hangs a long indigo noren, so the office shows
+only a little from the seats. The shop's entrance, a lattice door with its
+noren, is beyond the customer's seat. The kitchen doorway, with its long
+indigo noren and the brighter kitchen showing through it, is at the left end of the aisle; the cook
+and the part-timer come out of it when called. Fluorescent work lights
+hang over the board and the sink.
 
-**The neta case** holds 29 items, left to right: tamago, abalone, octopus,
-squid, flounder, striped jack, young yellowtail, bonito, lean / medium fatty
+**The neta case** holds 31 items, left to right: tamago, abalone, octopus,
+squid, squid legs (geso), flounder, striped jack, young yellowtail, bonito
+back and belly, lean / medium fatty
 / fatty tuna, gizzard shad (kohada), horse mackerel, cured mackerel, prawn,
 sweet shrimp, scallop, ark shell, egg cockle, sea eel and the inari pouches,
 then, at the right end, sea urchin, salmon roe and the roll fillings (tuna
@@ -86,20 +96,27 @@ ready-cut and taken one piece at a time (sweet shrimp two at a time). When
 one is used up it is sold out: its place is empty and nobody orders it until
 the next morning's prep. Counts and order are in `src/menu.ts`.
 
-**Turn around**: look far to the left and hold for a second. The view blinks
-and the bar turns 180 degrees. Do the same to turn back. Turning is blocked
-while you hold fish, rice, the knife or a finished piece (the wet cloth is
-fine: it gets washed at the sink).
+**Turn around**: the whole room is there all around you, so just turn round
+on the stool to face the back row (the sink, the work table and range, the
+office corner). The game takes the facing from where your head looks: more
+than about 120 degrees off the bar is the back row, back within 60 degrees
+the bar again, and a look to the side (the office corner, the range)
+changes nothing (`FACING_BACK_DEG` and `FACING_FRONT_DEG` in
+`src/tuning.ts`).
 
 **The morning prep** (仕込み): every day starts before opening, with no
 customer yet. The case items you prep start empty; the rest are full (the
 easy difficulty, `DIFFICULTY` in `src/tuning.ts`).
 
-1. Turn around (look far left or far right and hold) and lift the black
-   telephone's handset on the sink's left end: the fish shop brings what is
-   missing ("the usual"). A few seconds later its styrofoam box is on the
-   counter left of the board. Wash your hands meanwhile: the fish is not
-   touched with unwashed hands.
+1. Point at the black telephone in the office corner (on your right, out
+   of reach) and pinch: its handset comes up and the fish shop brings what
+   is missing ("the usual"). A few seconds later its styrofoam box is on
+   the counter left of the board (once every fish in it is prepped, the
+   empty box is put away). Turn round to the sink behind you and wash
+   your hands meanwhile: the fish is not touched with unwashed hands.
+   Anything far away (the phone, the call buttons, the tea urn, the noren,
+   the customer for the check) is pointed at with the hand held out and the
+   other fingers curled, then a pinch.
 2. Left hand: pinch a fish in the box (the one on top first) and let go over
    the board. Each one is wrapped in paper inside a plastic bag: hold it with
    the left hand, pinch the wrapping with the right and pull it off, twice.
@@ -125,8 +142,21 @@ easy difficulty, `DIFFICULTY` in `src/tuning.ts`).
    to the counter. Wash your hands with soap, and finally point at the noren
    hanging inside the shop's entrance (beyond the customer's seat) and
    pinch: it is hung outside, the bar is open and the first customer walks
-   in. Your cuts are graded (how close to the line); the total shows over
-   the board.
+   in. Your cuts are graded (how close to the line): a crooked cut wastes
+   flesh, so the saku gives fewer slices to sell. The grade and the yield
+   show over the board.
+
+**Staff** (plain figures, in the kitchen until called): nobody works unless
+called. During the prep, point at a button on the office's call board and
+pinch to call that one in (again to let them off); its lamp stays lit while
+they are on. The cook (white coat,
+¥2,000 an hour) walks to the ice box, takes each fish still in it into the
+kitchen and brings it out as full saku in the case; the part-timer (apron,
+¥1,300 an hour) comes to the board once the prep is done, throws out the
+scraps and washes the board. They are paid for the time each job takes (`COOK_MINUTES` and
+`CLEANUP_MINUTES` in `src/tuning.ts`). On the easy difficulty the cook has
+also readied every case item you do not prep, which is paid too: doing it
+all yourself costs nothing and earns the most.
 
 Later stages add the gas range (octopus on a high flame, conger eel held at
 90 degrees, gourd strips and abalone cooked until the liquid is gone, the
@@ -156,7 +186,7 @@ name and whether wasabi is wanted):
 3. Left hand: pinch the slice; it rests on your fingers.
 4. Right hand: dip in the tezu bowl (beat 1), reach down to the rice tub on
    your right and come back up (beat 2, judged). Without tezu nothing comes
-   back. A fist rounds the rice.
+   back. The rice comes up as a loose lump; a fist rounds it.
 5. If wasabi is ordered: on the way up from the tub, keep the rice in your
    other fingers and bring the right index finger down to the wasabi dish,
    then touch the slice. Wasabi can only be taken while holding the rice.
@@ -168,6 +198,16 @@ name and whether wasabi is wanted):
 9. Touch 2: pinch the piece on the beat.
 10. Keep pinching and turn the hand clockwise: the piece spins half a turn.
 11. Touch 3: pinch on the beat. The piece is done.
+
+   The shari is shaped through the work, the way the shop's owner shapes it:
+   a funagata (舟形: a flat bottom, a gently domed top, ends rounding off),
+   about 15 g (5 x 2.3 x 2 cm). Touch 1 presses the top (its future bottom)
+   flat, touch 2 sets the form and lays the neta over it, touch 3 evens it
+   into the finished piece. The neta (7.5 x 3 cm, 6 mm thick for a saku
+   slice) lies along the shari and drapes over it; stiff toppings (tamago,
+   abalone, scallop) bend less. The shapes are in
+   `src/scene-assets/lib/nigiri-form.ts`; the `nigiri-stages` asset lays them
+   out side by side for inspection.
 12. Pinch it, carry it over the case and let go on the geta. Turn your hand
     while carrying to set its heading.
 13. Hold a fist over the geta for a second to serve.
@@ -236,12 +276,43 @@ for a right-handed guest and mirrored for a left-handed one. A slice with a
 skin edge (bonito, striped jack, cured mackerel) shows it on the customer's
 right when cut at the guide line.
 
-**Scoring**: each piece is graded Excellent / Good / Poor / Bad from the four
-timed beats, the right item, wasabi, orientation, hospitality (handedness),
-freshness since the cut, and hygiene (unwashed hands, a dirty board, soap
-during service, an unwiped knife). The grade and small icons for any
-penalties appear above the customer. After a few pieces the customer leaves
-and the next one sits down.
+**Money**: every piece goes on the customer's bill at the menu price
+(`PRICE` in `src/tuning.ts`; a roll is one order). Each piece is also graded Excellent /
+Good / Poor / Bad from the four timed beats, wasabi, orientation,
+hospitality (handedness), freshness since the cut, and hygiene (unwashed
+hands, a dirty board, soap during service, an unwiped knife); the price,
+the bill so far, the grade and small icons for what to improve appear
+above the customer. The grade decides how much more they order: a customer
+comes in with three orders in mind, an Excellent piece brings one more (up
+to six), a Poor one one fewer, and after a Bad one they ask for the bill. A
+piece that is not what was ordered is sent back, not billed, and made
+again. A bonito order with no part named is two pieces, back and belly, one
+after the other.
+
+**The check** (お勘定): when they are done, the customer says "Check,
+please". Point at them and pinch: they pay the bill and walk out by the
+entrance, and the next customer comes in there.
+
+**Tea** (お茶): now and then a customer asks for tea after the first piece.
+It is powdered green tea from the hot-water urn on the low cabinet under
+the telephone, made out of the customers' sight. With nobody called in,
+you make it: point at the urn and pinch, and after a moment the cup is set
+down at hand on the stainless strip right of the board; pinch it, carry it
+over the case and let go above the tsukedai, and it stands before the
+customer. Left waiting too long, they order one fewer.
+
+**The part-timer in service**: called in with their button, the part-timer
+keeps to the office corner behind the long noren and comes out through it to show each
+new customer in from the entrance and to bring the tea when it is asked for
+(paid for the minutes: a cup, a showing in). The check, the board and the
+cloth stay the chef's own: the chef's work and hygiene.
+
+**Closing**: point at the noren outside the entrance and pinch to take it
+in. The seated customer's order is the last; once they have paid and left, the day's
+books on the board over the telephone are final (a word over the counter
+says so): sales, the fish shop's bill (everything it
+delivered, sold or not), the wages and the profit or loss. Reload the page
+for a new day.
 
 **Hygiene**: every piece leaves rice and fish oil on your hands; after five
 they need washing. Moving a dish also makes that hand need washing. Wipe the
@@ -254,20 +325,28 @@ panel (hands, hygiene, order, piece). During `npm run dev` the D key toggles
 it and the O key opens the bar with clean hands. Neither key exists in
 production builds, and nothing shows without the flag.
 
+The game is worked with the hands alone (hand tracking). With controllers in
+hand and no hands seen, a word in front of you says so. The desktop emulator
+comes up standing (eyes at 1.6 m, hands at chest height) with controllers, so
+in `npm run dev` it is set up at the start for this bar: hands, eyes at the
+seated height looking down at the board, both hands resting over it (its
+input mode button, the hand icon, still switches back and forth).
+
 Practice mode (desktop emulator, `npm run dev` only): press P in the running
-app to play from the keyboard. Dragging the mouse looks around, holding T
-looks far left to turn around, and each number or letter key performs one
+app to play from the keyboard. Dragging the mouse looks around, T turns
+around (the view blinks and the bar turns half round, standing in for
+turning round on the stool), and each number or letter key performs one
 step of the work, from the opening wash through the saku, the knife and the
 nigiri to serving; the keys are listed on a small panel in view. For the
 case: 4 takes what was ordered, 5 takes the selected neta, 6 (Shift+6 back)
 steps through the neta, 7 makes the customer order the selected one, and 8
-restocks the whole case. In the morning prep, = lifts the telephone (turned
-around), 9 carries the next fish to the board, a saku into the case or a
+restocks the whole case. In the morning prep, = points at the telephone,
+9 carries the next fish to the board, a saku into the case or a
 scrap into the trash, 0 pulls off the wrapping, the legs or the skin, X
 (knife in hand) cuts along the line, - pats the squid dry with paper, [ does
 the next step with the board (lift, wash, stand, lift, put back; T turns
-around between), and ] points at the noren and pinches; O skips the prep and
-opens the bar. For a gunkan, Z takes a nori strip, H wraps, and 4
+around between), ] points at the noren and pinches (to open, and again to
+close), ; and ' point at the cook's and the part-timer's call buttons; O skips the prep and opens the bar. For a gunkan, Z takes a nori strip, H wraps, and 4
 on a sea urchin or salmon roe order puts the topping on. For an inari, 4
 takes a pouch, H fills it and Space folds it shut on the beat. For a roll,
 Z lays the nori on the mat, U spreads the rice, 4 lays the next filling, I
@@ -277,7 +356,28 @@ judges it exactly as it judges real hands, so mistakes still count. The timed
 gestures happen when you act: hold L to reach into the rice tub and let go on
 the beat, and press Space on the beat for each of the three touches. Q and E
 turn a carried piece 45 degrees. Press P again to hand control back to the
-emulator.
+emulator. The \` key turns on shaky hands (Shift+\` with another seed): the
+hands wobble and now and then the headset loses one for a moment, more often
+with the hands together, to try the game against hand tracking without a
+headset.
+
+**Hand tracking**: Meta's hand design guides set the tolerances. A hand the
+headset loses for under 0.4 s keeps its pose and grip (`LOST_GRACE_MS` in
+`src/hand-reader.ts`), so one hand briefly hiding the other while shaping a
+piece does not drop it. With no vibration in the hands, every take, put
+down, press and result has a short synthesized sound (`src/sfx.ts`).
+
+**Eye tracking (Meta VR Glasses)**: on a device that tracks the eyes, what
+is pointed at can also be chosen by looking at it and pinching, with either
+empty hand: the telephone, the call buttons, the tea urn, the customer for
+the check and the noren. It glows while looked at, as when pointed at. A
+pinch that takes something up at hand (neta, the cup, fish from the ice box)
+is work, not a choice (`src/gaze.ts`). Quest 3 and 3S have no eye tracking:
+there, only pointing. The glasses' view is narrower (37° to each side, 25°
+up, 43° down): looking down at the board, the case's two ends, the knife,
+the cloth, the ice box and the rice tub are outside it, and the head turns to
+them. To try the glasses in the emulator, set `dev.emulator.device` in
+`iwsdk.config.json` to `metaVRGlasses` (it is `metaQuest3`).
 
 ## Project layout
 
@@ -287,6 +387,8 @@ emulator.
 | `src/index.ts` | App entry point: `World.create()` and system registration |
 | `src/menu.ts` | The menu and the neta case: every item, how it is prepared, which hand takes it, how many pieces a block or tray gives, its look, and the case order |
 | `src/prep.ts` | The morning prep: each task, what it is made from and which case items it fills |
+| `src/tuning.ts` | Every gameplay number: prices, wages, the fish shop's bill, timings, tolerances |
+| `src/ledger.ts` | The day's books: sales, the fish shop and wages |
 | `src/layout.ts` | Every bar dimension (counter depths, aisle width, heights, the reach model); run `npm run layout` after editing |
 | `src/assets.ts` | Asset catalog shared by the runtime and the editor |
 | `src/components.ts` | Component catalog shared by the runtime and the editor |
@@ -296,7 +398,8 @@ emulator.
 
 ## Design constraints
 
-- All in-game text is English.
+- All in-game text is English, except the menu board's plaques (Japanese,
+  as in a real shop; the shop owner's choice).
 - No real company, brand, or product names.
 - No external 3D models, images, audio, or fonts; geometry is built from
   primitives in code.

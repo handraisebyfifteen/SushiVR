@@ -1,7 +1,7 @@
 import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, orderKind, orderNeta, prep, progress, service } from './game-state.js';
+import { chef, orderKind, orderTakes, prep, progress, service } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
@@ -101,8 +101,7 @@ export class CuttingSystem extends createSystem({
   private publish(): void {
     progress.knifeHeld = this.knifeHeld;
     progress.sakuOnBoard = this.onBoard !== null;
-    const ordered = orderNeta();
-    progress.sakuWrong = this.onBoard !== null && ordered !== null && ordered !== caseApi.neta(this.onBoard);
+    progress.sakuWrong = this.onBoard !== null && !orderTakes(caseApi.neta(this.onBoard));
     if (this.onBoard) {
       progress.sakuAt.copy(this.sakuMid);
       const home = this.homes.get(this.onBoard);
@@ -172,9 +171,8 @@ export class CuttingSystem extends createSystem({
     // Let go: into the case or onto the board.
     state.holding = Held.None;
     const neta = caseApi.neta(this.held);
-    const ordered = orderNeta();
     if (overStation(hand.grasp, StationKind.NetaCase)) {
-      if (ordered && ordered !== neta) coach.done('returnSaku');
+      if (!orderTakes(neta)) coach.done('returnSaku');
       this.returnHome(this.held);
     } else {
       if (this.onBoard && this.onBoard !== this.held) this.returnHome(this.onBoard);
@@ -184,7 +182,7 @@ export class CuttingSystem extends createSystem({
       object.quaternion.copy(this.flat);
       this.onBoard = this.held;
       this.measureSaku(this.held);
-      if (ordered && ordered !== neta) {
+      if (!orderTakes(neta)) {
         glowObject(object, COLOR_WARN);
         feedback.flash(StationKind.CuttingBoard, COLOR_WARN);
         coach.mistake('wrongItem', StationKind.CuttingBoard);
@@ -200,8 +198,7 @@ export class CuttingSystem extends createSystem({
   /** A ready-cut piece straight onto the neta hand's fingers, if it is what was ordered. */
   private takePiece(item: Entity, neta: NetaId): void {
     if (pieceApi.hasNeta()) return;
-    const ordered = orderNeta();
-    if (ordered && ordered !== neta) {
+    if (!orderTakes(neta)) {
       glowObject(item.object3D!, COLOR_WARN);
       feedback.flash(StationKind.NetaCase, COLOR_WARN);
       coach.mistake('wrongItem', StationKind.NetaCase);

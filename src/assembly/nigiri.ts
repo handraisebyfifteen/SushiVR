@@ -4,9 +4,11 @@ import { feedback } from '../feedback.js';
 import { chef, service } from '../game-state.js';
 import type { HandReader } from '../hand-reader.js';
 import { hands } from '../hands.js';
-import { menuFor, NETA, type NetaId } from '../menu.js';
+import { menuFor, NETA, type NetaId, orderAccepts } from '../menu.js';
 import type { PieceResult } from '../scoring.js';
 import { sliceLook } from '../scene-assets/lib/neta-look.js';
+import { restMaterial } from '../scene-assets/lib/neta-material.js';
+import { Drape, SHARI_FINISHED, TOPPING_STIFFNESS } from '../scene-assets/lib/nigiri-form.js';
 import { Held, NigiriStage, Piece, StationKind } from '../sushi-components.js';
 import {
   BOARD_DIRT_PER_NIGIRI,
@@ -21,7 +23,27 @@ import {
 } from '../tuning.js';
 import { type Assembly, lineDiff, normYaw, type PieceCore } from './types.js';
 
-const RICE_SHAPED = new Vector3(1.15, 0.55, 0.8);
+/**
+ * The shaping through the work (the user's shop): the stage the shari is
+ * pressed toward and how far the neta bends (negative: cupped up in the palm,
+ * under the shari; positive: draped over it once it is rolled over).
+ * Touch 1 presses the top (the shari's future bottom) flat, touch 2 sets the
+ * form and lays the neta over it, touch 3 evens it into the finished piece.
+ */
+const FORM: Partial<Record<string, readonly [number, number]>> = {
+  [NigiriStage.Joined]: [1, -0.3],
+  [NigiriStage.Touched1]: [2, -0.4],
+  [NigiriStage.Flipped]: [2, 0.45],
+  [NigiriStage.Touched2]: [3, 0.85],
+  [NigiriStage.Rotated]: [3, 0.85],
+  [NigiriStage.Done]: [SHARI_FINISHED, 1],
+  [NigiriStage.Carried]: [SHARI_FINISHED, 1],
+  [NigiriStage.Placed]: [SHARI_FINISHED, 1],
+};
+/** How fast the neta settles to its bend (amount per second). */
+const DRAPE_RATE = 5;
+/** The neta sinks this little into the rice, so no gap shows between them. */
+const SINK = 0.0008;
 /** Flip detection keeps this many recent neta-hand samples (enough for FLIP_WINDOW_SECONDS at 120 fps). */
 const FLIP_SAMPLES = 72;
 
@@ -47,6 +69,10 @@ export class NigiriAssembly implements Assembly {
   private flipHead = 0;
   private rotateStartYaw: number | null = null;
   private time = 0;
+  /** The neta's own bendable copy of the slice, how far it may bend, and the shari's yaw to lie along it. */
+  private drape: Drape | null = null;
+  private stiffness = 1;
+  private shariYaw = 0;
   private readonly tmp = new Vector3();
 
   constructor(private readonly core: PieceCore) {
@@ -90,10 +116,18 @@ export class NigiriAssembly implements Assembly {
     core.skinRight = skinRight;
     core.hasNeta = true;
     core.cutAge = 0;
-    this.neta.geometry = look.geometry;
-    this.neta.material = look.material;
-    this.neta.rotation.set(0, look.blockAxes ? -Math.PI / 2 : 0, 0);
+    // Its own copy to bend over the shari (a served piece keeps its own: PieceSystem.serve).
+    const old = this.drape;
+    this.drape = new Drape(look.geometry);
+    this.neta.geometry = this.drape.geometry;
+    this.neta.material = restMaterial(look.material);
+    old?.dispose();
+    this.stiffness = TOPPING_STIFFNESS[NETA[neta].look.shape] ?? 1;
+    const yaw = look.blockAxes ? -Math.PI / 2 : 0;
+    this.neta.rotation.set(0, yaw, 0);
     this.neta.scale.set(1, 1, look.blockAxes && !skinRight ? -1 : 1);
+    // The shari lies along the neta's length (its own length is along X).
+    this.shariYaw = this.drape.alongZ ? yaw - Math.PI / 2 : yaw;
     this.neta.visible = true;
     core.pieceYaw = 0;
     core.entity.setValue(Piece, 'neta', neta);
@@ -107,6 +141,17 @@ export class NigiriAssembly implements Assembly {
   update(delta: number): void {
     this.time += delta;
     const core = this.core;
+    // Shaping: the shari toward this step's form, the neta settling over it.
+    const form = FORM[core.stage];
+    if (form) core.shariLevel = form[0];
+    if (this.drape) {
+      const want = (form ? form[1] : 0) * this.stiffness;
+      const at = this.drape.amount;
+      if (Math.abs(at - want) > 1e-4) {
+        const step = DRAPE_RATE * delta;
+        this.drape.bend(at < want ? Math.min(want, at + step) : Math.max(want, at - step));
+      }
+    }
     const riceHand = hands.all[chef.riceSide];
     const netaHand = hands.all[chef.netaSide];
     switch (core.stage) {
@@ -185,7 +230,6 @@ export class NigiriAssembly implements Assembly {
     const judge = this.core.judge(n);
     this.core.judges[n] = judge;
     this.core.entity.setValue(Piece, n === 1 ? 'judge1' : n === 2 ? 'judge2' : 'judge3', judge);
-    if (n === 1) this.core.rice.scale.copy(RICE_SHAPED);
     this.core.setStage(next);
     coach.done(n === 1 ? 'touch1' : n === 2 ? 'touch2' : 'touch3');
     console.log(`[Nigiri] touch ${n}: ${judge}`);
@@ -246,19 +290,27 @@ export class NigiriAssembly implements Assembly {
       stage === NigiriStage.Flipped || stage === NigiriStage.Touched2 || stage === NigiriStage.Rotated ||
       stage === NigiriStage.Done || stage === NigiriStage.Carried || stage === NigiriStage.Placed;
     const joined = flipped || stage === NigiriStage.Joined || stage === NigiriStage.Touched1;
+    const minY = this.drape ? this.drape.minY : 0;
+    const top = (this.drape ? this.drape.maxY : 0.006) - minY;
+    const rice = this.core.rice;
+    const h = this.core.shari.height;
     if (joined) {
       if (flipped) {
-        this.core.rice.position.set(0, 0.014, 0);
-        this.neta.position.set(0, 0.034, 0);
-        this.core.wasabiBlob.position.set(0, 0.026, 0);
+        // On its flat bottom, the neta over it, the wasabi between.
+        rice.rotation.set(0, this.shariYaw, 0);
+        rice.position.set(0, 0, 0);
+        this.neta.position.set(0, h - minY - SINK, 0);
+        this.core.wasabiBlob.position.set(0, h - 0.002, 0);
       } else {
-        this.neta.position.set(0, 0.006, 0);
-        this.core.rice.position.set(0, 0.034, 0);
-        this.core.wasabiBlob.position.set(0, 0.016, -0.01);
+        // In the palm: the neta below, cupped; the shari upside down on it, its dome down into the neta.
+        this.neta.position.set(0, -minY, 0);
+        rice.rotation.set(Math.PI, this.shariYaw, 0);
+        rice.position.set(0, top + h - SINK, 0);
+        this.core.wasabiBlob.position.set(0, top + 0.002, 0);
       }
     } else {
-      this.neta.position.set(0, 0.006, 0);
-      if (this.core.wasabi === 'neta') this.core.wasabiBlob.position.set(0, 0.016, -0.01);
+      this.neta.position.set(0, -minY, 0);
+      if (this.core.wasabi === 'neta') this.core.wasabiBlob.position.set(0, top + 0.003, 0);
     }
     return joined;
   }
@@ -299,7 +351,9 @@ export class NigiriAssembly implements Assembly {
       angleOk = Math.abs(lineDiff(yaw, expected)) <= ORIENTATION_TOLERANCE_DEG;
       headOk = Math.cos((yaw * Math.PI) / 180) > 0;
     }
-    r.itemOk = !!order && order.item === menuFor('nigiri', [core.netaId]);
+    const served = menuFor('nigiri', [core.netaId]);
+    r.served = served;
+    r.itemOk = !!order && !!served && orderAccepts(order.item, served);
     r.headOk = headOk;
     r.angleOk = angleOk;
     r.skinOk = !NETA[core.netaId].skinEdge || core.skinRight;
@@ -308,6 +362,8 @@ export class NigiriAssembly implements Assembly {
 
   reset(): void {
     this.neta.visible = false;
+    this.drape?.bend(0);
+    this.shariYaw = 0;
     this.flipCount = 0;
     this.rotateStartYaw = null;
   }

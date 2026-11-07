@@ -1,5 +1,9 @@
-import { createSystem, Vector3 } from '@iwsdk/core';
+import { createSystem, Group, Vector3 } from '@iwsdk/core';
 import { HandReader } from './hand-reader.js';
+import { makeTextSprite } from './text-sprites.js';
+
+/** Controllers in hand and no hands seen for this long: say that the bar is worked with the hands. */
+const NO_HANDS_SECONDS = 1.5;
 
 /**
  * Owns the two hand readers and updates them once per frame, before every
@@ -11,16 +15,41 @@ export const hands: { left: HandReader; right: HandReader; all: HandReader[] } =
   all: [],
 };
 
+/**
+ * Reads both hands each frame. The game is worked with the hands alone
+ * (hand tracking): with controllers in hand and no hands seen, a word in
+ * front of the eyes says so, on a headset and in the emulator alike.
+ */
 export class HandsSystem extends createSystem({}) {
+  private notice!: Group;
+  private noHands = 0;
+
   init(): void {
     hands.left = new HandReader('left', this.input.xr);
     hands.right = new HandReader('right', this.input.xr);
     hands.all = [hands.left, hands.right];
+    this.notice = new Group();
+    this.notice.name = 'HandsOnlyNotice';
+    const main = makeTextSprite('Hands only: put the controllers down', { width: 0.6 });
+    const sub = makeTextSprite('In the emulator: input mode (hand icon) > Hands', { width: 0.5 });
+    sub.position.y = -0.085;
+    this.notice.add(main, sub);
+    this.notice.visible = false;
+    this.notice.position.set(0, -0.04, -0.65);
+    this.world.camera.add(this.notice);
   }
 
-  update(): void {
+  update(delta: number): void {
     hands.left.update();
     hands.right.update();
+    const pads = this.input.xr.gamepads;
+    const controllers = !!pads.left || !!pads.right;
+    this.noHands = controllers && !hands.left.tracked && !hands.right.tracked ? this.noHands + delta : 0;
+    const show = this.noHands > NO_HANDS_SECONDS;
+    if (show !== this.notice.visible) {
+      this.notice.visible = show;
+      if (show) console.log('[Hands] controllers but no hands: this bar is worked with the hands');
+    }
   }
 }
 

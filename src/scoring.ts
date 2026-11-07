@@ -1,12 +1,15 @@
 import type { IconKind } from './text-sprites.js';
 import { Judge } from './sushi-components.js';
 import type { JudgeKind } from './game-state.js';
+import type { MenuId } from './menu.js';
 
 /** Everything known about one served piece, judged together at serving time. */
 export interface PieceResult {
   /** Every timed beat of this piece (the rice, then the kind's own touches). */
   judges: readonly JudgeKind[];
   itemOk: boolean;
+  /** What was made, when it is not simply the order (one piece of a bonito pair). */
+  served: MenuId | null;
   wasabiOk: boolean;
   headOk: boolean;
   angleOk: boolean;

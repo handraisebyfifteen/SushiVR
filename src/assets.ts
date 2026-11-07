@@ -15,7 +15,19 @@ import {
   createWetCloth,
 } from './scene-assets/counter.scene-asset.js';
 import { createIceBox } from './scene-assets/ice-box.scene-asset.js';
-import { createEntrance, createFoodShelf, createPaperBox, createPhone, createTrashBin } from './scene-assets/shop-props.scene-asset.js';
+import { createMenuBoard } from './scene-assets/menu-board.scene-asset.js';
+import {
+  createEntrance,
+  createFoodShelf,
+  createPaperBox,
+  createBooksBoard,
+  createStaffButtons,
+  createPhone,
+  createPhoneShelf,
+  createTrashBin,
+} from './scene-assets/shop-props.scene-asset.js';
+import { createNigiriStages } from './scene-assets/nigiri-stages.scene-asset.js';
+import { createTeaStation } from './scene-assets/tea-station.scene-asset.js';
 import { caseItemAssets } from './scene-assets/case-items.scene-asset.js';
 import { createDishCabinet } from './scene-assets/dish-cabinet.scene-asset.js';
 import { createEaves } from './scene-assets/eaves.scene-asset.js';
@@ -52,6 +64,12 @@ export default defineAssets({
   'trash-bin': createTrashBin(),
   'paper-box': createPaperBox(),
   phone: createPhone(),
+  'phone-shelf': createPhoneShelf(),
+  'books-board': createBooksBoard(),
+  'staff-buttons': createStaffButtons(),
+  'tea-station': createTeaStation(),
+  'nigiri-stages': createNigiriStages(),
+  'menu-board': createMenuBoard(),
   'food-shelf': createFoodShelf(),
   entrance: createEntrance(),
   makisu: createMakisu(),

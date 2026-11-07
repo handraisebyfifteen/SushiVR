@@ -85,3 +85,60 @@ export function playClack(): void {
   src.stop(t + 0.08);
   playTone(620, 0.06, 0.08);
 }
+
+/** A tone gliding from one pitch to another, starting `delay` seconds from now. */
+function glide(from: number, to: number, seconds: number, volume: number, delay = 0, type: OscillatorType = 'sine'): void {
+  const ac = context();
+  if (!ac) return;
+  const t = ac.currentTime + delay;
+  const osc = ac.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(from, t);
+  osc.frequency.exponentialRampToValueAtTime(to, t + seconds);
+  const gain = ac.createGain();
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(volume, t + 0.006);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+  osc.connect(gain).connect(ac.destination);
+  osc.start(t);
+  osc.stop(t + seconds + 0.01);
+}
+
+/*
+ * Hands have no vibration to say an action took, so every take, put, press
+ * and result has a short sound (Meta's hand design guides ask for this).
+ * They are quiet and short, so a busy moment does not turn into noise.
+ */
+
+/** Something taken in hand: a short rising blip. */
+export function playPick(): void {
+  glide(880, 1320, 0.05, 0.05);
+}
+
+/** Something set down or let go: a short falling blip. */
+export function playPut(): void {
+  glide(740, 470, 0.06, 0.05);
+}
+
+/** Something far pressed by pointing (the phone, a call button, the urn, the noren): two quick notes. */
+export function playPress(): void {
+  glide(1175, 1175, 0.05, 0.05);
+  glide(1568, 1568, 0.07, 0.045, 0.06);
+}
+
+/** A step done right (the green flash): a soft high chime. */
+export function playDone(): void {
+  glide(1760, 1760, 0.09, 0.035);
+}
+
+/** A warning (the amber flash): a low, short buzz. */
+export function playWarn(): void {
+  glide(240, 190, 0.14, 0.06, 0, 'triangle');
+}
+
+/** The bill paid: three bright notes. */
+export function playCoin(): void {
+  glide(1319, 1319, 0.06, 0.05);
+  glide(1760, 1760, 0.06, 0.05, 0.07);
+  glide(2093, 2093, 0.12, 0.05, 0.14);
+}

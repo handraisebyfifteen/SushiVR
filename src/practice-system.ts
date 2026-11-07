@@ -8,7 +8,7 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { chef, orderKind, orderNeta, prep, progress, service } from './game-state.js';
+import { chef, orderKind, orderNeta, prep, progress, service, staff, tea } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { hands } from './hands.js';
 import { SEATED_EYE_HEIGHT } from './layout.js';
@@ -16,6 +16,7 @@ import { CASE_ORDER, MENU, type MenuId, menuFor, NETA, type NetaId } from './men
 import { caseApi } from './neta-case-system.js';
 import { type Kind, stations } from './station-system.js';
 import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sushi-components.js';
+import { TurnSystem } from './turn-system.js';
 
 /**
  * Practice mode (development only): play the bar from the keyboard in the
@@ -49,6 +50,10 @@ interface EmuHand {
   setFingerPose(finger: EmuFinger, poseId: string, weight?: number): void;
   clearFingerPoses(finger?: EmuFinger): void;
   setPin(pin: { anchor: string; target: ArrayLike<number>; wristRotation?: ArrayLike<number> } | null): void;
+  /** False: the headset has lost the hand (as real hand tracking does now and then). */
+  connected: boolean;
+  /** Where the hand is (XR origin), for the emulator's own controls. */
+  position: EmuVector;
 }
 interface EmuDevice {
   controlMode: 'manual' | 'programmatic';
@@ -148,8 +153,37 @@ const CURL_FINGERS: EmuFinger[] = ['middle', 'ring', 'pinky'];
 const FINGER_PITCH = -0.35;
 const LOOK_PITCH_DEG = -22;
 const HEAD_TURN_RATE_DEG = 320;
-const TURN_LOOK_DEG = 88;
 const HEADING_STEP_DEG = 45;
+/** Where the emulator's hands start (seated, resting just over the board): either side, height, forward. */
+const EMU_HAND_X = 0.16;
+const EMU_HAND_Y = 0.93;
+const EMU_HAND_Z = -0.3;
+/**
+ * Shaky hands (the ` key), to try the game against hand tracking without a
+ * headset: a slow wobble and a quick jitter of the hands (metres), a wobble
+ * of their heading (degrees), and short losses of a hand, more often while
+ * the hands are together (one hides the other from the cameras).
+ */
+const SHAKE_WOBBLE = 0.006;
+const SHAKE_JITTER = 0.002;
+const SHAKE_YAW = (3 * Math.PI) / 180;
+const LOSS_PER_SECOND = 0.03;
+const LOSS_PER_SECOND_TOGETHER = 0.15;
+const TOGETHER_DISTANCE = 0.12;
+const LOSS_MIN_SECONDS = 0.1;
+const LOSS_MAX_SECONDS = 0.5;
+
+/** A small seeded random (mulberry32), so a shaky run can be repeated. */
+function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 /** What can be ordered from the case, in case order (what 6 steps through): nigiri neta, gunkan toppings, the inari pouch, roll fillings. */
 const NIGIRI_NETA: readonly NetaId[] = CASE_ORDER.filter((id) => ['saku', 'piece', 'scoop', 'age', 'filling'].includes(NETA[id].prep));
 
@@ -202,7 +236,6 @@ export class PracticeSystem extends createSystem({
   private lookYaw = 0;
   private lookPitch = LOOK_PITCH_DEG;
   private headYaw = 0;
-  private turnHeld = false;
   private dragging = false;
   private lastX = 0;
   private lastY = 0;
@@ -224,6 +257,14 @@ export class PracticeSystem extends createSystem({
   private readonly b = new Vector3();
   private readonly goal = new Vector3();
   private readonly wrist = new Vector3();
+  private readonly noisy = new Vector3();
+  /** Shaky hands: on, the clock, the random, and per hand its wobble phases, the end of a loss and the losses so far. */
+  private shaky = false;
+  /** The emulator is set up once, at the start: hands, and seated at the bar (it comes up standing with controllers). */
+  private handsChosen = false;
+  private clock = 0;
+  private random = seededRandom(1);
+  private readonly shake = [0, 1].map((i) => ({ phase: [0.3 + i, 1.9 + i, 4.1 + i, 2.7 + i], lostUntil: 0, losses: 0 }));
   private readonly pinArray = [0, 0, 0];
   private readonly rotArray = [0, 0, 0, 1];
 
@@ -263,13 +304,30 @@ export class PracticeSystem extends createSystem({
   }
 
   update(delta: number): void {
+    // The emulator comes up standing (eyes at 1.6 m, hands at chest height) with controllers;
+    // this bar is worked seated, with the hands alone.
+    if (!this.handsChosen) {
+      const emu = emulatedDevice();
+      if (emu) {
+        this.handsChosen = true;
+        if (emu.primaryInputMode !== 'hand') emu.primaryInputMode = 'hand';
+        // Seated: eyes at the seated height, looking down at the board; both hands resting just over it.
+        emu.position.set(0, SEATED_EYE_HEIGHT, 0);
+        this.euler.set((LOOK_PITCH_DEG * Math.PI) / 180, 0, 0, 'YXZ');
+        this.q.setFromEuler(this.euler);
+        emu.quaternion.set(this.q.x, this.q.y, this.q.z, this.q.w);
+        emu.hands.left.position.set(-EMU_HAND_X, EMU_HAND_Y, EMU_HAND_Z);
+        emu.hands.right.position.set(EMU_HAND_X, EMU_HAND_Y, EMU_HAND_Z);
+        console.log('[Practice] the emulator is set to hands, seated at the bar');
+      }
+    }
     if (!this.on || !this.device) return;
     const device = this.device;
     // The emulator's own tools hand control back when they finish; keep it.
     if (device.controlMode !== 'programmatic') device.controlMode = 'programmatic';
 
-    // Head: seated, looking where the mouse says, or far left while T is held.
-    const want = this.turnHeld ? TURN_LOOK_DEG : this.lookYaw;
+    // Head: seated, looking where the mouse says.
+    const want = this.lookYaw;
     const step = HEAD_TURN_RATE_DEG * delta;
     this.headYaw += Math.max(-step, Math.min(step, want - this.headYaw));
     this.euler.set((this.lookPitch * Math.PI) / 180, (this.headYaw * Math.PI) / 180, 0, 'YXZ');
@@ -277,6 +335,8 @@ export class PracticeSystem extends createSystem({
     device.position.set(0, SEATED_EYE_HEIGHT, 0);
     device.quaternion.set(this.q.x, this.q.y, this.q.z, this.q.w);
 
+    this.clock += delta;
+    this.updateShake(delta, device);
     for (const d of this.driver) this.updateHand(d, delta, d.side === 0 ? device.hands.left : device.hands.right);
     this.trackHeading();
     this.drawPanel();
@@ -291,9 +351,23 @@ export class PracticeSystem extends createSystem({
       return;
     }
     if (!this.on) return;
+    if (e.code === 'Backquote') {
+      if (down && !e.repeat) {
+        this.shaky = !this.shaky;
+        // Shift+` starts from another seed, for another run of losses.
+        this.random = seededRandom(e.shiftKey ? 1 + Math.floor(performance.now()) : 1);
+        for (const s of this.shake) s.losses = 0;
+        this.status = this.shaky ? 'Shaky hands on: wobble and short losses' : 'Shaky hands off';
+        console.log(`[Practice] shaky hands ${this.shaky ? 'on' : 'off'}`);
+      }
+      return;
+    }
     if (e.code === 'KeyT') {
-      this.turnHeld = down;
-      if (down && !e.repeat) this.status = 'Looking far left: hold to turn around';
+      // The headset turns round on the stool; the keyboard blinks and turns the bar half round.
+      if (down && !e.repeat) {
+        this.world.getSystem(TurnSystem)?.turnAround();
+        this.status = 'Turning around';
+      }
       return;
     }
     if (e.code === 'KeyL') {
@@ -327,6 +401,11 @@ export class PracticeSystem extends createSystem({
       Equal: () => this.callFishShop(),
       BracketLeft: () => this.boardStep(),
       BracketRight: () => this.hangNoren(),
+      Semicolon: () => this.askStaff('cook'),
+      Quote: () => this.askStaff('partTimer'),
+      Backslash: () => this.check(),
+      Comma: () => (e.shiftKey ? this.askTea() : this.pourTea()),
+      Period: () => this.serveTea(),
     };
     const caseKey = caseKeys[e.code];
     if (caseKey) {
@@ -375,7 +454,14 @@ export class PracticeSystem extends createSystem({
     this.on = on;
     this.panel.visible = on;
     this.dragging = false;
-    this.turnHeld = false;
+    if (!on && device) {
+      // Off: no shaking, and any hand lost by it is back.
+      this.shaky = false;
+      this.shake.forEach((s, side) => {
+        if (s.lostUntil > 0) (side === 0 ? device.hands.left : device.hands.right).connected = true;
+        s.lostUntil = 0;
+      });
+    }
     if (on) {
       this.device = device;
       device!.controlMode = 'programmatic';
@@ -897,25 +983,9 @@ export class PracticeSystem extends createSystem({
     ]);
   }
 
-  /** = : the handset lifted to call the fish shop (turn around first), then put back. */
+  /** = : point at the telephone in the office corner (the aisle's right end) and pinch: the fish shop is called. */
   private callFishShop(): void {
-    const side = chef.riceSide;
-    if (!this.ready(side, Held.None)) return;
-    const at = this.reachable(StationKind.Phone);
-    if (!at) return;
-    this.run(side, 'Calling the fish shop', [
-      move(at, v(0, 0.08, -0.02), 'grasp', 0.35),
-      move(at, v(0, 0, 0), 'grasp', 0.15),
-      wait(0.25),
-      pinch(1),
-      wait(0.12),
-      move(at, v(0, 0.14, -0.05), 'grasp', 0.3),
-      wait(1.5),
-      move(at, v(0, 0.02, 0), 'grasp', 0.3),
-      pinch(0),
-      wait(0.1),
-      this.rest(side),
-    ]);
+    this.pointAt(staff.phoneAt, 'Pointing at the phone');
   }
 
   /** [ : the board — lift it, wash it at the sink, stand it to drain, lift it again, put it back. T turns around between. */
@@ -964,13 +1034,71 @@ export class PracticeSystem extends createSystem({
 
   /** ] : point at the noren at the entrance and pinch: hung out, the bar opens. */
   private hangNoren(): void {
-    const side = chef.netaSide;
+    this.pointAt(prep.norenAt, 'Pointing at the noren');
+  }
+
+  /** ; and ': point at the cook's or the part-timer's button (office wall, over the food shelf) and pinch to call them in, or let them off. */
+  private askStaff(who: 'cook' | 'partTimer'): void {
+    this.pointAt(who === 'cook' ? staff.cookButtonAt : staff.partTimerButtonAt, `Pointing at the ${who === 'cook' ? 'cook' : 'part-timer'}'s button`);
+  }
+
+  /** Backslash: the customer says "Check, please": point at them and pinch. */
+  private check(): void {
+    if (!service.check) return this.say('Nobody is asking for the check');
+    this.pointAt(service.customerAt, 'Pointing at the customer: the check');
+  }
+
+  /** Shift+, (practice only): the seated customer asks for tea now. */
+  private askTea(): void {
+    if (!service.order || tea.wanted) return this.say(tea.wanted ? 'Tea is already asked for' : 'No customer waiting');
+    tea.wanted = true;
+    this.say('The customer asks for tea (practice)');
+  }
+
+  /** , : tea asked for, nobody else to make it: point at the urn under the phone and pinch. */
+  private pourTea(): void {
+    if (!tea.wanted) return this.say('Nobody has asked for tea');
+    if (staff.partTimer) return this.say('The part-timer brings the tea');
+    if (tea.cup !== 'none') return this.say('The tea is made: carry it (.)');
+    this.pointAt(tea.urnAt, 'Pointing at the urn');
+  }
+
+  /** . : the cup at hand, right of the board, over the case and down onto the tsukedai before the customer. */
+  private serveTea(): void {
+    if (tea.cup !== 'atHand') return this.say(tea.cup === 'pouring' ? 'Pouring: wait a moment' : 'No cup at hand (, to pour one)');
+    const side: 0 | 1 = 1;
     if (!this.ready(side, Held.None)) return;
-    // Out from the shoulder toward the noren, index finger pointing.
-    const shoulder = this.player.localToWorld(v(-SHOULDER_X, 1.02, 0.06));
-    const toward = prep.norenAt.clone().sub(shoulder).setY(0).normalize().multiplyScalar(0.42).add(shoulder);
+    const cup = tea.cupAt.clone();
+    const to = tea.serveAt.clone();
+    this.run(side, 'Tea onto the tsukedai', [
+      move(cup, v(0, 0.16, 0.03), 'grasp', 0.35),
+      move(cup, v(0, 0.06, 0), 'grasp', 0.2),
+      wait(0.2),
+      pinch(1),
+      wait(0.12),
+      move(cup, v(0, 0.22, 0), 'grasp', 0.25),
+      move(to, v(0, 0.4, 0.05), 'grasp', 0.45),
+      move(to, v(0, 0.08, 0), 'grasp', 0.3),
+      pinch(0),
+      wait(0.1),
+      move(to, v(0, 0.35, 0.05), 'grasp', 0.25),
+      this.rest(side),
+    ]);
+  }
+
+  /** Out from the shoulder toward something far, index finger pointing, then a pinch: the hand on that side. */
+  private pointAt(target: Vector3, label: string): void {
+    const right = this.player.worldToLocal(target.clone()).x > 0;
+    const side: 0 | 1 = right ? 1 : 0;
+    if (!this.ready(side, Held.None)) return;
+    const shoulder = this.player.localToWorld(v(right ? SHOULDER_X : -SHOULDER_X, 1.02, 0.06));
+    // The arm well out (a near target, the customer, still has the fingertip clear of the head).
+    const toward = target.clone().sub(shoulder).setY(0).normalize().multiplyScalar(0.55).add(shoulder);
     toward.y = 1.08;
-    this.run(side, 'Pointing at the noren', [move(toward, v(0, 0, 0), 'grasp', 0.4), pose('point'), wait(0.5), pinch(1), wait(0.15), pinch(0), pose('default'), wait(0.1), this.rest(side)]);
+    // The fingers turned toward it from where the hand is (0 = forward, + = left, in the chef's frame).
+    const local = this.player.worldToLocal(target.clone()).sub(this.player.worldToLocal(toward.clone()));
+    const yaw = (Math.atan2(-local.x, -local.z) * 180) / Math.PI;
+    this.run(side, label, [move(toward, v(0, 0, 0), 'grasp', 0.4, { yaw }), pose('point'), wait(0.5), pinch(1), wait(0.15), pinch(0), pose('default'), wait(0.1), this.rest(side)]);
   }
 
   /** X on a roll: the neta hand steadies the roll, the blade is drawn across the next guide line. */
@@ -1051,7 +1179,7 @@ export class PracticeSystem extends createSystem({
   /** L down: the rice hand reaches into the tub and stays there. */
   private riceDown(): void {
     const side = chef.riceSide;
-    if (chef.facingBack) return this.say('Turn back to the bar first (hold T)');
+    if (chef.facingBack) return this.say('Turn back to the bar first (T)');
     if (!this.ready(side, Held.None)) return;
     this.run(side, 'In the rice tub: let go of L on the beat', [
       move(TUB_WAY, ZERO, 'palm', 0.2),
@@ -1311,7 +1439,7 @@ export class PracticeSystem extends createSystem({
     this.a.copy(point);
     this.player.worldToLocal(this.a);
     if (this.a.z > 0.1) {
-      this.say('Out of reach: turn around first (hold T)');
+      this.say('Out of reach: turn around first (T)');
       return false;
     }
     return true;
@@ -1430,7 +1558,9 @@ export class PracticeSystem extends createSystem({
       const sx = d.side === 0 ? -SHOULDER_X : SHOULDER_X;
       d.yawDeg = (Math.max(-1.4, Math.min(1.4, Math.atan2(-(d.point.x - sx), -(d.point.z - 0.06)))) * 180) / Math.PI;
     }
-    const yaw = (d.yawDeg * Math.PI) / 180;
+    let yaw = (d.yawDeg * Math.PI) / 180;
+    const shake = this.shake[d.side];
+    if (this.shaky) yaw += SHAKE_YAW * Math.sin(0.9 * this.clock + shake.phase[3]);
     this.euler.set(FINGER_PITCH, yaw, 0, 'YXZ');
     this.q.setFromEuler(this.euler);
 
@@ -1444,7 +1574,16 @@ export class PracticeSystem extends createSystem({
     } else {
       this.b.copy(DEFAULT_OFFSET[d.anchor]).applyQuaternion(this.q);
     }
-    this.wrist.copy(d.point).sub(this.b);
+    // Shaky hands: the tracked point wobbles about where the hand means to be.
+    this.noisy.copy(d.point);
+    if (this.shaky) {
+      const t = this.clock;
+      const p = shake.phase;
+      this.noisy.x += SHAKE_WOBBLE * Math.sin(1.3 * t + p[0]) + SHAKE_JITTER * (this.random() * 2 - 1);
+      this.noisy.y += SHAKE_WOBBLE * Math.sin(1.7 * t + p[1]) + SHAKE_JITTER * (this.random() * 2 - 1);
+      this.noisy.z += SHAKE_WOBBLE * Math.sin(1.1 * t + p[2]) + SHAKE_JITTER * (this.random() * 2 - 1);
+    }
+    this.wrist.copy(this.noisy).sub(this.b);
 
     const moved = Number.isNaN(d.sentWrist.x) || d.sentWrist.distanceToSquared(this.wrist) > 1e-6;
     if (moved || Math.abs(yaw - d.sentYaw) > 0.005) {
@@ -1459,6 +1598,29 @@ export class PracticeSystem extends createSystem({
       hand.setPin({ anchor: 'wrist', target: this.pinArray, wristRotation: this.rotArray });
       d.sentWrist.copy(this.wrist);
       d.sentYaw = yaw;
+    }
+  }
+
+  /** Shaky hands: now and then the emulator loses a hand for a moment (more often with the hands together). */
+  private updateShake(delta: number, device: EmuDevice): void {
+    const left = hands.left;
+    const right = hands.right;
+    const together = !!left?.tracked && !!right?.tracked && left.palm.distanceTo(right.palm) < TOGETHER_DISTANCE;
+    for (const side of [0, 1] as const) {
+      const s = this.shake[side];
+      const hand = side === 0 ? device.hands.left : device.hands.right;
+      if (s.lostUntil > 0) {
+        if (this.shaky && this.clock < s.lostUntil) continue;
+        hand.connected = true;
+        s.lostUntil = 0;
+        continue;
+      }
+      if (!this.shaky || this.random() >= (together ? LOSS_PER_SECOND_TOGETHER : LOSS_PER_SECOND) * delta) continue;
+      const seconds = LOSS_MIN_SECONDS + (LOSS_MAX_SECONDS - LOSS_MIN_SECONDS) * this.random();
+      s.lostUntil = this.clock + seconds;
+      s.losses++;
+      hand.connected = false;
+      console.log(`[Practice] shaky: the ${side === 0 ? 'left' : 'right'} hand is lost for ${seconds.toFixed(2)} s${together ? ' (hands together)' : ''}`);
     }
   }
 
@@ -1501,10 +1663,10 @@ export class PracticeSystem extends createSystem({
   private buildPanel(): void {
     this.canvas = document.createElement('canvas');
     this.canvas.width = 720;
-    this.canvas.height = 584;
+    this.canvas.height = 672;
     this.texture = new CanvasTexture(this.canvas);
     this.panel = new Mesh(
-      new PlaneGeometry(0.27, 0.219),
+      new PlaneGeometry(0.27, 0.252),
       new MeshBasicMaterial({ map: this.texture, transparent: true, depthTest: false, depthWrite: false }),
     );
     this.panel.name = 'PracticePanel';
@@ -1518,7 +1680,9 @@ export class PracticeSystem extends createSystem({
     const left = chef.hands[0].holding;
     const right = chef.hands[1].holding;
     const heading = progress.stage === NigiriStage.Carried ? `   Heading ${this.heading}` : '';
-    const key = `${this.status}|${left}|${right}|${chef.open}|${progress.stage}|${heading}`;
+    const lost = this.shake[0].losses + this.shake[1].losses;
+    const shaky = this.shaky ? `   Shaky (lost ${lost})` : '';
+    const key = `${this.status}|${left}|${right}|${chef.open}|${progress.stage}|${heading}|${shaky}`;
     if (key === this.drawn) return;
     this.drawn = key;
     const ctx = this.canvas.getContext('2d')!;
@@ -1530,7 +1694,7 @@ export class PracticeSystem extends createSystem({
     ctx.fillText('PRACTICE  (P: exit)', 20, 42);
     ctx.font = 'bold 24px sans-serif';
     const lines = [
-      'Drag: look     T (hold): turn around',
+      'Drag: look     T: turn around     ` shaky hands (test)',
       '1 soap  2 wash  3 towel  C cloth  V wipe  B rinse',
       '4 take the order  5 selected  6 next  7 order it  8 restock  R back',
       'K knife   X cut   W wipe the blade',
@@ -1538,8 +1702,10 @@ export class PracticeSystem extends createSystem({
       'Y wasabi   H hands   Z nori   U spread   I roll',
       'Space touch on the beat   F flip   G half turn',
       'M carry / let go   Q E turn 45   S serve',
-      'Prep: = phone  9 carry  0 pull off  X cut  - paper  [ board  ] noren',
-      `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}`,
+      'Prep: 9 carry  0 pull off  X cut  - paper  [ board  ] noren',
+      "= phone  ; cook  ' part-timer (office buttons)  ] noren in: close",
+      '\\ the check   , tea urn (Shift: ask for tea)   . tea to the tsukedai',
+      `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}${shaky}`,
     ];
     lines.forEach((line, i) => ctx.fillText(line, 20, 90 + i * 44));
     ctx.fillStyle = '#8fd3ff';

@@ -1,21 +1,29 @@
 import { createSystem, type Object3D, type Sprite, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, feedback } from './feedback.js';
-import { chef, prep, type Side } from './game-state.js';
-import { hands } from './hands.js';
+import { prep, staff } from './game-state.js';
 import { stations } from './station-system.js';
-import { Held, StationKind } from './sushi-components.js';
+import { StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import { DELIVERY_SECONDS, DIFFICULTY } from './tuning.js';
 
-/** The handset counts as lifted this far above its cradle, and the call goes through after this long. */
-const LIFTED = 0.05;
+/** The handset rises this far off its cradle, the call goes through after this long, and it goes back down after this. */
+const LIFT = 0.07;
 const RING_SECONDS = 1.0;
+const HANG_UP_SECONDS = 3.0;
 const SPEECH_SECONDS = 4;
 
+/** How the office corner (src/office-system.ts) picks up the phone when it is pointed at. */
+export const phoneApi = {
+  /** True while a call can be made (the morning, before the order). */
+  ready: (): boolean => false,
+  call: (): void => undefined,
+};
+
 /**
- * The telephone on the sink's left end, and the fish shop. Lift the handset
- * (pinch it and raise it) to call; on the easy difficulty the shop brings
+ * The telephone in the office corner, and the fish shop. It is out of reach
+ * from the seat: point at it and pinch (src/office-system.ts), and the
+ * handset comes up off its cradle; on the easy difficulty the shop brings
  * what is missing on its own ("omakase"). A while later the delivery, the
  * styrofoam ice box of wrapped fish, is on the counter (src/prep-cut-system.ts).
  * Ordering by checking the case stock is the full difficulty's (later).
@@ -23,8 +31,8 @@ const SPEECH_SECONDS = 4;
 export class PhoneSystem extends createSystem({}) {
   private handset: Object3D | null = null;
   private readonly home = new Vector3();
-  private held: Side | null = null;
-  private ringing = 0;
+  /** Seconds since the handset was picked up, or -1 while it rests. */
+  private lifted = -1;
   private deliverIn = 0;
   private speech!: Sprite;
   private speechTime = 0;
@@ -35,6 +43,10 @@ export class PhoneSystem extends createSystem({}) {
     this.speech.name = 'PhoneSpeech';
     this.speech.visible = false;
     this.world.createTransformEntity(this.speech);
+    phoneApi.ready = () => !!this.handset && this.lifted < 0 && prep.active && !prep.ordered;
+    phoneApi.call = () => {
+      if (phoneApi.ready()) this.lifted = 0;
+    };
   }
 
   update(delta: number): void {
@@ -50,28 +62,18 @@ export class PhoneSystem extends createSystem({}) {
       this.home.copy(this.handset.position);
     }
     const handset = this.handset;
-    const parent = phone.entity.object3D!;
-    if (this.held === null) {
-      for (const side of [chef.netaSide, chef.riceSide] as Side[]) {
-        const hand = hands.all[side];
-        if (!hand.tracked || !hand.pinchStart || chef.hands[side].holding !== Held.None) continue;
-        handset.getWorldPosition(this.tmp);
-        if (hand.grasp.distanceTo(this.tmp) > 0.11) continue;
-        this.held = side;
-        chef.hands[side].holding = Held.Phone;
-        this.ringing = 0;
-        break;
-      }
-    }
-    if (this.held !== null) {
-      const hand = hands.all[this.held];
-      if (hand.tracked) parent.worldToLocal(handset.position.copy(hand.grasp));
-      if (handset.position.y - this.home.y > LIFTED) this.ringing += delta;
-      if (this.ringing >= RING_SECONDS && prep.active && !prep.ordered) this.order();
-      if (!hand.tracked || hand.pinchEnd) {
-        chef.hands[this.held].holding = Held.None;
-        this.held = null;
+    handset.getWorldPosition(staff.phoneAt);
+    if (this.lifted >= 0) {
+      // Up off the cradle and tilted, as held to the ear; then back down.
+      this.lifted += delta;
+      const up = Math.min(1, this.lifted / 0.3, Math.max(0, (HANG_UP_SECONDS - this.lifted) / 0.3));
+      handset.position.copy(this.home).add(this.tmp.set(0, LIFT * up, -0.02 * up));
+      handset.rotation.x = 0.5 * up;
+      if (this.lifted >= RING_SECONDS && prep.active && !prep.ordered) this.order();
+      if (this.lifted >= HANG_UP_SECONDS) {
+        this.lifted = -1;
         handset.position.copy(this.home);
+        handset.rotation.x = 0;
       }
     }
     if (prep.ordered && !prep.delivered) {
