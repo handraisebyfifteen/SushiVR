@@ -6,7 +6,7 @@ import { type BurnerView, chef, prep, range, type Side } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { MANAITA_TOP, MANAITA_Z, NET_HOOK_Y, NET_HOOK_Z, RANGE_HEIGHT, ROOM_END_X, SINK_UNIT_Z, STOVE_X, WALL_THICKNESS } from './layout.js';
 import { NETA, type NetaId } from './menu.js';
-import { prepApi, rangeApi } from './prep-api.js';
+import { prepApi, rangeApi, tamagoApi } from './prep-api.js';
 import type { PrepId } from './prep.js';
 import {
   BELLY_FACES,
@@ -156,8 +156,10 @@ export class RangeSystem extends createSystem({
     this.cleanupFuncs.push(this.queries.items.subscribe('qualify', (e) => this.caseItems.set(e.getValue(CaseItem, 'neta') as NetaId, e)));
     for (const e of this.queries.items.entities) this.caseItems.set(e.getValue(CaseItem, 'neta') as NetaId, e);
     this.active = prep.active && PREP_STAGE >= 3;
-    rangeApi.putIn = (id, root, at) => this.putIn(id, root, at);
+    // The tamago's batter goes into its pan (src/tamago-system.ts), not a pot.
+    rangeApi.putIn = (id, root, at) => (id === 'Tamago' ? tamagoApi.pour(root, at) : this.putIn(id, root, at));
     rangeApi.potAt = (id, out) => {
+      if (id === 'Tamago') return tamagoApi.panAt(out);
       const b = this.burners.find((x) => x.id === id);
       if (!b) return false;
       out.copy(b.centre);
@@ -199,7 +201,7 @@ export class RangeSystem extends createSystem({
     this.world.createTransformEntity(label);
     const centre = new Vector3(STOVE_X + bx, GRATE_Y + POT_SPECS[id].depth, SINK_UNIT_Z + bz);
     const knobAt = new Vector3(STOVE_X + knob, KNOB_Y, KNOB_Z);
-    const view: BurnerView = { id, level: 0, temp: POT_START_TEMP, liquid: 1, state: 'empty', net: false, want: '', target: 0, at: centre.clone(), knobAt: knobAt.clone() };
+    const view: BurnerView = { id, level: 0, temp: POT_START_TEMP, liquid: 1, state: 'empty', net: false, pan: false, want: '', target: 0, at: centre.clone(), knobAt: knobAt.clone() };
     return {
       id, pot, flame, mark, label, labelText: '',
       liquidMesh: pot.getObjectByName('Liquid') as Mesh,
@@ -433,7 +435,7 @@ export class RangeSystem extends createSystem({
       playPress();
     }
     coach.done('turnKnob');
-    console.log(`[Range] ${k.b.view.net ? 'the net' : this.possessive(k.b)} flame: ${LEVEL_NAME[k.b.level]}`);
+    console.log(`[Range] ${k.b.view.net ? 'the net' : k.b.view.pan ? 'the tamago' : this.possessive(k.b)} flame: ${LEVEL_NAME[k.b.level]}`);
   }
 
   private possessive(b: Burner): string {
@@ -553,7 +555,7 @@ export class RangeSystem extends createSystem({
 
   private releaseNet(at: Vector3): void {
     for (const [i, b] of this.burners.entries()) {
-      if (b.state !== 'out' || Math.hypot(at.x - b.centre.x, at.z - b.centre.z) > 0.13 || at.y > GRATE_Y + 0.35) continue;
+      if (b.state !== 'out' || b.view.pan || Math.hypot(at.x - b.centre.x, at.z - b.centre.z) > 0.13 || at.y > GRATE_Y + 0.35) continue;
       this.net.position.set(b.centre.x, GRATE_Y + 0.002, b.centre.z);
       b.view.net = true;
       range.netOn = i;
@@ -779,6 +781,7 @@ export class RangeSystem extends createSystem({
       let want: BurnerView['want'] = '';
       if (b.state === 'cooking') target = b.id === 'SeaEel' ? (b.temp < EEL_BAND[0] - 1 ? 3 : 1) : 3;
       if (b.state === 'out' && range.netOn === i && range.belly === 'net' && !range.bellySeared) target = 3;
+      if (b.state === 'out' && range.panOn === i) target = range.panTarget;
       if (b.level !== target) want = 'knob';
       else if (b.state === 'empty') want = 'put';
       else if (b.state === 'done') want = 'take';

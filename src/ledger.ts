@@ -28,6 +28,10 @@ export const ledger = {
   paid: 0,
   /** What went out: the fish shop, then wages, one line per kind of job. */
   costs: [] as CostLine[],
+  /** The pieces served today by grade (Excellent, Good, Poor, Bad). */
+  grades: {} as Record<string, number>,
+  /** Bumped on each grade (the books redraw). */
+  graded: 0,
 
   /** A customer pays for one piece (or roll) of `item`; returns the yen. */
   sale(item: MenuId): number {
@@ -37,6 +41,12 @@ export const ledger = {
     return yen;
   },
 
+  /** A piece served, and how well it was made. */
+  grade(grade: string): void {
+    this.grades[grade] = (this.grades[grade] ?? 0) + 1;
+    this.graded++;
+  },
+
   /** The fish shop's bill for one delivered material (one line for the whole delivery). */
   fishShop(yen: number): void {
     this.add('Fish shop', yen, 0);
@@ -44,7 +54,7 @@ export const ledger = {
 
   /** Wages for a job done by someone else, by the hour. */
   wage(who: Worker, job: string, minutes: number): void {
-    this.add(`${WHO[who]}: ${job}`, Math.round((WAGE[who] * minutes) / 60), minutes);
+    this.add(`${WHO[who]}: ${job}`, wageYen(who, minutes), minutes);
   },
 
   add(label: string, yen: number, minutes: number): void {
@@ -65,6 +75,11 @@ export const ledger = {
     return this.sales - this.costTotal();
   },
 };
+
+/** What a job of so many shop minutes costs in wages. */
+export function wageYen(who: Worker, minutes: number): number {
+  return Math.round((WAGE[who] * minutes) / 60);
+}
 
 /** ¥1,234 (or -¥1,234). */
 export function yen(n: number): string {

@@ -296,6 +296,7 @@ export class CustomerSystem extends createSystem({}) {
     e.setValue(Customer, 'state', CustomerState.Reaching);
     // The other half of a bonito pair comes next, as the same order.
     this.pairNext = pairRest(this.order.item, item);
+    ledger.grade(score.grade);
     // How the piece was made decides how many more they order.
     const counted = done + (this.pairNext ? 0 : 1);
     let next = orders;

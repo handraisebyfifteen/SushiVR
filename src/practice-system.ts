@@ -8,7 +8,7 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { type BurnerView, chef, cure, orderKind, orderNeta, type Place, prep, progress, range, service, shari, staff, tea } from './game-state.js';
+import { type BurnerView, chef, cure, orderKind, orderNeta, type Place, prep, progress, range, service, shari, staff, tamago, tea } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { hands } from './hands.js';
 import { SEATED_EYE_HEIGHT, SINK_TOP } from './layout.js';
@@ -17,11 +17,12 @@ import { placeApi } from './place-system.js';
 import { KNOB_HOLD, KNOB_STEP } from './range-system.js';
 import { CASE_ORDER, MENU, type MenuId, menuFor, NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
-import { fishOrder, fromGreengrocer, orderOf, resetShop, sizesOf } from './fish-order.js';
+import { fishOrder, fromGreengrocer, orderOf, orderRoom, priceOf, resetShop, sizesOf } from './fish-order.js';
 import { type Kind, stations } from './station-system.js';
 import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
-import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, SHARI_SCOOPS, VINEGAR_POUR_SECONDS } from './tuning.js';
+import { ledger, yen } from './ledger.js';
+import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, SHARI_SCOOPS } from './tuning.js';
 
 /**
  * Practice mode (development only): play the bar from the keyboard in the
@@ -143,6 +144,10 @@ const REST: [Vector3, Vector3] = [v(-0.15, 0.98, -0.2), v(0.15, 0.98, -0.2)];
 const WORK = v(-0.06, 1.0, -0.27);
 /** Where the rice hand holds the knife between cuts (palm, chef's frame). */
 const KNIFE_READY = v(0.22, 0.93, -0.18);
+/** A carried piece is let go here, from the geta's surface: above the case's glass, over its far half (inside the geta's zone, short of the geta itself). */
+const GETA_LET_GO = v(0, 0.32, 0.11);
+/** Shift+9: the shop's money (full) set this low, to try the order and staff limits. */
+const PRACTICE_LOW_FUNDS = 10_000;
 /** The rice tub, low on the right (world, facing the bar): down in it, and back up out of it. */
 const TUB_DOWN = v(0.4, 0.55, 0.02);
 const TUB_WAY = v(0.36, 0.8, -0.06);
@@ -406,7 +411,14 @@ export class PracticeSystem extends createSystem({
         caseApi.restockAll();
         this.say('Case restocked');
       },
-      Digit9: () => this.prepCarry(),
+      Digit9: () => {
+        if (e.shiftKey) {
+          // The full difficulty's money runs low, at once: for trying the no-borrowing limits.
+          fishOrder.morningFunds = PRACTICE_LOW_FUNDS - ledger.profit();
+          return this.say(`Full: the shop's money is ${yen(PRACTICE_LOW_FUNDS)}`);
+        }
+        this.prepCarry();
+      },
       Digit0: () => this.pullPrep(),
       Minus: () => this.paperWipe(),
       Equal: () => (e.shiftKey ? this.pointAt(fishOrder.signAt, 'Pointing at the sign (easy or full)') : this.callFishShop()),
@@ -958,15 +970,16 @@ export class PracticeSystem extends createSystem({
     const side = this.sideOf(cure.bowlAt);
     if (!this.ready(side, Held.None)) return;
     const bowl = cure.bowlAt.clone();
-    const tray = cure.trayAt.clone();
-    this.run(side, 'A pinch of salt, over the tray', [
+    // Over the bare part of the salt (where a pinch whitens the most).
+    const tray = cure.saltAt.clone();
+    this.run(side, 'A pinch of salt, over the bare part', [
       pinch(0),
       move(bowl, v(0, 0.06, 0), 'grasp', 0.3),
       move(bowl, v(0, 0.005, 0), 'grasp', 0.2),
       wait(0.2),
       pinch(1),
       wait(0.12),
-      move(tray, v(0, 0.12, 0), 'grasp', 0.35),
+      move(tray, v(0, 0.1, 0), 'grasp', 0.35),
       wait(0.1),
       pinch(0),
       wait(0.1),
@@ -998,27 +1011,13 @@ export class PracticeSystem extends createSystem({
     ]);
   }
 
-  /** Tab: the bottle by its neck, tipped over the tray till it is poured, and back. */
+  /** Tab: the fish on to their next place (the bowl of water, the clean basket, the vinegar): lifted where they are, let go there. */
   private vinegarCure(): void {
     if (!this.reachPlace('drain', 'back')) return;
-    const side = this.sideOf(cure.bottleAt);
+    const side = chef.netaSide;
+    if (cure.fishHeld) return this.dropAt(side, cure.dropAt.clone(), 'Let go there');
     if (!this.ready(side, Held.None)) return;
-    const neck = cure.bottleAt.clone();
-    const over = cure.trayAt.clone().add(v(0, neck.y - cure.trayAt.y + 0.06, 0));
-    this.run(side, 'Vinegar over them', [
-      pinch(0),
-      move(neck, v(0, 0.05, 0.03), 'grasp', 0.3),
-      move(neck, v(0, 0, 0), 'grasp', 0.2),
-      wait(0.2),
-      pinch(1),
-      wait(0.12),
-      move(over, v(0, 0, 0), 'grasp', 0.5),
-      wait(VINEGAR_POUR_SECONDS + 0.5),
-      move(neck, v(0, 0.01, 0), 'grasp', 0.5),
-      pinch(0),
-      wait(0.1),
-      this.rest(side),
-    ]);
+    this.pickHold(side, cure.fishAt.clone(), 'The fish, on');
   }
 
   /** Tab: out of the vinegar (a pinch over them), then over the case, facing the bar. */
@@ -1031,7 +1030,7 @@ export class PracticeSystem extends createSystem({
     }
     if (!this.reachPlace('drain', 'back')) return;
     if (!this.ready(side, Held.None)) return;
-    this.pickHold(side, cure.trayAt.clone(), 'Out of the vinegar');
+    this.pickHold(side, cure.fishAt.clone(), 'Out of the vinegar');
   }
 
   /** 0 in the morning prep: the neta hand holds the fish, the rice hand pulls off the wrapping, the legs or the skin. */
@@ -1067,24 +1066,27 @@ export class PracticeSystem extends createSystem({
     const g = prep.guideAt.clone();
     this.run(neta, 'Hand on the fish', [move(material, v(-0.07, 0.04, -0.03), 'palm', 0.3), wait(1.35), this.rest(neta)]);
     if (prep.guideAcross) {
-      // Fingers to the left, the blade 15 cm ahead of the palm: drawn across from right to left (flat along the board for a shave).
-      const ya = prep.guideLow ? 0.004 : 0.05;
+      // Fingers to the left, the blade 15 cm ahead of the palm. A cut: the blade on its edge, drawn from the right down
+      // to the lower left (the owner: the stroke of a sword or a bat). A shave (skin, backbone): flat along the board, right to left.
+      const low = prep.guideLow;
+      const [y0, y1] = low ? [0.004, 0.004] : [0.095, 0.045];
       this.run(rice, prep.say || 'Cutting across', [
         wait(0.3),
-        move(g, v(0.24, 0.18, 0), 'palm', 0.3, { yaw: 90 }),
-        move(g, v(0.24, ya, 0), 'palm', 0.15),
-        move(g, v(0.08, ya, 0), 'palm', 0.5),
-        move(g, v(0.08, 0.18, 0), 'palm', 0.15),
+        move(g, v(0.25, 0.2, 0), 'palm', 0.3, { yaw: 90 }),
+        move(g, v(0.24, y0, 0), 'palm', 0.15),
+        move(g, v(0.06, y1, 0), 'palm', 0.5),
+        move(g, v(0.06, 0.18, 0), 'palm', 0.15),
         moveLocal(KNIFE_READY, 'palm', 0.3, { yaw: 0 }),
       ]);
       return;
     }
-    const y = prep.guideLow ? 0.004 : 0.05;
+    // Along the line: drawn toward the chef, going down into the cut as it comes.
+    const [y0, y1] = prep.guideLow ? [0.004, 0.004] : [0.09, 0.045];
     this.run(rice, prep.say || 'Cutting along the line', [
       wait(0.3),
-      move(g, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
-      move(g, v(0, y, 0.09), 'palm', 0.15),
-      move(g, v(0, y, 0.23), 'palm', 0.5),
+      move(g, v(0, 0.2, 0.09), 'palm', 0.3, { yaw: 0 }),
+      move(g, v(0, y0, 0.09), 'palm', 0.15),
+      move(g, v(0, y1, 0.23), 'palm', 0.5),
       move(g, v(0, 0.18, 0.23), 'palm', 0.15),
       moveLocal(KNIFE_READY, 'palm', 0.3),
     ]);
@@ -1310,6 +1312,10 @@ export class PracticeSystem extends createSystem({
       case 'scoopShari':
       case 'returnTub':
         return this.shariKey();
+      case 'panOn':
+      case 'turnEgg':
+      case 'eggOut':
+        return this.tamagoKey();
       case 'potIn':
       case 'turnKnob':
       case 'potOut':
@@ -1514,7 +1520,7 @@ export class PracticeSystem extends createSystem({
       return this.turnKnob(knob, free);
     }
     if (net !== null) {
-      const free = range.burners.find((b) => b.state === 'out' && !b.net);
+      const free = range.burners.find((b) => b.state === 'out' && !b.net && !b.pan);
       if (!this.reachPlace('range', 'back', (1 - net) as 0 | 1)) return;
       return free ? this.dropAt(net, free.at.clone().setY(free.at.y - 0.02), 'Net onto the burner') : this.say('No burner free yet');
     }
@@ -1555,6 +1561,41 @@ export class PracticeSystem extends createSystem({
       return this.pickHold(this.sideOf(done.at), done.at.clone(), 'Out of the pot');
     }
     return this.bellyKey();
+  }
+
+  /** The tamago (full): the pan off its hook onto a free burner, turned once by its handle, out into the case. */
+  private tamagoKey(): void {
+    if (!prep.active) return this.say('The bar is open');
+    const side = chef.riceSide;
+    if (tamago.panHeld) {
+      if (!this.reachPlace('range', 'back', (1 - side) as 0 | 1)) return;
+      return this.dropAt(side, tamago.burnerAt.clone().add(v(0, 0.06, 0)), 'The pan onto the burner');
+    }
+    if (tamago.eggHeld) {
+      const held = this.handWith(Held.Saku) ?? side;
+      if (!this.reachPlace('seat', 'front', (1 - held) as 0 | 1)) return;
+      return this.dropAt(held, tamago.caseAt.clone().add(v(0, 0.04, -0.04)), 'Into the case');
+    }
+    if (!this.reachPlace('range', 'back')) return;
+    if (tamago.next === 'pan') return this.pickHold(side, tamago.gripAt.clone(), 'The tamago pan, by its handle', v(0, 0.05, -0.05));
+    if (tamago.next === 'out') return this.pickHold(side, tamago.panAt.clone(), 'Out of the pan');
+    if (tamago.next !== 'turn') return this.say('The tamago bakes');
+    if (!this.ready(side, Held.None)) return;
+    const grip = tamago.gripAt.clone();
+    this.run(side, 'Turning the tamago', [
+      pinch(0),
+      move(grip, v(0, 0.04, -0.03), 'grasp', 0.3),
+      move(grip, v(0, 0, 0), 'grasp', 0.2),
+      wait(0.2),
+      pinch(1),
+      wait(0.15),
+      move(grip, v(0, 0.1, 0), 'grasp', 0.35),
+      wait(1),
+      move(grip, v(0, 0.01, 0), 'grasp', 0.3),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
   }
 
   /** One knob, with this hand: a tap lights it on high or puts it out; kept pinched it turns down a notch at a time (high, medium, low). */
@@ -1664,8 +1705,8 @@ export class PracticeSystem extends createSystem({
 
   /**
    * Tab while the fish shop is on the line (full): each case item under half
-   * is pinched until its order is the full amount; then a point at the
-   * phone ends the call.
+   * is pinched until its order is the full amount (as far as the shop's
+   * money goes); then a point at the phone ends the call.
    */
   private orderFish(): void {
     const want = this.orderWanted();
@@ -1700,7 +1741,12 @@ export class PracticeSystem extends createSystem({
       const neta = entity.getValue(CaseItem, 'neta') as NetaId;
       if ((entity.getValue(CaseItem, 'remaining') ?? 0) * 2 >= NETA[neta].stock || fromGreengrocer(neta)) continue;
       const id = orderOf(neta);
-      if (fishOrder.lines.get(id) === sizesOf(id).length - 1) continue;
+      const sizes = sizesOf(id);
+      const at = fishOrder.lines.get(id);
+      if (at === sizes.length - 1) continue;
+      // No borrowing: a step the shop's money does not cover is left out.
+      const more = priceOf(id, sizes[at === undefined ? 0 : at + 1]) - (at === undefined ? 0 : priceOf(id, sizes[at]));
+      if (more > orderRoom()) continue;
       return neta;
     }
     return null;
@@ -2043,7 +2089,7 @@ export class PracticeSystem extends createSystem({
       this.run(rice, 'On the geta: serve with S', [
         pinch(0),
         wait(0.1),
-        move(geta, v(0, 0.15, 0.08), 'grasp', 0.2),
+        move(geta, v(0, 0.4, 0.16), 'grasp', 0.2),
         this.rest(rice, null),
       ]);
       return;
@@ -2055,8 +2101,9 @@ export class PracticeSystem extends createSystem({
       pinch(1),
       wait(0.12),
       move(at, v(0, 0.12, 0), 'grasp', 0.25),
-      move(geta, v(0, 0.3, 0.1), 'grasp', 0.4),
-      move(geta, v(0, 0.07, 0), 'grasp', 0.3),
+      // In from above, over the case's glass, and held over its far half: as far as a seated chef reaches (GETA_ZONE_* in layout.ts).
+      move(geta, v(0, 0.38, 0.16), 'grasp', 0.4),
+      move(geta, GETA_LET_GO, 'grasp', 0.3),
     ]);
     // The neta hand is free once the piece is lifted off it.
     this.run(chef.netaSide, 'Carrying: Q / E to turn it, M to let go', [wait(0.35), this.rest(chef.netaSide)]);
@@ -2070,7 +2117,7 @@ export class PracticeSystem extends createSystem({
     if (d.busy) return this.say('Rice hand is busy');
     const geta = this.reachable(StationKind.Geta);
     if (!geta) return;
-    this.run(rice, by > 0 ? 'Turned left' : 'Turned right', [move(geta, v(0, 0.07, 0), 'grasp', 0.2, { yawBy: by })]);
+    this.run(rice, by > 0 ? 'Turned left' : 'Turned right', [move(geta, GETA_LET_GO, 'grasp', 0.2, { yawBy: by })]);
   }
 
   /** S: hold a fist over the geta for a moment to serve. */

@@ -23,6 +23,15 @@ export const scrapsApi = {
 /** The trash bin's lid opens when a hand is this close above it. */
 const LID_NEAR = 0.3;
 const LID_OPEN = 1.25;
+/** The nori tin's lid opens back this far when a hand is this close to the tin. */
+const NORI_NEAR = 0.2;
+const NORI_LID_OPEN = 1.9;
+/**
+ * The wasabi is out only while the bar is open; at other times (the prep,
+ * after closing) its little dish is kept turned over on the board (the
+ * owner: 伏せておく).
+ */
+let wasabiCovered: boolean | null = null;
 /** Things that stand on the manaita and sink to the counter while it is away. */
 const ON_BOARD = [StationKind.NoriBox, StationKind.Wasabi, StationKind.Tezu, StationKind.Makisu, StationKind.PaperBox] as const;
 
@@ -41,6 +50,8 @@ const ON_BOARD = [StationKind.NoriBox, StationKind.Wasabi, StationKind.Tezu, Sta
  */
 export class OpeningSystem extends createSystem({}) {
   private lid: Object3D | null = null;
+  private noriLid: Object3D | null = null;
+  private noriAngle = 0;
   private lidAngle = 0;
   private board: Object3D | null = null;
   private readonly boardHome = new Vector3();
@@ -67,6 +78,8 @@ export class OpeningSystem extends createSystem({}) {
   update(delta: number): void {
     this.time += delta;
     this.updateLid(delta);
+    this.updateNoriLid(delta);
+    this.updateWasabi();
     if (!prep.active) {
       if (chef.open) {
         day.openFor += delta;
@@ -93,6 +106,19 @@ export class OpeningSystem extends createSystem({}) {
 
   // ---- the trash bin's lid ---------------------------------------------------------
 
+  /** The wasabi's dish: upright while the bar is open, turned over (the wasabi under it) otherwise. */
+  private updateWasabi(): void {
+    const covered = !chef.open || day.closed;
+    if (covered === wasabiCovered) return;
+    const o = stations.get(StationKind.Wasabi)?.entity.object3D;
+    const dish = o?.getObjectByName('Dish');
+    const mound = o?.getObjectByName('Wasabi');
+    if (!dish || !mound) return;
+    wasabiCovered = covered;
+    dish.rotation.x = covered ? Math.PI : 0;
+    mound.visible = !covered;
+  }
+
   private updateLid(delta: number): void {
     const bin = stations.get(StationKind.TrashBin);
     if (!bin) return;
@@ -109,6 +135,26 @@ export class OpeningSystem extends createSystem({}) {
     const target = near ? LID_OPEN : 0;
     this.lidAngle += (target - this.lidAngle) * Math.min(1, delta * 10);
     this.lid.rotation.z = this.lidAngle;
+  }
+
+  /** The nori tin's lid: raised back while a hand is near the tin, shut again to keep the nori dry. */
+  private updateNoriLid(delta: number): void {
+    const tin = stations.get(StationKind.NoriBox);
+    if (!tin) return;
+    this.noriLid ??= tin.entity.object3D?.getObjectByName('Lid') ?? null;
+    if (!this.noriLid) return;
+    let near = false;
+    for (const hand of hands.all) {
+      if (!hand.tracked) continue;
+      const dx = hand.grasp.x - tin.pos.x;
+      const dz = hand.grasp.z - tin.pos.z;
+      const dy = hand.grasp.y - tin.pos.y;
+      if (dx * dx + dz * dz < NORI_NEAR * NORI_NEAR && dy > -0.03 && dy < 0.3) near = true;
+    }
+    const target = near ? NORI_LID_OPEN : 0;
+    this.noriAngle += (target - this.noriAngle) * Math.min(1, delta * 8);
+    // Hinged at its back edge: its front swings up and over, away from the chef.
+    this.noriLid.rotation.x = -this.noriAngle;
   }
 
   // ---- washing the board -----------------------------------------------------------

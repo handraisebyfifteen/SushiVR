@@ -17,8 +17,8 @@ import { debugLines } from './debug.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { chef, prep, type Side, staff } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
-import { ledger } from './ledger.js';
-import { cureApi, prepApi, rangeApi } from './prep-api.js';
+import { ledger, wageYen, yen } from './ledger.js';
+import { cureApi, prepApi, rangeApi, tamagoApi } from './prep-api.js';
 import { NETA, type NetaId } from './menu.js';
 import { scrapsApi } from './opening-system.js';
 import {
@@ -46,7 +46,7 @@ import {
   WASH_BOARD_Z,
   FISH_STAND_HEIGHT,
 } from './layout.js';
-import { fractionOf, kohadaScale, noteAdded, todaysMaterials, todaysTaskCount } from './fish-order.js';
+import { canAfford, fractionOf, kohadaScale, noteAdded, todaysMaterials, todaysTaskCount } from './fish-order.js';
 import { PREP, type PrepId, prepTasks } from './prep.js';
 import {
   createDeba,
@@ -98,6 +98,8 @@ const SLOT: Partial<Record<PrepId, [number, number, number?]>> = {
   Octopus: [0.075, 0.1, 0.065],
   Abalone: [0.08, 0.1, -0.085],
   Kanpyo: [-0.005, 0.11, -0.09],
+  // The tamago's batter bowl (full) on top of them.
+  Tamago: [0.005, 0.16, 0],
 };
 /** Stage 4's fish box at the sink's foot (across the box, height above the ice): the flounder flat, the jack and the hamachi half on it, the saba and the kohada (full) over them. */
 const FISH_SLOT: Partial<Record<PrepId, [number, number]>> = {
@@ -107,8 +109,8 @@ const FISH_SLOT: Partial<Record<PrepId, [number, number]>> = {
   Saba: [0.01, 0.062],
   Kohada: [0, 0.09],
 };
-/** In the fish box a fish lies along the box (along X), its head toward the sink. */
-const FISH_BOX_YAW = 0;
+/** In the fish box a fish lies along the box (along X) as on the wash board: head on the chef's left facing the sink (away from it), belly toward the chef. */
+const FISH_BOX_YAW = Math.PI;
 /** On the wash board the fish is turned round: head on the chef's left, facing the sink. */
 const WASH_YAW = Math.PI;
 /** The tap's spout, over the wash board's middle (the long faucet reaches the basin's front). */
@@ -484,12 +486,26 @@ export class PrepCutSystem extends createSystem({
   }
 
   /** Root-local point to world (a root turns about Y only). */
+  /** Root-local to world: the root's place, its turn about Y, and its mirror (a whole fish lies head right on the board). */
   private toWorld(m: Material, local: Vector3, out: Vector3): Vector3 {
-    return out.copy(local).applyAxisAngle(this.yAxis, m.root.rotation.y).add(m.root.position);
+    out.copy(local);
+    out.x *= m.root.scale.x;
+    return out.applyAxisAngle(this.yAxis, m.root.rotation.y).add(m.root.position);
   }
 
   private toLocal(m: Material, world: Vector3, out: Vector3): Vector3 {
-    return out.copy(world).sub(m.root.position).applyAxisAngle(this.yAxis, -m.root.rotation.y);
+    out.copy(world).sub(m.root.position).applyAxisAngle(this.yAxis, -m.root.rotation.y);
+    out.x *= m.root.scale.x;
+    return out;
+  }
+
+  /**
+   * A whole fish washed at the sink (its head cut off there, head left) is
+   * filleted on the board head right, belly still toward the chef (the
+   * owner): laid over, its look mirrored left to right.
+   */
+  private headRight(m: Material): boolean {
+    return !!m.look.alongX && m.look.steps.some((s) => !!s.sink);
   }
 
   /** A point over the material's footprint (plus a margin), between its bottom and a little over its top. */
@@ -574,7 +590,7 @@ export class PrepCutSystem extends createSystem({
         chef.hands[side].holding = Held.None;
         t.held = -1;
         t.object.position.copy(t.home);
-        t.object.rotation.set(0, t.homeYaw, 0);
+        t.object.rotation.set(0, t.homeYaw, 0, 'XYZ');
         if (t.kind === 'Deba') coach.done('putDeba');
         else coach.done('putTool');
         console.log(`[Prep] the ${t.kind === 'Deba' ? 'deba' : t.kind.toLowerCase()} back in its place`);
@@ -582,8 +598,9 @@ export class PrepCutSystem extends createSystem({
       }
       const yaw = (hand.yawDeg * Math.PI) / 180;
       if (t.kind === 'Deba') {
+        // On its edge for a cut, laid flat for a shave.
         t.object.position.copy(hand.palm);
-        t.object.rotation.set(0, yaw + Math.PI / 2, 0);
+        t.object.rotation.set(prep.guideLow ? 0 : Math.PI / 2, yaw + Math.PI / 2, 0, 'YXZ');
         this.debaBlade.copy(hand.palm).addScaledVector(hand.fingerDir, DEBA_REACH);
       } else {
         t.object.position.copy(hand.grasp);
@@ -796,8 +813,10 @@ export class PrepCutSystem extends createSystem({
       console.log(`[Prep] the ${PREP[m.id].name.toLowerCase()} is washed at the sink first`);
     } else if (!washing && board && overStation(at, StationKind.CuttingBoard) && !this.boardMaterial() && !prep.boardBusy) {
       const [bx, bz] = m.look.boardAt ?? [0, 0];
-      m.root.position.set(board.pos.x + bx, board.pos.y, board.pos.z + bz);
+      const flip = this.headRight(m);
+      m.root.position.set(board.pos.x + (flip ? -bx : bx), board.pos.y, board.pos.z + bz);
       m.root.rotation.y = 0;
+      m.root.scale.x = flip ? -1 : 1;
       m.baseY = board.pos.y;
       m.state = 'board';
       prep.boardUsed = true;
@@ -811,6 +830,7 @@ export class PrepCutSystem extends createSystem({
 
   /** Let go elsewhere: back in its box, or back on the wash board once it has been laid there. */
   private backHome(m: Material): void {
+    m.root.scale.x = 1;
     if (m.home === 'wash' && !this.washMaterial()) {
       m.root.position.set(SINK_BASIN_X, WASH_BOARD_TOP, WASH_BOARD_Z);
       m.root.rotation.y = WASH_YAW;
@@ -1022,7 +1042,11 @@ export class PrepCutSystem extends createSystem({
   /** A world direction in a part's parent's frame (the root turns; the fish's group rolls over). */
   private inParent(p: Object3D, dir: Vector3, out: Vector3): Vector3 {
     out.copy(dir);
-    if (p.parent) out.applyQuaternion(p.parent.getWorldQuaternion(this.quat).invert());
+    if (!p.parent) return out;
+    out.applyQuaternion(p.parent.getWorldQuaternion(this.quat).invert());
+    // A mirrored fish (head right on the board): its X runs the other way.
+    p.parent.updateWorldMatrix(true, false);
+    if (p.parent.matrixWorld.determinant() < 0) out.x = -out.x;
     return out;
   }
 
@@ -1150,10 +1174,10 @@ export class PrepCutSystem extends createSystem({
 
   /** A step done: its effects, then the next step (or the saku, once all are done). */
   private stepDone(m: Material, s: PrepStep): void {
-    for (const [name, dx, dz] of s.shift ?? []) {
+    for (const [name, dx, dz, dy = 0] of s.shift ?? []) {
       const p = m.parts.get(name);
       // Root-local offsets, in the part's own parent's frame (a part in the fish's group may be rolled over).
-      if (p) p.position.add(p.parent === m.root || !p.parent ? this.tmp.set(dx, 0, dz) : this.tmp.set(dx, 0, dz).applyQuaternion(this.quat.copy(p.parent.quaternion).invert()));
+      if (p) p.position.add(p.parent === m.root || !p.parent ? this.tmp.set(dx, dy, dz) : this.tmp.set(dx, dy, dz).applyQuaternion(this.quat.copy(p.parent.quaternion).invert()));
     }
     if (s.flip && m.look.turnable) {
       const { group, thickness } = m.look.turnable;
@@ -1183,12 +1207,16 @@ export class PrepCutSystem extends createSystem({
     const forCase = m.look.products.filter((p) => p.dest === 'case');
     const lost = forCase.map(() => 0);
     for (let i = 0; loss > 0 && forCase.length; i++, loss--) lost[i % forCase.length]++;
+    const mirrored = m.root.scale.x < 0;
     for (const product of m.look.products) {
       const parts = product.parts.map((n) => m.parts.get(n)!);
+      // Off a mirrored fish, the saku stand on their own (their places and middles in the world), as scraps do.
+      if (mirrored) for (const p of parts) this.toWorldPart(p);
+      const centre = mirrored ? new Box3().setFromObject(parts[0], true).getCenter(new Vector3()).sub(parts[0].position) : m.centres.get(product.parts[0])!.clone();
       const full = this.shareOf(m, product);
       const k = forCase.indexOf(product);
       const l: Loose = {
-        kind: 'product', m, parts, home: parts.map((p) => p.position.clone()), centre: m.centres.get(product.parts[0])!.clone(),
+        kind: 'product', m, parts, home: parts.map((p) => p.position.clone()), centre,
         length: this.lengthOf(m, product.parts[0]), alongX: m.look.alongX, product,
         stock: k < 0 ? full : Math.max(Math.ceil(full / 2), full - lost[k]), full, done: false,
       };
@@ -1204,7 +1232,13 @@ export class PrepCutSystem extends createSystem({
     staff.boxLeft = this.materials.filter((x) => x.state === 'box').length;
     if (!this.cooking && staff.cook && staff.cookReady) {
       const m = this.materials.filter((x) => x.state === 'box').sort((a, b) => b.slot.y - a.slot.y)[0];
-      if (m) {
+      // No borrowing (full): the cook does not take a fish the shop cannot pay him for.
+      const minutes = m ? (COOK_MINUTES[m.id] ?? 0) + (m.look.products.some((p) => p.dest === 'ice') ? (COOK_MINUTES.BonitoBelly ?? 0) : 0) : 0;
+      if (m && !canAfford(wageYen('cook', minutes))) {
+        staff.cook = false;
+        staff.unpaid = 'cook';
+        console.log(`[Staff] the cook stops: the shop cannot pay for the ${PREP[m.id].name.toLowerCase()} (${yen(wageYen('cook', minutes))})`);
+      } else if (m) {
         staff.cookReady = false;
         m.state = 'cook';
         m.root.visible = false;
@@ -1212,6 +1246,7 @@ export class PrepCutSystem extends createSystem({
         this.cookLeft = COOK_SECONDS;
         this.cookDid = true;
         staff.cookOn = PREP[m.id].name;
+        if (m.id === 'Tamago') tamagoApi.byCook();
         console.log(`[Prep] the cook takes the ${PREP[m.id].name.toLowerCase()} to the back`);
       }
     }
@@ -1254,6 +1289,21 @@ export class PrepCutSystem extends createSystem({
     const p = m.parts.get(name)!;
     const size = new Box3().setFromObject(p, true).getSize(this.tmp);
     return m.look.alongX ? size.x : size.z;
+  }
+
+  /** A part out of its material into the world, where it is (its place, turn and mirror kept). */
+  private toWorldPart(p: Object3D): void {
+    p.updateWorldMatrix(true, true);
+    const pos = new Vector3();
+    const q = new Quaternion();
+    const scale = new Vector3();
+    p.matrixWorld.decompose(pos, q, scale);
+    p.removeFromParent();
+    this.world.createTransformEntity(p);
+    p.position.copy(pos);
+    p.quaternion.copy(q);
+    p.scale.copy(scale);
+    p.updateMatrixWorld(true);
   }
 
   /**
@@ -1370,12 +1420,13 @@ export class PrepCutSystem extends createSystem({
     const total = Math.round(all.reduce((s, g) => s + GRADE_POINTS[g], 0) / Math.max(1, all.length));
     const grade: Grade = total >= 90 ? 'Excellent' : total >= 75 ? 'Good' : total >= 55 ? 'Poor' : 'Bad';
     const pct = Math.round((100 * this.yieldGot) / Math.max(1, this.yieldFull));
-    setSpriteText(this.summary, all.length ? `Prep done: ${grade}, yield ${pct}%` : this.cookDid ? 'Prep done by the cook' : 'Prep done');
+    // No grade here (shops differ in their prep): only what came of it.
+    setSpriteText(this.summary, all.length ? `Prep done: ${this.yieldGot} of ${this.yieldFull} slices` : this.cookDid ? 'Prep done by the cook' : 'Prep done');
     const board = stations.get(StationKind.CuttingBoard);
     if (board) this.summary.position.copy(board.pos).add(this.tmp.set(0, 0.32, -0.05));
     this.summary.visible = true;
     this.summaryTime = RESULT_SECONDS * 2;
-    console.log(`[Prep] all prep done${all.length ? `: ${grade} ${total}` : this.cookDid ? ' by the cook' : ''}, yield ${this.yieldGot}/${this.yieldFull} slices; now clean up`);
+    console.log(`[Prep] all prep done${all.length ? ` (cuts ${grade} ${total}, ${pct}%)` : this.cookDid ? ' by the cook' : ''}, yield ${this.yieldGot}/${this.yieldFull} slices; now clean up`);
   }
 
   // ---- what comes next (master, practice, hints) ------------------------------------
@@ -1386,6 +1437,7 @@ export class PrepCutSystem extends createSystem({
     prep.onBoard = '';
     prep.say = '';
     prep.guideAcross = prep.guideLow = false;
+    knifeApi.flat = false;
     prep.where = 'board';
     prep.takeFrom = 'ice';
     prep.takeTo = 'board';
@@ -1443,7 +1495,8 @@ export class PrepCutSystem extends createSystem({
     const washed = wash && !this.sinkNext(wash) && !m && !prep.boardBusy ? wash : null;
     const byTop = (a: Material, b: Material) => b.slot.y - a.slot.y;
     const inBox = this.materials.filter((x) => x.state === 'box');
-    const fromIce = inBox.filter((x) => !this.fromFishBox(x)).sort(byTop)[0];
+    // The tamago's batter waits on the ice till its pan is on a burner.
+    const fromIce = inBox.filter((x) => !this.fromFishBox(x) && (x.id !== 'Tamago' || tamagoApi.panReady())).sort(byTop)[0];
     const fromFish = wash ? undefined : inBox.filter((x) => this.fromFishBox(x)).sort(byTop)[0];
     // The wash board cleared of scraps before a fish comes off it or onto it (the last one's would be in the way).
     const sinkScrap = !held && (washed || (!fromIce && fromFish)) ? this.loose.find((l) => l.kind === 'scrap' && !l.done && this.atSink(l)) : undefined;
@@ -1490,6 +1543,7 @@ export class PrepCutSystem extends createSystem({
         prep.guideLength = s.len;
         prep.guideAcross = s.axis === 'x';
         prep.guideLow = !!s.low;
+        knifeApi.flat = prep.guideLow;
         break;
       case 'pull':
         prep.next = 'pull';

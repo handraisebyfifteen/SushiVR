@@ -19,6 +19,8 @@ import { PrepCutSystem } from './prep-cut-system.js';
 import { RiceTubSystem } from './rice-tub-system.js';
 import { PlaceSystem } from './place-system.js';
 import { RangeSystem } from './range-system.js';
+import { TamagoSystem } from './tamago-system.js';
+import { LabelSystem } from './label-system.js';
 import { ShariSystem } from './shari-system.js';
 import { StaffSystem } from './staff-system.js';
 import { StationSystem } from './station-system.js';
@@ -48,6 +50,8 @@ World.create(
   world.registerSystem(CureSystem);
   world.registerSystem(ShariSystem);
   world.registerSystem(RangeSystem);
+  world.registerSystem(TamagoSystem);
+  world.registerSystem(LabelSystem);
   world.registerSystem(OpeningSystem);
   world.registerSystem(PieceSystem);
   world.registerSystem(MasterSystem);

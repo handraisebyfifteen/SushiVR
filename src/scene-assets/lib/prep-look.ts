@@ -4,6 +4,7 @@ import type { PrepId } from '../../prep.js';
 import { type Dims, prepMaterial, roundedBlock } from './neta-look.js';
 import { flat, patterned, taperedTube, weld } from './neta-paint.js';
 import { kohadaRow } from './cure-look.js';
+import { tamagoBatter } from './tamago-look.js';
 import { flounder, hamachiHalf, stripedJack, wholeSaba } from './fillet-look.js';
 import { ingredientLook } from './range-look.js';
 
@@ -24,8 +25,8 @@ import { ingredientLook } from './range-look.js';
  */
 
 export interface PrepEffect {
-  /** Parts moved (root-local dx, dz) when the step is done. */
-  shift?: Array<[string, number, number]>;
+  /** Parts moved (root-local dx, dz, and dy when given: onto the ice, off it) when the step is done. */
+  shift?: Array<[string, number, number, number?]>;
   /** Parts that become scrap (to be thrown away). */
   scrap?: string[];
   hide?: string[];
@@ -355,6 +356,8 @@ export function prepMaterialLook(id: PrepId, kohadaSize = 1): PrepMaterialLook |
       return wholeSaba();
     case 'Kohada':
       return kohadaRow(kohadaSize);
+    case 'Tamago':
+      return tamagoBatter();
     default:
       return null;
   }

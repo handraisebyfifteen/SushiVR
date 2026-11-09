@@ -27,6 +27,8 @@ const PICK_DISTANCE = 0.1;
 export const knifeApi = {
   held: false,
   blade: new Vector3(),
+  /** The cut now wants the blade laid flat (a shave: skin, backbone); otherwise it stands on its edge. */
+  flat: false,
 };
 
 /**
@@ -263,10 +265,10 @@ export class CuttingSystem extends createSystem({
       return;
     }
 
-    // Held: the handle sits in the palm, the blade runs along the fingers.
+    // Held: the handle sits in the palm, the blade runs along the fingers, on its edge (laid flat for a shave).
     if (hand.tracked) {
       knifeObject.position.copy(hand.palm);
-      knifeObject.rotation.y = (hand.yawDeg * Math.PI) / 180 + Math.PI / 2;
+      knifeObject.rotation.set(knifeApi.flat ? 0 : Math.PI / 2, (hand.yawDeg * Math.PI) / 180 + Math.PI / 2, 0, 'YXZ');
     }
     this.blade.copy(hand.palm).addScaledVector(hand.fingerDir, BLADE_REACH);
     knifeApi.blade.copy(this.blade);
@@ -309,7 +311,7 @@ export class CuttingSystem extends createSystem({
     if (hand.fistEnd || !hand.tracked) {
       // Put down: back to its place beside the board.
       knifeObject.position.copy(this.knifeHome);
-      knifeObject.rotation.y = this.knifeHomeRotY;
+      knifeObject.rotation.set(0, this.knifeHomeRotY, 0);
       this.knifeHeld = false;
       state.holding = Held.None;
       this.guide.visible = false;

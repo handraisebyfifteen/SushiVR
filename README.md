@@ -42,8 +42,9 @@ single constant (`CHEF_LEFT_HANDED` in `src/tuning.ts`) swaps them.
 the customer side. You sit in the middle of a 1 m chef's aisle. In front of
 you is the 1 m cutting board (36 cm deep) on a stainless cold table, with the wasabi dish and tezu bowl
 (vinegar water) side by side at its right-back corner (pinch to move either;
-the spot is remembered), the nori box and a box of kitchen paper at its
-left-back corner, the styrofoam ice box of the morning's fish on the counter
+the spot is remembered; the wasabi's dish is kept turned over except while
+the bar is open), the nori tin (red, its lid opening as your hand comes
+near) and a box of kitchen paper at its left-back corner, the styrofoam ice box of the morning's fish on the counter
 beside the board's left end (put away once the bar opens), a trash bin at
 your left foot, the bamboo
 mat (makisu) rolled up at its left edge (it lies open in front of you while
@@ -67,7 +68,8 @@ High on the back wall over the sink and the range hangs the menu board, a
 row of wooden plaques with each item's name in Japanese (the one place
 with Japanese text; no prices on the plaques). The office corner, out of
 the customers' way, is on the aisle's right end wall: an open food shelf
-with the staff call board over it (two round buttons, the cook and the
+(the seasonings out where they can be told apart, labelled: soy sauce,
+mirin, sake, rice vinegar, salt, sugar) with the staff call board over it (two round buttons, the cook and the
 part-timer), and between it and the dish cabinet a black dial telephone on
 a small shelf under the day's books. Beside it, at the bar's right end, the
 passage to the customer room hangs a long indigo noren, so the office shows
@@ -127,11 +129,21 @@ change it (it is remembered):
 - **Full** (本格): the case keeps what is left from day to day (saved in
   the browser when the day closes; day 1 starts empty). You check the case
   and order what it needs. Only tuna and cooked things (anago, tamago,
-  octopus, abalone, the gourd strips, the inari pouches) keep overnight, and
-  opened uni two days; the rest of yesterday's is out of the case in the
-  morning, with a word over the case. The garnishes and pickles (cucumber,
-  shiso, pickled radish, plum paste) come from the greengrocer with the
-  delivery, topped up and billed apart: they are not ordered on the phone.
+  octopus, abalone, the gourd strips, the inari pouches) keep overnight;
+  uni and ikura two business days, the garnishes three; the rest of
+  yesterday's is out of the case in the morning, with a word over the case.
+  The garnishes and pickles (cucumber, shiso, pickled radish, plum paste)
+  come from the greengrocer with the delivery, topped up and billed apart:
+  they are not ordered on the phone. The shop's money carries over too: it
+  starts at ¥500,000 (`START_FUNDS` in `src/tuning.ts`), sales come in,
+  the fish shop, the greengrocer and wages go out. There is no borrowing:
+  the fish shop takes no more than the shop can pay (the order slip shows
+  what is left to spend, the greengrocer's top-up set aside), and the cook
+  and the part-timer are not called in without an hour's wage in hand;
+  the part-timer goes home, and the cook stops before a fish, when the
+  money no longer covers the next job. A ready-made item's full case is
+  what its price buys: four servings (four prawns, four of each shell),
+  the inari pouches a set of twelve.
 
 Time runs faster than in a shop, and the work runs side by side: the rice
 and the pots go on first, the fish is cut while they cook.
@@ -153,7 +165,9 @@ and the pots go on first, the fish is cut while they cook.
    your hands meanwhile: the fish is not touched with unwashed hands.
    Anything far away (the phone, the call buttons, the tea urn, the noren,
    the customer for the check, the work table and the range) is pointed at
-   with the hand held out and the other fingers curled, then a pinch.
+   with the hand held out and the other fingers curled, then a pinch. A
+   hand held out like that passes over the neta case without opening its
+   doors or taking from it.
 2. The rice: step to the work table, point at the gas rice cooker under it
    and pinch. It cooks, goes out by itself and steams (a word over the
    table counts it down).
@@ -173,12 +187,26 @@ and the pots go on first, the fish is cut while they cook.
      scorch.
    When one is done, put its flame out, take it out of the pot and let go
    over the case (step back to the board). Its pot is put away.
+   - Tamago (full difficulty only; the shop's way: 厚焼き with surimi, baked
+     in the shop): the square copper tamago pan hangs on the end wall
+     beside the net. Take it by its handle and let go over a burner whose
+     pot is put away; take the bowl of mixed batter from the ice box and let
+     go over the pan to pour it; light that burner low (higher bakes faster
+     but scorches the face down). When the first side is done, pinch the
+     handle and lift: it is turned once (the board over the pan, turned,
+     slid back, in one move). When the other side is done too, the flame
+     off, pinch the tamago out and let go over the case. The times are a
+     guide, not a grade; only a scorched face costs a couple of pieces
+     (`src/tamago-system.ts`).
 4. The fish: left hand, pinch a fish in the box (the one on top first) and
    let go over the board. Each one is wrapped in paper inside a plastic bag:
    hold it with the left hand, pinch the wrapping with the right and pull it
    off, twice. Then, with the left hand steadying it, grip the knife and
    draw it along each white line: toward you along the fish, across it, or
-   flat along the board to shave off skin.
+   flat along the board to shave off skin. The knife stands on its edge and
+   is drawn from the right down to the lower left (the shop's way: the
+   stroke of a sword or a bat); it lies flat only to shave skin or a
+   backbone.
    - Tuna belly (a 1/8 or 1/16 cut from the tuna dealer): cut off the skin
      side, then split it into fatty, medium fatty and lean.
    - Bonito half: split it along the blood line into back and belly. The
@@ -221,22 +249,40 @@ and the pots go on first, the fish is cut while they cook.
    Every saku and engawa goes into the case.
    - On the full difficulty, the kohada and the saba too (the shop's way:
      cured on the day). The kohada come whole, eight a day, one a piece
-     (丸づけ): the row is scaled, the heads come off a row at a time, the guts
-     out, rinsed; on the board each is opened from the belly and its
-     backbone shaved out. The saba is washed and filleted like the jack,
-     belly and pin bones out, its skin kept (it is peeled when served).
-     Each goes into its tray on the drainboard (the kohada's in front, the
-     saba's behind; stand at the drainboard): salt it (pinch salt from the
-     bowl, open the fingers over the tray, three or four times), leave it
-     (the kohada about 40 minutes, five more or less with the day's size:
-     the fish shop says it on the phone; the saba 2-3 hours; a minute here
-     is a second, and a word over the tray counts them), rinse the salt off
-     (pinch the tray's front rim, hold it under the tap, let go and it goes
-     back), pour the vinegar (pinch the bottle's neck, hold it over the
-     tray; kohada 20 minutes, saba 30), then take them out (a pinch over
-     them) and let go over the case. How near you came to the times grades
-     them; a poor grade costs pieces (`src/cure-system.ts`). A few minutes
-     before a tray's time the master calls you over to be ready.
+     (丸づけ). They lie loose on the wash board's right, a bowl of ice on its
+     left (not laid out in rows). Many of the same fish are done a stage at a
+     time (a small bar's way of working): the scales off, then each fish in
+     turn to the middle, its head cut off (each on its own, never a row at
+     once) and onto the ice; once every head is off, each from the ice, its
+     belly slit and the guts out; all washed and back on the ice. On the
+     board, every fish opened from the belly first, then every backbone
+     shaved out, laid in a row, overlapping. Fish lie head left for the head
+     to come off, then head right (belly still toward you) to be filleted
+     on the board, for every whole fish (a left-handed chef's the other
+     way). The
+     saba is washed and filleted like the jack, belly and pin bones out, its
+     skin kept (it is peeled when served).
+     The salt, both sides: the kohada on the round bamboo basket (平ざる) on
+     the drainboard beside the sink. Salt the basket first (pinch salt from
+     the bowl, open the fingers over it: where it falls turns white), lay the
+     opened kohada on it skin up in a row, overlapping, then salt them over
+     till fairly
+     white. The saba goes into its stainless tray and is salted till white.
+     Leave them: the kohada about 40 minutes, five more or less with the
+     day's size (the fish shop says it on the phone), the saba 2-3 hours. A
+     minute here is a second; two kitchen timers on the dish cabinet's side
+     (facing the sink, out of the customers' sight) count them down and beep
+     at zero. The kohada then go into the bowl of water in the sink till the
+     salt is off; meanwhile the basket is rinsed under the tap (pinch its
+     front rim, hold it under the tap, let go); then the kohada back on the
+     clean basket in a row, overlapping, to drain (3 minutes). The saba's
+     tray is rinsed under the tap. One enamel container of vinegar (kept for
+     vinegar) stands at the back: the kohada first (20 minutes), then the
+     saba (30); lift the fish and let go over it, then out of it and over
+     the case. What is done with (the basket, the tray) is put away. The
+     times are the shop's guide and the master tells them; shops differ, so
+     no time costs pieces (`src/cure-system.ts`). A few minutes before a
+     fish's time the master calls you over to be ready.
 6. The shari (the shop's way: rice vinegar made ahead, no fanning): when the
    rice is done, point at the cooker again and pinch: it is turned out into
    the hangiri on the work table. Take the bowl of awasezu and hold it over
@@ -265,8 +311,9 @@ and the pots go on first, the fish is cut while they cook.
 Your cuts are graded (how close to the line): a crooked cut wastes flesh,
 so the saku gives fewer slices to sell. What comes off the range is graded
 too (a tough octopus, a broken eel, scorched gourd strips, a belly burnt or
-seared on one side only give fewer pieces). The grade and the yield show
-over the board.
+seared on one side only give fewer pieces). When the prep is done, the
+pieces it gave show over the board (no grade words: shops differ in their
+prep).
 
 **Staff** (plain figures, in the kitchen until called): nobody works unless
 called. During the prep, point at a button on the office's call board and
@@ -328,7 +375,10 @@ name and whether wasabi is wanted):
    `src/scene-assets/lib/nigiri-form.ts`; the `nigiri-stages` asset lays them
    out side by side for inspection.
 12. Pinch it, carry it over the case and let go on the geta. Turn your hand
-    while carrying to set its heading.
+    while carrying to set its heading. The geta is a little beyond a seated
+    chef's straight arm, so letting go above the case's far half (coming in
+    from above, over the glass) counts: the piece lands on the geta
+    (`GETA_ZONE_*` in `src/layout.ts`; `npm run layout` prints the reach).
 13. Hold a fist over the geta for a second to serve.
 
 **The master**: an older chef in white Japanese-style work clothes and a
@@ -345,7 +395,7 @@ have done a step three times he stays quiet about it. The timings are in
 **A gunkan** (sea urchin or salmon roe):
 
 1. Right hand: tezu and rice as for a nigiri (steps 4).
-2. Left hand: pinch a nori strip from the nori box; it lies on your fingers.
+2. Left hand: pinch a nori strip from the nori tin; it lies on your fingers.
 3. Bring the palms together: the nori wraps the rice.
 4. If wasabi is ordered: the right index finger to the wasabi dish, then onto
    the rice.
@@ -370,7 +420,7 @@ have done a step three times he stays quiet about it. The timings are in
 **A roll** (hosomaki: gourd strips, tuna, cucumber, pickled radish, plum and
 shiso, plum and cucumber):
 
-1. Left hand: pinch a half sheet of nori from the nori box and let go over
+1. Left hand: pinch a half sheet of nori from the nori tin and let go over
    the mat.
 2. Right hand: tezu and rice as for a nigiri, then sweep the open hand side
    to side over the nori (twice across) to spread the rice.
@@ -430,8 +480,11 @@ cloth stay the chef's own: the chef's work and hygiene.
 in. The seated customer's order is the last; once they have paid and left, the day's
 books on the board over the telephone are final (a word over the counter
 says so): sales, the fish shop's bill (everything it
-delivered, sold or not), the wages and the profit or loss. Reload the page
-for a new day (on full, the next day, with what the case kept).
+delivered, sold or not), the wages and the profit or loss. On full they
+also show the shop's money (and this morning's), a warning under ¥40,000,
+what was thrown out this morning (in yen, for reference: it was paid for on
+its day), and the pieces served by grade. Reload the page for a new day (on
+full, the next day, with what the case and the money kept).
 
 **Hygiene**: every piece leaves rice and fish oil on your hands; after five
 they need washing. Moving a dish also makes that hand need washing. Wipe the
@@ -465,7 +518,7 @@ scrap into the trash, 0 pulls off the wrapping, the legs or the skin, X
 (knife in hand) cuts along the line, - pats the squid dry with paper, [ does
 the next step with the board (lift, wash, stand, lift, put back; T turns
 around between), ] points at the noren and pinches (to open, and again to
-close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload); O skips the prep and opens the bar. At the back row, A does the
+close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+9 sets its money to ¥10,000 at once (to try the limits); O skips the prep and opens the bar. At the back row, A does the
 next step of the shari and Enter the next thing at the range (a knob, an
 ingredient into its pot or out to the case, the net, the bonito belly),
 each stepping there and turning as needed; / steps to where you look (the
@@ -517,9 +570,10 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/place-system.ts` | Where the chef stands: the stool, or a step back at the work table or the range |
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
 | `src/range-system.ts` | The gas range: the pots, their knobs and heat, and the bonito belly on skewers |
+| `src/tamago-system.ts` | The full difficulty's tamago: the square pan from its hook onto a burner, the batter poured, baked low, turned once, into the case |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
 | `src/tuning.ts` | Every gameplay number: prices, wages, the fish shop's bill, timings, tolerances |
-| `src/ledger.ts` | The day's books: sales, the fish shop and wages |
+| `src/ledger.ts` | The day's books: sales, the fish shop, wages and the pieces by grade (the shop's money across days is in `src/fish-order.ts`) |
 | `src/layout.ts` | Every bar dimension (counter depths, aisle width, heights, the reach model); run `npm run layout` after editing |
 | `src/assets.ts` | Asset catalog shared by the runtime and the editor |
 | `src/components.ts` | Component catalog shared by the runtime and the editor |

@@ -8,6 +8,8 @@ import {
   Matrix4,
   Mesh,
   MeshStandardMaterial,
+  type Object3D,
+  PlaneGeometry,
   Shape,
   ShapeGeometry,
   SphereGeometry,
@@ -134,10 +136,16 @@ export function createPhone(): Group {
   return root;
 }
 
+/** The seasoning bottles' caps. */
+const capGold = new MeshStandardMaterial({ color: '#B49A5A', metalness: 0.7, roughness: 0.35 });
+
 /**
- * An open wooden food shelf: four shelves of soy sauce, vinegar and mirin
- * bottles, tins, boxes and a sack of rice at the bottom (no labels or
- * brands). Origin: floor, front -Z, 0.8 wide and 0.35 deep.
+ * An open wooden food shelf by the phone: the seasonings out where they can
+ * be told apart (the owner), each with a paper label (its text written at
+ * runtime by src/label-system.ts from the mesh's name, `Label:<text>`): soy
+ * sauce, mirin, sake and rice vinegar bottles at eye level, salt and sugar
+ * in lidded jars below them; tins and boxes, and a sack of rice at the
+ * bottom (no brands). Origin: floor, front -Z, 0.8 wide and 0.35 deep.
  */
 export function createFoodShelf(): Group {
   const root = new Group();
@@ -154,34 +162,64 @@ export function createFoodShelf(): Group {
   for (const y of levels) frame.push({ w: W - 0.06, h: 0.025, d: D - 0.02, x: 0, y, z: 0 });
   root.add(boxBatch('ShelfFrame', shelfWood, frame));
   const rnd = seeded('food-shelf');
-  const bottleColors = ['#3A1C10', '#3A1C10', '#E8E4D4', '#C9A64A', '#5A2A18'];
-  const bottle = new CylinderGeometry(0.035, 0.035, 0.24, 12);
-  const neck = new CylinderGeometry(0.012, 0.02, 0.06, 10);
-  const colored: Mesh[] = [];
-  bottleColors.forEach((color, i) => {
-    const x = -0.3 + i * 0.13;
-    const y = levels[3] + 0.0125;
-    const m = new Mesh(mergeGeometries([
-      [bottle, new Matrix4().makeTranslation(0, 0.12, 0)],
-      [neck, new Matrix4().makeTranslation(0, 0.27, 0)],
-    ]), new MeshStandardMaterial({ color, roughness: 0.2 }));
-    m.position.set(x, y, 0.02);
-    m.name = 'Bottle' + i;
-    colored.push(m);
+  const paper = new MeshStandardMaterial({ color: '#F3EDDC', roughness: 0.85 });
+  /** A paper label on an item's front (it faces -Z), its text in the mesh's name. */
+  const label = (text: string, x: number, y: number, z: number, w = 0.075, h = 0.04): Mesh => {
+    const m = new Mesh(new PlaneGeometry(w, h).rotateY(Math.PI), paper);
+    m.name = `Label:${text}`;
+    m.position.set(x, y, z);
+    return m;
+  };
+  const items: Object3D[] = [];
+  // The bottles at eye level: glass, the liquid's colour showing; a cap on each.
+  const shelf3 = levels[3] + 0.0125;
+  const bottles: Array<{ text: string; glass: string; tall: number; r: number }> = [
+    { text: 'Soy sauce', glass: '#2B140A', tall: 0.26, r: 0.036 },
+    { text: 'Mirin', glass: '#A8742A', tall: 0.26, r: 0.036 },
+    { text: 'Sake', glass: '#2F5A33', tall: 0.3, r: 0.042 },
+    { text: 'Rice vinegar', glass: '#D9C98E', tall: 0.26, r: 0.036 },
+  ];
+  bottles.forEach((b, i) => {
+    const x = -0.28 + i * 0.185;
+    const body = new Mesh(
+      mergeGeometries([
+        [new CylinderGeometry(b.r, b.r, b.tall * 0.72, 16), new Matrix4().makeTranslation(0, b.tall * 0.36, 0)],
+        [new CylinderGeometry(0.013, b.r, b.tall * 0.18, 16), new Matrix4().makeTranslation(0, b.tall * 0.81, 0)],
+        [new CylinderGeometry(0.013, 0.013, b.tall * 0.1, 12), new Matrix4().makeTranslation(0, b.tall * 0.95, 0)],
+      ]),
+      new MeshStandardMaterial({ color: b.glass, roughness: 0.12, metalness: 0.05 }),
+    );
+    body.name = `Bottle${b.text.replace(/\s/g, '')}`;
+    body.position.set(x, shelf3, 0.0);
+    const cap = new Mesh(new CylinderGeometry(0.015, 0.015, 0.012, 12), capGold);
+    cap.position.set(x, shelf3 + b.tall + 0.006, 0);
+    items.push(body, cap, label(b.text, x, shelf3 + b.tall * 0.38, -b.r - 0.002, 0.07, 0.045));
   });
-  // Tins, boxes and jars on the middle shelves.
+  // Salt and sugar in lidded white jars, one shelf down, with the tins and boxes beside them.
+  const shelf2 = levels[2] + 0.0125;
+  const jar = new MeshStandardMaterial({ color: '#F4F2EC', roughness: 0.35 });
+  const jarLid = new MeshStandardMaterial({ color: '#B8B4AA', roughness: 0.4, metalness: 0.4 });
+  ['Salt', 'Sugar'].forEach((text, i) => {
+    const x = -0.27 + i * 0.15;
+    const body = new Mesh(new CylinderGeometry(0.055, 0.052, 0.13, 20).translate(0, 0.065, 0), jar);
+    body.name = `Jar${text}`;
+    body.position.set(x, shelf2, -0.02);
+    const lid = new Mesh(new CylinderGeometry(0.057, 0.057, 0.018, 20).translate(0, 0.139, 0), jarLid);
+    lid.position.set(x, shelf2, -0.02);
+    items.push(body, lid, label(text, x, shelf2 + 0.07, -0.02 - 0.056, 0.075, 0.045));
+  });
   const parts: BoxPart[] = [];
-  for (let i = 0; i < 5; i++) parts.push({ w: 0.11, h: 0.14 + rnd() * 0.06, d: 0.16, x: -0.3 + i * 0.145, y: levels[2] + 0.09, z: 0.02 });
+  for (let i = 0; i < 3; i++) parts.push({ w: 0.11, h: 0.14 + rnd() * 0.06, d: 0.16, x: 0.02 + i * 0.13, y: levels[2] + 0.09, z: 0.02 });
   for (let i = 0; i < 4; i++) parts.push({ w: 0.16, h: 0.12, d: 0.22, x: -0.27 + i * 0.18, y: levels[1] + 0.07, z: 0.01 });
   const boxes = boxBatch('Goods', goods, parts);
-  const tint = ['#D8CBA8', '#B5432E', '#E4E0D6', '#7B8C5A', '#C8A060', '#E9E5DA', '#D7C49A', '#9C3B2C', '#E2D9C4'];
+  const tint = ['#D8CBA8', '#B5432E', '#E4E0D6', '#7B8C5A', '#C8A060', '#E9E5DA', '#D7C49A'];
   const c = new Color();
   tint.forEach((hex, i) => boxes.setColorAt(i, c.set(hex)));
   if (boxes.instanceColor) boxes.instanceColor.needsUpdate = true;
   // A sack of rice on the bottom shelf.
   const sack = new Mesh(new SphereGeometry(1, 14, 10).scale(0.3, 0.17, 0.15).translate(0, levels[0] + 0.15, 0.0), new MeshStandardMaterial({ color: '#E8E0CC', roughness: 0.95 }));
   sack.name = 'RiceSack';
-  root.add(boxes, sack, ...colored);
+  root.add(boxes, sack, ...items);
   return root;
 }
 

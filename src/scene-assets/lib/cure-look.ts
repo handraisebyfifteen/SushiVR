@@ -1,20 +1,45 @@
-import { type BufferGeometry, Color, CylinderGeometry, DoubleSide, Group, Matrix4, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from '@iwsdk/core';
+import {
+  BoxGeometry,
+  BufferAttribute,
+  type BufferGeometry,
+  Color,
+  CylinderGeometry,
+  DataTexture,
+  DoubleSide,
+  Euler,
+  Group,
+  LatheGeometry,
+  Matrix4,
+  Mesh,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  Quaternion,
+  RepeatWrapping,
+  SphereGeometry,
+  TorusGeometry,
+  Vector2,
+  Vector3,
+} from '@iwsdk/core';
 import { prepMaterial } from './neta-look.js';
 import { paint, patterned, taperedTube, weld } from './neta-paint.js';
-import { at, box, cap, eye, named, sakuBlock, scalesMaterial, shell, type Sta } from './fillet-look.js';
+import { at, box, cap, eye, named, scalesMaterial, shell, type Sta } from './fillet-look.js';
 import type { PrepMaterialLook, PrepStep } from './prep-look.js';
 
 /**
  * The full difficulty's curing (締め), the owner's shop: kohada and saba
- * salted, rinsed, then soaked in vinegar on the drainboard beside the sink,
- * each in its stainless tray (バット), on the day.
+ * salted in stainless trays (バット), rinsed, then soaked in vinegar in
+ * enamel containers kept for it, on the drainboard beside the sink, on the
+ * day.
  *
- * The kohada: eight small whole fish, two rows of four, lying along X (head
- * on the chef's left, belly toward the chef) like the stage 4 fish. Washed
- * at the sink as a row: scaled, the heads off a row at a time (the guts come
- * with them), rinsed. On the board each is opened from the belly (腹開き)
- * and its backbone shaved out: eight times, one a piece (丸づけ). Then the
- * eight go to their tray together. Runtime meshes (src/prep-cut-system.ts,
+ * The kohada, the owner's way: eight small whole fish, loose on the wash
+ * board (not laid out in rows), and a bowl of ice beside them. Many of the
+ * same fish are done a stage at a time, each fish on its own (a sushi bar's
+ * small space): each fish to the middle, head left and belly toward the
+ * chef, its head cut off, and onto the ice; once every head is off, each
+ * from the ice, its belly slit and the guts out; then all washed and back
+ * on the ice. On the board the same: every fish opened from the belly
+ * (腹開き), then every backbone shaved out; eight, one a piece (丸づけ). Then
+ * the eight go to their tray together. Runtime meshes (src/prep-cut-system.ts,
  * src/cure-system.ts); the whole-fish-preview asset shows them.
  */
 
@@ -32,10 +57,24 @@ const KOHADA: Sta[] = [
 ];
 /** The head comes off behind the gill (and the dark spot there). */
 const GILL = -0.036;
-/** The two rows (X) and the four fish of each (Z), root-local. The right row lies the other way round, heads out, so every head and gut falls at an outer end. */
-const COLS = [-0.072, 0.072];
-const FACING = [1, -1];
-const ROWS = [-0.069, -0.023, 0.023, 0.069];
+export const KOHADA_FISH = 8;
+
+// Root-local places (a fish by its origin, its middle when whole): every fish lies head left, belly toward the chef
+// (+Z); the owner: fish are laid head left (a left-handed chef's the other way).
+/** Where each fish is worked, one at a time: the middle, toward the chef. */
+const SPOT = new Vector3(0, 0, 0.03);
+/** The bowl of ice on the left; the fish lie on the ice. */
+const BOWL_X = -0.165;
+const ICE_TOP = 0.03;
+/** The whole fish, loose on the right (a few over the others); later the gutted ones, and on the board the opened ones. */
+const heapAt = (i: number, s: number): Vector3 => new Vector3(0.13 + (i >= 4 ? 0.02 : 0), i >= 4 ? 0.011 * s : 0, -0.075 + (i % 4) * 0.05 + (i >= 4 ? 0.02 : 0));
+const iceAt = (i: number): Vector3 => new Vector3(BOWL_X - 0.0125 + ((((i * 37) % 5) - 2) * 0.004), ICE_TOP + (i >> 2) * 0.009 + (i % 4) * 0.0015, -0.033 + (i % 4) * 0.022);
+/** Cut-off heads and pulled guts, pushed behind the work (heads by their fish's origin). */
+const headAt = (i: number): Vector3 => new Vector3(-0.02 + (i % 4) * 0.009, 0, -0.098 + (i >> 2) * 0.012);
+const gutAt = (i: number, s: number): Vector3 => new Vector3(0.035 + (i % 4) * 0.008, 0.0055 * s, -0.098 + (i >> 2) * 0.01);
+/** On the board: opened (backbone still in) in a row, overlapping, on the right; done the same on the left (the owner lays them so, as on the basket). */
+const openedAt = (i: number): Vector3 => new Vector3(0.143, i * 0.0009, -0.08 + i * 0.02);
+const doneAt = (i: number): Vector3 => new Vector3(-0.17, i * 0.0009, -0.08 + i * 0.02);
 
 const kBack = new Color('#4C6573');
 const kDot = new Color('#1E2A31');
@@ -53,18 +92,96 @@ function kohadaSkin(p: Vector3, _n: Vector3, out: Color): Color {
   return out;
 }
 
-function translated(g: BufferGeometry, x: number, z: number, scale: number, dir = 1): [BufferGeometry, Matrix4] {
-  return [g, new Matrix4().makeTranslation(x, 0, z).multiply(new Matrix4().makeRotationY(dir > 0 ? 0 : Math.PI)).multiply(new Matrix4().makeScale(scale, scale, scale))];
+/** An opened kohada's half-width along it (from the cut head end): widest a third along, narrowing to the tail. */
+const OPEN_HALF: ReadonlyArray<[number, number]> = [[0, 0.021], [0.1, 0.025], [0.3, 0.027], [0.55, 0.023], [0.75, 0.015], [0.9, 0.008], [1, 0.0095]];
+export const OPEN_THICKNESS = 0.003;
+const fleshPink = new Color('#E9D6C9');
+const boneLine = new Color('#CDAE9F');
+const kSilver = new Color('#CBD5D9');
+const kBand = new Color('#2F414B');
+/**
+ * A kohada opened from the belly (腹開き), L long from its cut head end (the
+ * origin) toward +X, lying flat from y = 0 to OPEN_THICKNESS: the flesh on
+ * top (pale pink, the backbone's line down the middle), the skin beneath
+ * (silver, the dark blue back down the middle with its rows of dots, as it
+ * shows once laid skin up).
+ */
+function openedKohada(L: number): BufferGeometry {
+  const half = (u: number): number => {
+    let k = 0;
+    while (k < OPEN_HALF.length - 2 && u > OPEN_HALF[k + 1][0]) k++;
+    const [u0, w0] = OPEN_HALF[k];
+    const [u1, w1] = OPEN_HALF[k + 1];
+    return w0 + ((w1 - w0) * (u - u0)) / (u1 - u0);
+  };
+  const face = (up: boolean): BufferGeometry => {
+    const g = new PlaneGeometry(1, 1, 16, 10).rotateX(up ? -Math.PI / 2 : Math.PI / 2);
+    const p = g.attributes.position;
+    for (let k = 0; k < p.count; k++) {
+      const u = p.getX(k) + 0.5;
+      p.setXYZ(k, u * L, up ? OPEN_THICKNESS : 0, p.getZ(k) * 2 * half(u));
+    }
+    g.computeVertexNormals();
+    return g;
+  };
+  return paint(weld([face(true), face(false)]), (p, n, out) => {
+    const across = Math.abs(p.z) / Math.max(0.004, half(p.x / L));
+    if (n.y > 0) {
+      out.copy(fleshPink);
+      if (across < 0.12) out.lerp(boneLine, 0.6);
+      return;
+    }
+    out.copy(kSilver);
+    if (across < 0.22) out.copy(kBand);
+    else if (across < 0.5) {
+      out.copy(kBand).lerp(kSilver, (across - 0.22) / 0.28);
+      if (Math.sin(p.x * 1400) > 0.5 && Math.sin(across * 40) > 0.3) out.lerp(kDot, 0.7);
+    }
+  });
 }
 
-export const KOHADA_FISH = COLS.length * ROWS.length;
+function translated(g: BufferGeometry, p: Vector3, scale: number): [BufferGeometry, Matrix4] {
+  return [g, new Matrix4().makeTranslation(p.x, p.y, p.z).multiply(new Matrix4().makeScale(scale, scale, scale))];
+}
+
+const bowlSteel = new MeshStandardMaterial({ color: '#C8CDD1', metalness: 0.65, roughness: 0.3, side: DoubleSide });
+const iceMaterial = new MeshStandardMaterial({ color: '#E2F0F6', roughness: 0.12, transparent: true, opacity: 0.88 });
+
+/** A steel bowl heaped with crushed ice, its foot at y = 0, its middle at the origin. */
+function iceBowl(): Group {
+  const g = new Group();
+  const profile = [new Vector2(0.001, 0), new Vector2(0.045, 0), new Vector2(0.06, 0.014), new Vector2(0.068, 0.038), new Vector2(0.071, 0.056), new Vector2(0.075, 0.058)];
+  g.add(new Mesh(new LatheGeometry(profile, 28), bowlSteel));
+  const chunks: Array<[BufferGeometry, Matrix4]> = [];
+  const cube = new BoxGeometry(1, 1, 1);
+  let seed = 11;
+  const rnd = (): number => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed % 10000) / 10000;
+  };
+  for (let k = 0; k < 46; k++) {
+    const y = 0.006 + rnd() * (ICE_TOP - 0.01);
+    const r = (0.045 + (0.022 * y) / 0.04) * Math.sqrt(rnd());
+    const a = rnd() * Math.PI * 2;
+    const size = 0.009 + rnd() * 0.008;
+    const m = new Matrix4().compose(
+      new Vector3(Math.cos(a) * r, y, Math.sin(a) * r),
+      new Quaternion().setFromEuler(new Euler(rnd() * 3, rnd() * 3, rnd() * 3)),
+      new Vector3(size, size * 0.8, size),
+    );
+    chunks.push([cube, m]);
+  }
+  g.add(new Mesh(weld(chunks), iceMaterial));
+  return g;
+}
 
 /**
- * Eight whole kohada (the day's size: 0.92 small, 1 middling, 1.08 large),
- * with their steps: at the sink the row is scaled, the heads come off a row
- * at a time, the guts are pulled, and it is rinsed; on the board each is
- * opened from the belly and its backbone shaved out. The opened eight go to
- * the kohada's tray together.
+ * Eight whole kohada (the day's size: 0.92 small, 1 middling, 1.08 large)
+ * and the bowl of ice, with their steps: at the sink the scales off, every
+ * head (each fish to the middle, then onto the ice), every belly slit and
+ * gutted, all washed and back on the ice; on the board every fish opened,
+ * then every backbone out. The opened eight go to the kohada's tray
+ * together.
  */
 export function kohadaRow(size = 1): PrepMaterialLook {
   const root = new Group();
@@ -84,86 +201,115 @@ export function kohadaRow(size = 1): PrepMaterialLook {
   const scalesGeo = shell(body.slice(0, -1), 0, Math.PI * 2, 14, 0.0006);
   const gutsGeo = paint(new SphereGeometry(1, 10, 6).scale(0.012, 0.004, 0.005), (p, _n, out) => out.set(p.x > 0.004 ? '#A88F4E' : '#6E2A23'));
   const L = 0.086;
-  const openGeo = sakuBlock(L, 0.0035, 0.036, { tail: 0.7 });
+  const openGeo = openedKohada(L);
   const spineGeo = paint(
     taperedTube(Array.from({ length: 6 }, (_, k) => new Vector3((k / 5) * (L - 0.01), 0.0042, 0)), [0.0011, 0.001, 0.0009, 0.0008, 0.0006, 0.0004], 6, 1),
     (_p, _n, out) => out.set('#E6DED2'),
   );
-  const heads: Array<Array<[BufferGeometry, Matrix4]>> = COLS.map(() => []);
-  const guts: Array<Array<[BufferGeometry, Matrix4]>> = COLS.map(() => []);
+  const T = 2 * 0.0069 * s;
+  const N = KOHADA_FISH;
+  const fishes = Array.from({ length: N }, (_, i) => i);
+  // Each fish's parts, placed by its origin; where each one is now, as the steps move it.
+  const now = fishes.map((i) => heapAt(i, s));
   const scales: Array<[BufferGeometry, Matrix4]> = [];
   const spines: Array<[BufferGeometry, Matrix4]> = [];
-  const steps: PrepStep[] = [];
-  const open: string[] = [];
-  let i = 0;
-  COLS.forEach((x0, c) => {
-    const d = FACING[c];
-    const yaw = d > 0 ? 0 : Math.PI;
-    for (const z0 of ROWS) {
-      heads[c].push(translated(headGeo, x0, z0, s, d));
-      guts[c].push([gutsGeo, new Matrix4().makeTranslation(x0 + d * (GILL + 0.012) * s, 0.0055 * s, z0 + d * 0.008 * s)]);
-      scales.push(translated(scalesGeo, x0, z0, s, d));
-      const fish = named(new Mesh(bodyGeo, mat), `K${i}`);
-      fish.position.set(x0, 0, z0);
-      fish.rotation.y = yaw;
-      fish.scale.setScalar(s);
-      root.add(fish);
-      const opened = named(new Mesh(openGeo, mat), `K${i}Open`, false);
-      opened.position.set(x0 + d * GILL * s, 0, z0);
-      opened.rotation.y = yaw;
-      opened.scale.set(s, 1, s);
-      root.add(opened);
-      const spine = named(new Mesh(spineGeo, mat), `K${i}Spine`, false);
-      spine.position.set(x0 + d * (GILL + 0.005) * s, 0, z0);
-      spine.rotation.y = yaw;
-      spine.scale.set(s, 1, 1);
-      root.add(spine);
-      spines.push([spineGeo, new Matrix4().makeTranslation(0, 0.0012 * (i % 4), 0.004 * i)]);
-      const mid = x0 + d * (GILL + L / 2) * s;
-      const n = i + 1;
-      steps.push(
-        { kind: 'cut', axis: 'x', at: z0 + d * 0.011 * s, mid, len: L * s, hide: [`K${i}`], show: [`K${i}Open`, `K${i}Spine`], say: `Open it from the belly (${n} of ${KOHADA_FISH})` },
-        {
-          kind: 'cut', axis: 'x', at: z0, mid, len: (L - 0.006) * s, low: true, hide: [`K${i}Spine`],
-          ...(n === KOHADA_FISH ? { show: ['Spines'], scrap: ['Spines'] } : {}),
-          say: `Shave the backbone out (${n} of ${KOHADA_FISH})`,
-        },
-      );
-      open.push(`K${i}Open`);
-      i++;
-    }
-  });
-  COLS.forEach((_, c) => {
-    root.add(named(new Mesh(weld(heads[c]), mat), `Heads${c}`));
-    root.add(named(new Mesh(weld(guts[c]), mat), `Guts${c}`, false));
-  });
+  for (const i of fishes) {
+    const p = now[i];
+    const add = (geo: BufferGeometry, name: string, dx: number, visible: boolean, scaleY = s): void => {
+      const mesh = named(new Mesh(geo, mat), name, visible);
+      mesh.position.set(p.x + dx * s, p.y, p.z);
+      mesh.scale.set(s, scaleY, s);
+      root.add(mesh);
+    };
+    add(bodyGeo, `K${i}`, 0, true);
+    add(headGeo, `H${i}`, 0, true);
+    add(openGeo, `K${i}Open`, GILL, false, 1);
+    add(spineGeo, `K${i}Spine`, GILL + 0.005, false, 1);
+    const gut = named(new Mesh(gutsGeo, mat), `G${i}`, false);
+    gut.position.copy(gutAt(i, s));
+    root.add(gut);
+    scales.push(translated(scalesGeo, p, s));
+    spines.push([spineGeo, new Matrix4().makeTranslation(0, 0.0012 * (i % 4), 0.004 * i)]);
+  }
+  const bowl = iceBowl();
+  bowl.name = 'Bowl';
+  bowl.position.set(BOWL_X, 0, 0);
+  bowl.visible = false;
+  root.add(bowl);
+  root.add(named(new Mesh(weld(fishes.map((i) => translated(headGeo, headAt(i), s))), mat), 'HeadPile', false));
+  root.add(named(new Mesh(weld(fishes.map((i): [BufferGeometry, Matrix4] => [gutsGeo, new Matrix4().makeTranslation(gutAt(i, s).x, gutAt(i, s).y, gutAt(i, s).z)])), mat), 'GutsPile', false));
   root.add(named(new Mesh(weld(scales), scalesMaterial()), 'Scales'));
   const pile = named(new Mesh(weld(spines), mat), 'Spines', false);
   pile.position.set(0.2, 0, -0.03);
   root.add(pile);
-  const T = 2 * 0.0069 * s;
-  const sink: PrepStep[] = [
-    { kind: 'scale', part: 'Scales', say: 'Scaler: scrape the row, tail to head', sink: true },
-    { kind: 'cut', axis: 'z', at: COLS[0] + GILL * s, mid: 0, len: 0.19, shift: [['Heads0', -0.02, 0]], scrap: ['Heads0'], show: ['Guts0'], say: 'Heads off: one row', sink: true },
-    { kind: 'cut', axis: 'z', at: COLS[1] - GILL * s, mid: 0, len: 0.19, shift: [['Heads1', 0.02, 0]], scrap: ['Heads1'], show: ['Guts1'], say: 'And the other row', sink: true },
-    {
-      kind: 'pull', netaAt: new Vector3(0.03, T, 0), riceAt: new Vector3(COLS[0] + (GILL + 0.012) * s, T, 0), parts: ['Guts0', 'Guts1'],
-      shift: [['Guts0', -0.03, 0], ['Guts1', 0.03, 0]], scrap: ['Guts0', 'Guts1'], say: 'Pull the guts out', sink: true,
-    },
-    { kind: 'rinse', at: new Vector3(0, T, 0.02), say: 'Wash them under the tap', sink: true },
-  ];
+  type Shift = [string, number, number, number];
+  /** Fish i to a place (its body, opened flesh and backbone; its head too while it has one). */
+  const move = (i: number, to: Vector3, withHead = false): Shift[] => {
+    const d = to.clone().sub(now[i]);
+    now[i] = to.clone();
+    return [`K${i}`, `K${i}Open`, `K${i}Spine`, ...(withHead ? [`H${i}`] : [])].map((n): Shift => [n, d.x, d.z, d.y]);
+  };
+  const all = (prefix: string, suffix = ''): string[] => fishes.map((i) => `${prefix}${i}${suffix}`);
+  const steps: PrepStep[] = [{ kind: 'scale', part: 'Scales', show: ['Bowl'], shift: move(0, SPOT, true), say: 'Scaler: the scales off, tail to head', sink: true }];
+  // Every head first: each fish in the middle, the head off behind the gill, the fish onto the ice.
+  for (const i of fishes) {
+    const last = i === N - 1;
+    const h = headAt(i).sub(now[i]);
+    steps.push({
+      kind: 'cut', axis: 'z', at: SPOT.x + GILL * s, mid: SPOT.z, len: 0.05,
+      shift: [[`H${i}`, h.x, h.z, h.y], ...move(i, iceAt(i)), ...(last ? move(0, SPOT) : move(i + 1, SPOT, true))],
+      ...(last ? { hide: all('H'), show: ['HeadPile'], scrap: ['HeadPile'] } : {}),
+      say: `Head off behind the gill, onto the ice (${i + 1} of ${N})`, sink: true,
+    });
+  }
+  // Then every belly: each off the ice, slit, the guts out with the blade; the gutted ones on the right.
+  for (const i of fishes) {
+    const last = i === N - 1;
+    steps.push({
+      kind: 'cut', axis: 'x', at: SPOT.z + 0.011 * s, mid: SPOT.x + (GILL + 0.026) * s, len: 0.05,
+      shift: [...move(i, heapAt(i, s)), ...(last ? [] : move(i + 1, SPOT))],
+      ...(last ? { hide: all('G'), show: ['GutsPile'], scrap: ['GutsPile'] } : { show: [`G${i}`] }),
+      say: `Slit the belly, the guts out (${i + 1} of ${N})`, sink: true,
+    });
+  }
+  // Washed together, then back on the ice (the first one to the middle for the board).
+  steps.push({
+    kind: 'rinse', at: new Vector3(0.14, T, 0), shift: [...move(0, SPOT), ...fishes.slice(1).flatMap((i) => move(i, iceAt(i)))],
+    say: 'Wash them under the tap, then back on the ice', sink: true,
+  });
+  // On the board: every fish opened from the belly (each off the ice to the middle, opened onto the right), then every backbone out.
+  const mid = SPOT.x + (GILL + L / 2) * s;
+  for (const i of fishes) {
+    const last = i === N - 1;
+    steps.push({
+      kind: 'cut', axis: 'x', at: SPOT.z + 0.011 * s, mid, len: L * s, hide: [`K${i}`, ...(last ? ['Bowl'] : [])], show: [`K${i}Open`, `K${i}Spine`],
+      shift: [...move(i, openedAt(i)), ...(last ? move(0, SPOT) : move(i + 1, SPOT))],
+      say: `Open it from the belly (${i + 1} of ${N})`,
+    });
+  }
+  for (const i of fishes) {
+    const last = i === N - 1;
+    steps.push({
+      kind: 'cut', axis: 'x', at: SPOT.z, mid, len: (L - 0.006) * s, low: true, hide: [`K${i}Spine`],
+      shift: [...move(i, doneAt(i)), ...(last ? [] : move(i + 1, SPOT))],
+      ...(last ? { show: ['Spines'], scrap: ['Spines'] } : {}),
+      say: `Shave the backbone out (${i + 1} of ${N})`,
+    });
+  }
+  const open = all('K', 'Open');
   return {
     root,
-    length: 0.27,
-    halfWidth: 0.1,
+    length: 0.47,
+    halfWidth: 0.12,
     top: T,
     alongX: true,
-    boardAt: [0.1, 0.02],
+    boardAt: [0.06, 0.02],
     pileAt: [0.32, 0.14],
-    takeAt: [0, 0],
-    steps: [...sink, ...steps],
-    // Taken up by a fish in the front row (the first part gives the pick point), clear of the tweezers on the board's back row.
-    products: [{ parts: [open[3], ...open.filter((_, k) => k !== 3)], neta: 'Kohada', dest: 'cure' }],
+    // Taken from the wash board by the bowl (the fish on its ice).
+    takeAt: [BOWL_X, 0],
+    steps,
+    // Taken up by the front one of the done (the first part gives the pick point), clear of the tweezers on the board's back row.
+    products: [{ parts: [open[N - 1], ...open.slice(0, N - 1)], neta: 'Kohada', dest: 'cure' }],
   };
 }
 
@@ -172,15 +318,59 @@ export function kohadaRow(size = 1): PrepMaterialLook {
 const steel = new MeshStandardMaterial({ color: '#C8CDD1', metalness: 0.65, roughness: 0.32 });
 const wood = new MeshStandardMaterial({ color: '#B08A5E', roughness: 0.8 });
 const ceramic = new MeshStandardMaterial({ color: '#E9E4DA', roughness: 0.45 });
-const glass = new MeshStandardMaterial({ color: '#D9E2D2', roughness: 0.08, transparent: true, opacity: 0.45, depthWrite: false });
-const vinegarColor = new MeshStandardMaterial({ color: '#E9D79A', roughness: 0.15, transparent: true, opacity: 0.55, depthWrite: false });
-const labelPaper = new MeshStandardMaterial({ color: '#F1E9D6', roughness: 0.9 });
+const vinegarColor = new MeshStandardMaterial({ color: '#E9D79A', roughness: 0.15, transparent: true, opacity: 0.5, depthWrite: false });
+/** White enamel (琺瑯): glossy, seen from inside too; its rim's dark blue line. */
+const enamel = new MeshStandardMaterial({ color: '#F3F1EA', roughness: 0.22, side: DoubleSide });
+const enamelRim = new MeshStandardMaterial({ color: '#22324F', roughness: 0.3 });
 /** The bowl's wall, seen from inside too (it is open). */
 const ceramicInside = new MeshStandardMaterial({ color: '#E9E4DA', roughness: 0.45, side: DoubleSide });
-/** Salt laid over the fish: white, its opacity how much is on (0..1). */
-export const SALT_OPACITY = 0.9;
 
-/** A stainless tray (バット), W along X by D along Z, origin at its floor's middle. */
+/** Salt grains: a small repeating speckle (deterministic), multiplied into the salt's alpha. */
+function saltGrain(): DataTexture {
+  const N = 32;
+  const data = new Uint8Array(N * N * 4);
+  let seed = 7;
+  for (let k = 0; k < N * N; k++) {
+    seed = (seed * 16807) % 2147483647;
+    const v = 150 + ((seed >> 8) % 106);
+    data.set([v, v, v, 255], k * 4);
+  }
+  const t = new DataTexture(data, N, N);
+  t.wrapS = t.wrapT = RepeatWrapping;
+  t.needsUpdate = true;
+  return t;
+}
+const grain = saltGrain();
+
+/** The salt cells' size: each pinch whitens the cells under it (src/cure-system.ts). */
+const SALT_CELL = 0.01;
+
+/**
+ * A sheet of salt cells, W by D (or a disc W across, when `round`), lying
+ * flat: each cell white as far as salt has fallen on it (vertex alpha, 0 at
+ * first). On a round one the cells outside the disc never take salt
+ * (userData.mask: 1 in, 0 out).
+ */
+function saltSheet(W: number, D: number, name: string, round = false): Mesh {
+  const geo = new PlaneGeometry(W, D, Math.round(W / SALT_CELL), Math.round(D / SALT_CELL)).rotateX(-Math.PI / 2);
+  const n = geo.attributes.position.count;
+  const colors = new Float32Array(n * 4).fill(1);
+  for (let k = 3; k < colors.length; k += 4) colors[k] = 0;
+  geo.setAttribute('color', new BufferAttribute(colors, 4));
+  const mask = new Uint8Array(n).fill(1);
+  if (round) for (let k = 0; k < n; k++) if (Math.hypot(geo.attributes.position.getX(k), geo.attributes.position.getZ(k)) > W / 2) mask[k] = 0;
+  const map = grain.clone();
+  map.repeat.set(W / 0.03, D / 0.03);
+  const salt = new Mesh(geo, new MeshStandardMaterial({ vertexColors: true, alphaMap: map, roughness: 0.95, transparent: true, depthWrite: false }));
+  salt.userData.mask = mask;
+  return named(salt, name);
+}
+
+/**
+ * A stainless tray (バット), W along X by D along Z, origin at its floor's
+ * middle. Its 'Salt' is a sheet of cells over the fish (src/cure-system.ts
+ * lifts it to lie just over whatever is laid in the tray).
+ */
 export function createTray(W: number, D: number): Group {
   const g = new Group();
   g.name = 'CureTray';
@@ -191,16 +381,110 @@ export function createTray(W: number, D: number): Group {
   g.add(box(W, h, t, steel, 'TrayBack', 0, h / 2, -D / 2));
   g.add(box(t, h, D, steel, 'TrayLeft', -W / 2, h / 2, 0));
   g.add(box(t, h, D, steel, 'TrayRight', W / 2, h / 2, 0));
-  // The salt over the fish and the vinegar round them, shown in their turn.
-  const salt = new Mesh(
-    paint(box(W - 0.01, 0.002, D - 0.01, steel, 'x').geometry.clone(), (p, _n, out) => out.set('#FFFFFF').multiplyScalar(0.9 + 0.1 * Math.sin(p.x * 900) * Math.sin(p.z * 700))),
-    new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, transparent: true, opacity: SALT_OPACITY, depthWrite: false }),
-  );
+  const salt = saltSheet(W - 0.008, D - 0.008, 'Salt');
   salt.position.y = 0.012;
-  g.add(named(salt, 'Salt', false));
-  const vinegar = box(W - 0.006, 0.012, D - 0.006, vinegarColor, 'Vinegar', 0, 0.0075);
-  vinegar.visible = false;
-  g.add(vinegar);
+  g.add(salt);
+  return g;
+}
+
+/** Woven bamboo: a small basket-weave of two straw tones (deterministic). */
+function bambooWeave(): DataTexture {
+  const N = 16;
+  const data = new Uint8Array(N * N * 4);
+  const a = [217, 196, 142];
+  const b = [184, 154, 92];
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const over = ((x >> 2) + (y >> 2)) % 2 === 0 ? x % 4 !== 0 : y % 4 !== 0;
+      const c = over ? a : b;
+      data.set([c[0], c[1], c[2], 255], (y * N + x) * 4);
+    }
+  }
+  const t = new DataTexture(data, N, N);
+  t.wrapS = t.wrapT = RepeatWrapping;
+  t.needsUpdate = true;
+  return t;
+}
+const weave = bambooWeave();
+
+/**
+ * A round flat bamboo basket (平ざる), D across, origin at its floor's middle:
+ * the kohada are laid on it, skin up, in a ring, and salted on both sides
+ * (the owner: salt on the basket, the fish laid, salt over them). 'SaltBed'
+ * is the basket's own salt, 'Salt' the salt over the fish.
+ */
+export function createZaru(D: number): Group {
+  const g = new Group();
+  g.name = 'Zaru';
+  const R = D / 2;
+  const floorMap = weave.clone();
+  floorMap.repeat.set(D / 0.012, D / 0.012);
+  const straw = new MeshStandardMaterial({ map: floorMap, roughness: 0.85, side: DoubleSide });
+  const floor = new Mesh(new CylinderGeometry(R - 0.02, R - 0.022, 0.003, 40).translate(0, 0.0015, 0), straw);
+  g.add(named(floor, 'ZaruFloor'));
+  const wall = new LatheGeometry([new Vector2(R - 0.021, 0.003), new Vector2(R - 0.01, 0.009), new Vector2(R - 0.003, 0.016), new Vector2(R, 0.02)], 40);
+  g.add(named(new Mesh(wall, straw), 'ZaruSide'));
+  g.add(named(new Mesh(new TorusGeometry(R, 0.0045, 6, 48).rotateX(Math.PI / 2).translate(0, 0.02, 0), new MeshStandardMaterial({ color: '#A88A50', roughness: 0.75 })), 'ZaruRim'));
+  const bed = saltSheet(D - 0.04, D - 0.04, 'SaltBed', true);
+  bed.position.y = 0.0035;
+  g.add(bed);
+  const top = saltSheet(D - 0.03, D - 0.03, 'Salt', true);
+  top.position.y = 0.01;
+  g.add(top);
+  return g;
+}
+
+/** A steel bowl of water, R across its rim, origin at its foot (in the sink: the salt washed off the kohada). */
+export function createWaterBowl(R = 0.08): Group {
+  const g = new Group();
+  g.name = 'WaterBowl';
+  const profile = [new Vector2(0.001, 0), new Vector2(R * 0.62, 0), new Vector2(R * 0.82, 0.014), new Vector2(R * 0.95, 0.038), new Vector2(R, 0.058), new Vector2(R + 0.004, 0.06)];
+  g.add(named(new Mesh(new LatheGeometry(profile, 32), bowlSteel), 'Bowl'));
+  const water = new MeshStandardMaterial({ color: '#BFD8E2', roughness: 0.05, transparent: true, opacity: 0.4, depthWrite: false });
+  g.add(named(new Mesh(new CylinderGeometry(R * 0.93, R * 0.62, 0.042, 32).translate(0, 0.022, 0), water), 'Water'));
+  return g;
+}
+
+/**
+ * A small kitchen timer (white, a grey-green display, three buttons), its
+ * back at the origin and its face toward +Z: on the dish cabinet's side
+ * facing the sink, out of the customers' sight. The digits are a text sprite
+ * (src/cure-system.ts) at TIMER_FACE.
+ */
+export const TIMER_FACE = new Vector3(0, 0.008, 0.02);
+export function createKitchenTimer(): Group {
+  const g = new Group();
+  g.name = 'KitchenTimer';
+  const white = new MeshStandardMaterial({ color: '#F2F2EE', roughness: 0.4 });
+  const lcd = new MeshStandardMaterial({ color: '#A9B5A0', roughness: 0.3 });
+  const key = new MeshStandardMaterial({ color: '#9EA4A8', roughness: 0.5 });
+  g.add(box(0.07, 0.07, 0.018, white, 'TimerBody', 0, 0, 0.009));
+  g.add(box(0.054, 0.024, 0.002, lcd, 'TimerScreen', 0, 0.008, 0.0185));
+  for (let k = 0; k < 3; k++) g.add(box(0.014, 0.008, 0.004, key, `TimerKey${k}`, -0.018 + k * 0.018, -0.018, 0.019));
+  return g;
+}
+
+/**
+ * The vinegar's container: white enamel (ホーロー), kept for vinegar only (the
+ * owner), W by D and `h` deep, its dark blue rim line; the vinegar stands in
+ * it from the start. Origin at its floor's middle.
+ */
+export function createVinegarPot(W: number, D: number, h = 0.055): Group {
+  const g = new Group();
+  g.name = 'VinegarPot';
+  const t = 0.0018;
+  g.add(box(W, t, D, enamel, 'PotFloor'));
+  g.add(box(W, h, t, enamel, 'PotFront', 0, h / 2, D / 2));
+  g.add(box(W, h, t, enamel, 'PotBack', 0, h / 2, -D / 2));
+  g.add(box(t, h, D, enamel, 'PotLeft', -W / 2, h / 2, 0));
+  g.add(box(t, h, D, enamel, 'PotRight', W / 2, h / 2, 0));
+  const r = 0.004;
+  g.add(box(W + 0.002, r, t + 0.002, enamelRim, 'RimFront', 0, h - r / 2, D / 2));
+  g.add(box(W + 0.002, r, t + 0.002, enamelRim, 'RimBack', 0, h - r / 2, -D / 2));
+  g.add(box(t + 0.002, r, D + 0.002, enamelRim, 'RimLeft', -W / 2, h - r / 2, 0));
+  g.add(box(t + 0.002, r, D + 0.002, enamelRim, 'RimRight', W / 2, h - r / 2, 0));
+  const depth = Math.min(0.036, h - 0.012);
+  g.add(box(W - 0.004, depth, D - 0.004, vinegarColor, 'Vinegar', 0, t + depth / 2));
   return g;
 }
 
@@ -215,20 +499,6 @@ export function createSaltBowl(): Group {
     out.set('#FAFAF7').multiplyScalar(0.92 + 0.08 * Math.sin(p.x * 1200 + p.z * 900)),
   );
   g.add(named(new Mesh(heap, new MeshStandardMaterial({ vertexColors: true, roughness: 1 })), 'SaltHeap'));
-  return g;
-}
-
-/** The rice vinegar's bottle (an 1.8 l issho-bin cut short), origin at its foot; its pour point at the neck's top. */
-export const VINEGAR_NECK = 0.24;
-export function createVinegarBottle(): Group {
-  const g = new Group();
-  g.name = 'VinegarBottle';
-  g.add(named(new Mesh(new CylinderGeometry(0.038, 0.038, 0.17, 20).translate(0, 0.085, 0), glass), 'Glass'));
-  g.add(named(new Mesh(new CylinderGeometry(0.036, 0.036, 0.13, 20).translate(0, 0.066, 0), vinegarColor), 'Liquid'));
-  g.add(named(new Mesh(new CylinderGeometry(0.014, 0.038, 0.05, 20).translate(0, 0.195, 0), glass), 'Shoulder'));
-  g.add(named(new Mesh(new CylinderGeometry(0.0125, 0.0125, 0.03, 14).translate(0, 0.225, 0), glass), 'Neck'));
-  g.add(named(new Mesh(new CylinderGeometry(0.0135, 0.0135, 0.012, 14).translate(0, 0.236, 0), steel), 'Cap'));
-  g.add(named(new Mesh(new CylinderGeometry(0.0385, 0.0385, 0.07, 20, 1, true).translate(0, 0.09, 0), labelPaper), 'Label'));
   return g;
 }
 

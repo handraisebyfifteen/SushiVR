@@ -5,7 +5,7 @@ import { prep, staff } from './game-state.js';
 import { stations } from './station-system.js';
 import { StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
-import { fishOrder, orderTotal, pickKohadaSize, sizesOf } from './fish-order.js';
+import { fishOrder, fundsNow, orderTotal, pickKohadaSize, sizesOf, startOrder } from './fish-order.js';
 import { yen } from './ledger.js';
 import { DELIVERY_SECONDS } from './tuning.js';
 
@@ -95,10 +95,9 @@ export class PhoneSystem extends createSystem({}) {
     if (fishOrder.difficulty === 'full') {
       // The chef orders from the case; the call ends with a point at the phone.
       fishOrder.ordering = true;
-      fishOrder.lines.clear();
-      fishOrder.version++;
+      startOrder();
       this.say('Fish shop: Morning! What will it be?', stations.get(StationKind.Phone)!.pos, 0.3);
-      console.log('[Phone] called the fish shop: taking the order');
+      console.log(`[Phone] called the fish shop: taking the order (funds ${yen(fundsNow())}, greengrocer ${yen(fishOrder.greens)})`);
       return;
     }
     prep.ordered = true;

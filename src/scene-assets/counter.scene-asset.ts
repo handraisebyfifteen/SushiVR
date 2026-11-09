@@ -353,18 +353,30 @@ export function createWasabiDish(): Group {
 
 const noriSheet = new MeshStandardMaterial({ color: '#1B2A1F', roughness: 0.55 });
 
+/** The nori tin's height to its rim (its lid sits on it). */
+export const NORI_TIN_HEIGHT = 0.068;
+
 /**
- * Nori box: a low open wooden box with a stack of nori cut into strips for
- * gunkan. Origin: its bottom centre. About 10 x 7.5 cm.
+ * The nori tin (海苔缶): a lacquered red tin with a gold line at its rim and
+ * round its lid (no lettering: the owner's choice), its lid hinged at the
+ * back. Inside, gold-tinned, a white plate with four holes over the drying
+ * agent, and the nori on it (half sheets for rolls, strips for gunkan). The
+ * lid ('Lid', pivot at its back edge) is raised by src/opening-system.ts
+ * while a hand is near, and shut again to keep the nori dry. Origin: its
+ * bottom centre; the chef's side +Z. About 20 x 11 x 7.5 cm.
  */
 export function createNoriBox(): Group {
   const root = new Group();
   root.name = 'NoriBox';
-  const W = 0.1;
-  const D = 0.075;
-  const H = 0.035;
-  const t = 0.005;
-  const wood = new Mesh(
+  const W = 0.2;
+  const D = 0.11;
+  const H = NORI_TIN_HEIGHT;
+  const t = 0.0015;
+  const red = new MeshStandardMaterial({ color: '#C3301C', metalness: 0.3, roughness: 0.2 });
+  const gold = new MeshStandardMaterial({ color: '#C9A659', metalness: 0.85, roughness: 0.28 });
+  const tinned = new MeshStandardMaterial({ color: '#D8CBA2', metalness: 0.6, roughness: 0.32 });
+  const white = new MeshStandardMaterial({ color: '#F1EEE8', roughness: 0.5 });
+  const shell = new Mesh(
     mergeBoxes([
       { w: W, h: t, d: D, x: 0, y: t / 2, z: 0 },
       { w: W, h: H, d: t, x: 0, y: H / 2, z: D / 2 - t / 2 },
@@ -372,17 +384,77 @@ export function createNoriBox(): Group {
       { w: t, h: H, d: D, x: W / 2 - t / 2, y: H / 2, z: 0 },
       { w: t, h: H, d: D, x: -W / 2 + t / 2, y: H / 2, z: 0 },
     ]),
-    lightWood,
+    red,
   );
-  wood.name = 'Box';
-  // Strips lying side by side across the box, slightly fanned.
-  const strips: Parameters<typeof mergeBoxes>[0] = [];
-  for (let i = 0; i < 5; i++) {
-    strips.push({ w: 0.017, h: 0.012, d: D - 2 * t - 0.004, x: -0.036 + i * 0.018, y: t + 0.006 + (i % 2) * 0.001, z: 0, ry: (i - 2) * 0.02 });
-  }
-  const nori = new Mesh(mergeBoxes(strips), noriSheet);
+  shell.name = 'Tin';
+  const lining = new Mesh(
+    mergeBoxes([
+      { w: W - 2 * t, h: H - 0.004, d: 0.0006, x: 0, y: H / 2, z: D / 2 - t - 0.0003 },
+      { w: W - 2 * t, h: H - 0.004, d: 0.0006, x: 0, y: H / 2, z: -D / 2 + t + 0.0003 },
+      { w: 0.0006, h: H - 0.004, d: D - 2 * t, x: W / 2 - t - 0.0003, y: H / 2, z: 0 },
+      { w: 0.0006, h: H - 0.004, d: D - 2 * t, x: -W / 2 + t + 0.0003, y: H / 2, z: 0 },
+    ]),
+    tinned,
+  );
+  lining.name = 'Lining';
+  // The gold line round the tin, just below where the lid's skirt comes down.
+  const band = new Mesh(
+    mergeBoxes([
+      { w: W + 0.001, h: 0.003, d: 0.0008, x: 0, y: H - 0.02, z: D / 2 + 0.0004 },
+      { w: W + 0.001, h: 0.003, d: 0.0008, x: 0, y: H - 0.02, z: -D / 2 - 0.0004 },
+      { w: 0.0008, h: 0.003, d: D + 0.001, x: W / 2 + 0.0004, y: H - 0.02, z: 0 },
+      { w: 0.0008, h: 0.003, d: D + 0.001, x: -W / 2 - 0.0004, y: H - 0.02, z: 0 },
+    ]),
+    gold,
+  );
+  band.name = 'Band';
+  // The perforated plate over the drying agent, and the nori on it.
+  const plate = new Mesh(new BoxGeometry(W - 0.012, 0.002, D - 0.012).translate(0, 0.016, 0), white);
+  plate.name = 'Plate';
+  const holes = new Mesh(
+    mergeBoxes([-1, 1].flatMap((sx) => [-1, 1].map((sz) => ({ w: 0.012, h: 0.0006, d: 0.012, x: sx * 0.055, y: 0.0172, z: sz * 0.025 })))),
+    new MeshStandardMaterial({ color: '#3C3833', roughness: 0.9 }),
+  );
+  holes.name = 'PlateHoles';
+  const nori = new Mesh(
+    mergeBoxes([
+      { w: 0.19, h: 0.012, d: 0.095, x: 0, y: 0.023, z: 0 },
+      { w: 0.188, h: 0.0006, d: 0.093, x: 0.001, y: 0.0293, z: 0.001, ry: 0.01 },
+    ]),
+    noriSheet,
+  );
   nori.name = 'Nori';
-  root.add(wood, nori);
+  // The lid: hinged at the back top edge, its skirt over the tin's rim.
+  const lid = new Group();
+  lid.name = 'Lid';
+  lid.position.set(0, H, -D / 2 - 0.002);
+  const L = 0.004;
+  const skirt = 0.014;
+  const lidShell = new Mesh(
+    mergeBoxes([
+      { w: W + 0.004, h: L, d: D + 0.004, x: 0, y: L / 2, z: D / 2 + 0.002 },
+      { w: W + 0.004, h: skirt, d: t, x: 0, y: L - skirt / 2, z: D + 0.004 - t / 2 },
+      { w: W + 0.004, h: skirt, d: t, x: 0, y: L - skirt / 2, z: t / 2 },
+      { w: t, h: skirt, d: D + 0.004, x: W / 2 + 0.002 - t / 2, y: L - skirt / 2, z: D / 2 + 0.002 },
+      { w: t, h: skirt, d: D + 0.004, x: -W / 2 - 0.002 + t / 2, y: L - skirt / 2, z: D / 2 + 0.002 },
+    ]),
+    red,
+  );
+  lidShell.name = 'LidShell';
+  // A gold line round the lid's top, inset from its edge.
+  const inset = 0.008;
+  const lidLine = new Mesh(
+    mergeBoxes([
+      { w: W - 2 * inset, h: 0.0006, d: 0.0025, x: 0, y: L + 0.0003, z: inset + 0.002 },
+      { w: W - 2 * inset, h: 0.0006, d: 0.0025, x: 0, y: L + 0.0003, z: D + 0.002 - inset },
+      { w: 0.0025, h: 0.0006, d: D - 2 * inset, x: W / 2 - inset, y: L + 0.0003, z: D / 2 + 0.002 },
+      { w: 0.0025, h: 0.0006, d: D - 2 * inset, x: -W / 2 + inset, y: L + 0.0003, z: D / 2 + 0.002 },
+    ]),
+    gold,
+  );
+  lidLine.name = 'LidLine';
+  lid.add(lidShell, lidLine);
+  root.add(shell, lining, band, plate, holes, nori, lid);
   return root;
 }
 

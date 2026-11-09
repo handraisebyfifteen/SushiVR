@@ -170,6 +170,16 @@ export function caseItemXs(widths: readonly number[], zoneStart = -1): number[] 
   return xs;
 }
 export const GETA_Z = TSUKEDAI_CUSTOMER_Z + GETA_DEPTH / 2 + 0.005;
+/**
+ * The geta is past the neta case, a little beyond a seated chef's straight
+ * arm, so a piece let go over the case's far half counts as put on the geta
+ * (it lands there): the zone reaches this far toward the chef from the
+ * geta's near edge, and up this high, so the hand can come in from above,
+ * over the case's top.
+ */
+export const GETA_ZONE_REACH = 0.08;
+export const GETA_ZONE_WIDTH = 0.3;
+export const GETA_ZONE_ABOVE = 0.45;
 export const CUSTOMER_SEAT_Z = CUSTOMER_COUNTER_FAR_Z - 0.065;
 export const EAVES_Z = TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2;
 export const ROOM_END_X = ROOM_LENGTH / 2;
@@ -214,8 +224,8 @@ export const NET_HOOK_Z = BACK_ROW_Z + 0.02;
  * box stands at the sink's foot on the other side (the owner: on the floor;
  * a low stand keeps it in reach), lengthwise in front of the dish cabinet,
  * and the drainboard (the sink's far end, on the chef's left facing it) is
- * kept for the full difficulty's curing (締め): kohada and saba salted, then
- * soaked in vinegar, each in its tray. Its own standing spot is in front of
+ * kept for the full difficulty's curing (締め): kohada and saba salted in
+ * their trays, then soaked in vinegar in enamel containers. Its own standing spot is in front of
  * it, a step from the sink.
  */
 export const SINK_SPOT_X = SINK_BASIN_X;
@@ -236,20 +246,38 @@ export const FISH_BOX_Z = BACK_ROW_Z - 0.02 - FISH_BOX_WIDTH / 2;
 export const FISH_STAND_HEIGHT = 0.25;
 /** In front of the drainboard: the curing's standing spot. */
 export const DRAIN_SPOT_X = SINK_BASIN_X + SINK_BASIN_WIDTH / 2 + (SINK_WIDTH - SINK_BASIN_WIDTH - SINK_END_STRIP) / 2;
-/** The drainboard's two trays (stainless バット, X by Z): the kohada's at the front, the saba's behind. */
-export const KOHADA_TRAY_W = 0.21;
-export const KOHADA_TRAY_D = 0.19;
+/**
+ * On the drainboard (its left edge by the basin, its right at the sink's
+ * end), used a stage at a time (a sushi bar's small space; what is done with
+ * is put away): the kohada's round bamboo basket (平ざる) at the front by the
+ * basin, the salt bowl on its left (the chef's left), the saba's stainless
+ * tray behind, and the one enamel container of vinegar (ホーロー, kept for
+ * vinegar; the kohada first, then the saba) at the back. The bowl of water
+ * the salted kohada are rinsed in stands in the sink, on the wash board's
+ * end by the drainboard; the timers hang on the dish cabinet's side, facing
+ * the sink (out of the customers' sight).
+ */
+const DRAIN_LEFT_X = SINK_BASIN_X + SINK_BASIN_WIDTH / 2;
+const DRAIN_RIGHT_X = SINK_UNIT_X + SINK_WIDTH / 2;
+export const KOHADA_ZARU_D = 0.21;
+export const KOHADA_ZARU_X = DRAIN_LEFT_X + 0.01 + KOHADA_ZARU_D / 2;
+export const KOHADA_ZARU_Z = BACK_ROW_Z + 0.035 + KOHADA_ZARU_D / 2;
+export const SALT_BOWL_X = DRAIN_RIGHT_X - 0.045;
+export const SALT_BOWL_Z = BACK_ROW_Z + 0.07;
 export const SABA_TRAY_W = 0.27;
-export const SABA_TRAY_D = 0.15;
-export const KOHADA_TRAY_X = DRAIN_SPOT_X - 0.04;
-export const KOHADA_TRAY_Z = BACK_ROW_Z + 0.035 + KOHADA_TRAY_D / 2;
+export const SABA_TRAY_D = 0.13;
 export const SABA_TRAY_X = DRAIN_SPOT_X;
-export const SABA_TRAY_Z = KOHADA_TRAY_Z + KOHADA_TRAY_D / 2 + 0.03 + SABA_TRAY_D / 2;
-/** The salt bowl and the vinegar bottle, right of the kohada's tray (on the chef's left). */
-export const SALT_BOWL_X = KOHADA_TRAY_X + KOHADA_TRAY_W / 2 + 0.045;
-export const SALT_BOWL_Z = KOHADA_TRAY_Z - 0.04;
-export const VINEGAR_X = SALT_BOWL_X;
-export const VINEGAR_Z = KOHADA_TRAY_Z + 0.06;
+export const SABA_TRAY_Z = BACK_ROW_Z + 0.25 + SABA_TRAY_D / 2;
+export const VINEGAR_POT_W = 0.25;
+export const VINEGAR_POT_D = 0.14;
+export const VINEGAR_POT_X = DRAIN_SPOT_X;
+export const VINEGAR_POT_Z = SABA_TRAY_Z + SABA_TRAY_D / 2 + 0.01 + VINEGAR_POT_D / 2;
+export const WATER_BOWL_R = 0.08;
+export const WATER_BOWL_X = SINK_BASIN_X + WASH_BOARD_WIDTH / 2 - 0.09;
+/** The timers on the dish cabinet's side (its face toward the sink, -X): kohada over saba. */
+export const TIMER_X = SINK_UNIT_X + SINK_WIDTH / 2 + CABINET_GAP;
+export const TIMER_Z = BACK_ROW_Z + 0.26;
+export const TIMER_Y: readonly [number, number] = [1.2, 1.1];
 export const SCALER_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - SINK_END_STRIP + 0.03;
 export const DEBA_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - 0.04;
 /** Where the scaler's grip and the deba's bolster lie (Z). */
@@ -264,7 +292,7 @@ type Vec3 = [number, number, number];
 export interface NodeLayout {
   position: Vec3;
   /** Station zone fields to write into the node's Station component. */
-  station?: { width?: number; depth?: number; height?: number; radius?: number; below?: number };
+  station?: { width?: number; depth?: number; height?: number; radius?: number; below?: number; above?: number };
 }
 
 /** Neta case height to the top glass (a real case is about 27 cm). */
@@ -384,7 +412,10 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
     position: [NETA_CASE_X, TSUKEDAI_TOP, NETA_CASE_Z],
     station: { width: NETA_CASE_WIDTH, depth: NETA_CASE_DEPTH },
   },
-  geta: { position: [0, TSUKEDAI_TOP, GETA_Z] },
+  geta: {
+    position: [0, TSUKEDAI_TOP, GETA_Z],
+    station: { width: GETA_ZONE_WIDTH, depth: GETA_DEPTH + 2 * GETA_ZONE_REACH, above: GETA_ZONE_ABOVE },
+  },
   'customer-counter': {
     position: [0, -STEP_HEIGHT, TSUKEDAI_CUSTOMER_Z - CUSTOMER_COUNTER_DEPTH / 2],
   },

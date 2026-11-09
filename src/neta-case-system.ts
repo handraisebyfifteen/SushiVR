@@ -12,6 +12,7 @@ import { COLOR_READY, COLOR_WARN, glowObject } from './feedback.js';
 import { caseLabel, fishOrder } from './fish-order.js';
 import { caseStock, chef, type HeldKind, service } from './game-state.js';
 import { hands } from './hands.js';
+import { heldOut } from './pointing.js';
 import {
   NETA_CASE_DEPTH,
   NETA_CASE_HEIGHT,
@@ -203,6 +204,7 @@ export class NetaCaseSystem extends createSystem({
   private readonly tagVersion = [-1, -1];
   private zoomVersion = -1;
   private readonly local = new Vector3();
+  private readonly headAt = new Vector3();
   private readonly itemLocal = new Vector3();
   private readonly itemPos = new Vector3();
   private led: MeshStandardMaterial | null = null;
@@ -247,6 +249,7 @@ export class NetaCaseSystem extends createSystem({
     this.time += delta;
     if (!this.findDoors()) return;
     this.refreshStock();
+    this.player.head.getWorldPosition(this.headAt);
     for (let side = 0; side < 2; side++) {
       this.readHand(side, delta);
       const head = (this.historyHead[side] + 1) % HISTORY;
@@ -322,7 +325,8 @@ export class NetaCaseSystem extends createSystem({
     let reaching = false;
     let slot = -1;
     let hovered: Entity | null = null;
-    if (hand?.tracked && !chef.facingBack && canOpenWith(holding)) {
+    // A hand held out pointing (at the noren, the customer, the phone) passes over the case: it is not reaching in.
+    if (hand?.tracked && !chef.facingBack && canOpenWith(holding) && !heldOut(hand, this.headAt)) {
       this.local.copy(hand.grasp);
       caseDoors.object!.worldToLocal(this.local);
       const doorZ = this.doors[0].position.z;

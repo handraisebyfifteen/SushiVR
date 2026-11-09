@@ -89,6 +89,17 @@ order.forEach((id, i) => {
   console.log(`${id.padEnd(18)} ${xs[i].toFixed(3).padStart(7)}  ${door}    ${def.hand.padEnd(4)}  ${lean > 0 ? `${(lean * 100).toFixed(0)} cm` : 'ok'}${stile}`);
 });
 
+// --- reach report: the geta, let go over the case's far half (rice hand, from above the case) ---
+{
+  const z = layout.GETA_Z + layout.GETA_DEPTH / 2 + layout.GETA_ZONE_REACH;
+  const y = layout.TSUKEDAI_TOP + layout.NETA_CASE_HEIGHT + 0.04;
+  const top = layout.TSUKEDAI_TOP + 0.05 + layout.GETA_ZONE_ABOVE;
+  for (const [what, x] of [['geta middle', 0], ['geta right end', layout.GETA_ZONE_WIDTH / 2]]) {
+    const lean = Math.hypot(x - layout.SHOULDER_HALF_WIDTH, y - shoulderY, z - layout.SHOULDER_BEHIND_EYES) - reach;
+    console.log(`geta zone near edge, ${what}: ${lean > 0 ? `lean ${(lean * 100).toFixed(0)} cm` : 'ok'} (z ${z.toFixed(3)}, over the case up to y ${top.toFixed(2)})`);
+  }
+}
+
 // --- reach report: the ice box of the morning prep, near end of each material (neta hand) ---
 // and the other prep props: trash bin (neta hand, down at the left foot), paper box, and the
 // telephone (facing the sink: the left hand is on +X).

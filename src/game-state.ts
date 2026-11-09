@@ -275,6 +275,8 @@ export interface BurnerView {
   state: 'empty' | 'cooking' | 'done' | 'out';
   /** The grill net is on this burner (its pot put away). */
   net: boolean;
+  /** The tamago's square pan is on this burner (full difficulty). */
+  pan: boolean;
   /** What is wanted of it next, for the master and practice ('' when nothing): its ingredient in, the knob to `target`, it out. */
   want: '' | 'put' | 'knob' | 'take';
   target: number;
@@ -284,34 +286,39 @@ export interface BurnerView {
 }
 
 /** What the curing on the drainboard (src/cure-system.ts) wants next, and of which tray. */
-export type CureNext = 'lay' | 'salt' | 'rinse' | 'back' | 'vinegar' | 'out' | 'case' | 'soon' | 'wait';
+export type CureNext = 'bed' | 'salt' | 'rinse' | 'back' | 'move' | 'out' | 'case' | 'soon' | 'wait';
 
 /**
- * The full difficulty's curing (締め) on the drainboard: kohada and saba
- * salted, rinsed, vinegared. Published by src/cure-system.ts each frame.
+ * The full difficulty's curing (締め) on the drainboard: the kohada salted
+ * on both sides on a bamboo basket, rinsed in a bowl of water, drained, the
+ * saba salted in its tray and rinsed under the tap; then each into the one
+ * enamel container of vinegar. Published by src/cure-system.ts each frame.
  */
 export const cure = {
-  /** Something there wants the chef (a fish to lay, salt, a rinse, vinegar, taking them out). */
+  /** Something there wants the chef (salt, a rinse, the fish moved on, taking them out). */
   wanted: false,
   next: null as CureNext | null,
-  /** Which tray it is about ('Kohada' or 'Saba'). */
+  /** Which fish it is about ('Kohada' or 'Saba'). */
   tray: '',
   /** Its words for the master: "Salt them: about 45 min, they are large". */
   say: '',
-  /** Shop minutes until the tray's time (salt or vinegar). */
+  /** Shop minutes until the fish's time (salt or vinegar), as a guide. */
   left: 0,
-  /** World points: the tray, the salt bowl, the vinegar bottle's neck, the tap, the tray's rim. */
+  /** World points: the basket or tray, its rim, where salt is still wanted, the salt bowl, the vinegar container, the tap. */
   trayAt: new Vector3(),
   rimAt: new Vector3(),
+  saltAt: new Vector3(),
   bowlAt: new Vector3(),
-  bottleAt: new Vector3(),
+  potAt: new Vector3(),
   tapAt: new Vector3(),
+  /** Where the fish are to be taken up now, and where they go next. */
+  fishAt: new Vector3(),
+  dropAt: new Vector3(),
   /** The case item the cured fish go to. */
   caseAt: new Vector3(),
-  /** A hand holds the salt, the tray, the bottle, the cured fish. */
+  /** A hand holds the salt, the basket or tray, the fish (on to the next place, or to the case). */
   saltHeld: false,
   trayHeld: false,
-  bottleHeld: false,
   fishHeld: false,
 };
 
@@ -339,6 +346,31 @@ export const range = {
   caseAt: new Vector3(),
   /** The belly's face down on the net has had its sear. */
   faceDone: false,
+  /** The burner the tamago's pan is on (-1: on its hook), and the flame it wants (0 off, 1 low). */
+  panOn: -1,
+  panTarget: 0,
+};
+
+/** What the tamago (full difficulty, src/tamago-system.ts) wants next. */
+export type TamagoNext = 'pan' | 'place' | 'pour' | 'bake' | 'turn' | 'out' | 'case';
+
+/**
+ * The full difficulty's tamago (厚焼き) on the range: the square pan onto a
+ * free burner, the batter poured, baked on a low flame, turned once, out
+ * into the case. Published by src/tamago-system.ts each frame.
+ */
+export const tamago = {
+  next: null as TamagoNext | null,
+  /** Its words for the master. */
+  say: '',
+  /** World points: the handle's grip (on the hook or on the burner), the pan's middle, a free burner, the case item. */
+  gripAt: new Vector3(),
+  panAt: new Vector3(),
+  burnerAt: new Vector3(),
+  caseAt: new Vector3(),
+  /** A hand holds the pan (to a burner), or the baked tamago (to the case). */
+  panHeld: false,
+  eggHeld: false,
 };
 
 /**
@@ -368,6 +400,8 @@ export const staff = {
   /** A customer waits at the entrance to be shown in; the part-timer has come to the door for them. */
   guestAtDoor: false,
   guideReady: false,
+  /** Let off because the shop cannot pay the next job (full; the office says so, then clears it). */
+  unpaid: '' as '' | 'cook' | 'partTimer',
 };
 
 /** The end of the day: the noren taken in (last orders), then the last customer gone. */

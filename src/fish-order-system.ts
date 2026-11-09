@@ -4,11 +4,14 @@ import {
   closeDay,
   fishOrder,
   fromGreengrocer,
+  fundsNow,
+  greensYen,
   isMaterial,
   morningStock,
   noteAdded,
   orderedSize,
   orderOf,
+  orderRoom,
   orderTotal,
   priceOf,
   setDifficulty,
@@ -25,7 +28,7 @@ import { caseApi, caseDoors } from './neta-case-system.js';
 import { playPress } from './sfx.js';
 import { CaseItem } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
-import { COOK_MINUTES_PER_CASE_ITEM, READY_PRICE } from './tuning.js';
+import { COOK_MINUTES_PER_CASE_ITEM } from './tuning.js';
 
 const SLIP_W = 512;
 const SLIP_H = 640;
@@ -104,7 +107,7 @@ export class FishOrderSystem extends createSystem({
 
     debugLines.push(() => {
       const lines = [...fishOrder.lines].map(([id, at]) => sizesOf(id)[at].name).join(', ');
-      const mode = fishOrder.difficulty === 'full' ? `full, day ${fishOrder.day}` : 'easy';
+      const mode = fishOrder.difficulty === 'full' ? `full, day ${fishOrder.day}, funds ${yen(fundsNow())}` : 'easy';
       return `Order: ${mode}${fishOrder.ordering ? ' | on the phone' : ''}${lines ? ` | ${lines} (${yen(orderTotal())})` : ''}`;
     });
   }
@@ -128,7 +131,7 @@ export class FishOrderSystem extends createSystem({
     for (const [neta, entity] of this.items) this.morning(neta, entity);
     fishOrder.version++;
     console.log(`[Order] difficulty: ${fishOrder.difficulty}${fishOrder.difficulty === 'full' ? `, day ${fishOrder.day}` : ''}`);
-    this.say(fishOrder.difficulty === 'full' ? `Full: day ${fishOrder.day}. Check the case, then call and order` : 'Easy: the usual comes, the cook fills the rest');
+    this.say(fishOrder.difficulty === 'full' ? `Full: day ${fishOrder.day}, funds ${yen(fishOrder.morningFunds)}. Check the case, then call and order` : 'Easy: the usual comes, the cook fills the rest');
     if (fishOrder.difficulty === 'full') this.tellSpoiled();
   }
 
@@ -211,6 +214,14 @@ export class FishOrderSystem extends createSystem({
       const id = orderOf(neta);
       const size = cycleOrder(id);
       playPress();
+      if (size && orderRoom() < 0) {
+        // No borrowing: the fish shop takes no more than the shop can pay.
+        fishOrder.lines.delete(id);
+        fishOrder.version++;
+        this.say(`Fish shop: That's more than the shop has (${yen(Math.max(0, orderRoom()))} left to spend)`);
+        console.log(`[Order] ${NETA[neta].name}: ${size.name} is over the shop's money (funds ${yen(fundsNow())}) | total ${yen(orderTotal())}`);
+        continue;
+      }
       console.log(`[Order] ${NETA[neta].name}: ${size ? `${size.name} (${yen(priceOf(id, size))})` : 'none'} | total ${yen(orderTotal())}`);
     }
   }
@@ -219,14 +230,15 @@ export class FishOrderSystem extends createSystem({
   private deliverReady(): void {
     const greens: string[] = [];
     let greenYen = 0;
+    // Kept aside when the call began; none today if the shop could not pay it then.
     for (const [neta, item] of this.items) {
-      if (!fromGreengrocer(neta)) continue;
+      if (!fromGreengrocer(neta) || !fishOrder.greens) continue;
       const full = NETA[neta].stock;
       const left = item.getValue(CaseItem, 'remaining') ?? 0;
       if (left >= full) continue;
       item.setValue(CaseItem, 'remaining', full);
       noteAdded(neta, full - left);
-      greenYen += Math.round(((READY_PRICE[neta] ?? 0) * (full - left)) / full / 10) * 10;
+      greenYen += greensYen(neta, left);
       greens.push(`${NETA[neta].name.toLowerCase()} x${full - left}`);
     }
     if (greens.length) {
@@ -275,7 +287,7 @@ export class FishOrderSystem extends createSystem({
     ctx.fillText('Pinch a case item: more, then none', SLIP_W / 2, 80);
     let y = 128;
     const rows = [...fishOrder.lines];
-    const shown = rows.slice(0, 12);
+    const shown = rows.slice(0, 11);
     for (const [id, at] of shown) {
       const size = sizesOf(id)[at];
       const price = yen(priceOf(id, size));
@@ -309,10 +321,14 @@ export class FishOrderSystem extends createSystem({
     ctx.fillText('Total', 22, SLIP_H - 76);
     ctx.textAlign = 'right';
     ctx.fillText(yen(orderTotal()), SLIP_W - 22, SLIP_H - 76);
-    ctx.font = '22px sans-serif';
+    ctx.font = '20px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#5B5348';
-    ctx.fillText('Point at the phone to end the call', SLIP_W / 2, SLIP_H - 32);
+    // No borrowing: what the shop's money still allows (the greengrocer's top-up is kept aside).
+    const greens = fishOrder.greens ? `, greengrocer ${yen(fishOrder.greens)}` : '';
+    ctx.fillText(`Funds ${yen(fundsNow())}${greens}: ${yen(Math.max(0, orderRoom()))} left`, SLIP_W / 2, SLIP_H - 42);
+    ctx.font = '22px sans-serif';
+    ctx.fillText('Point at the phone to end the call', SLIP_W / 2, SLIP_H - 16);
     this.slipTexture.needsUpdate = true;
   }
 }

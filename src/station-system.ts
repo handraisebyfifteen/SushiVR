@@ -17,13 +17,13 @@ export interface StationInfo {
   halfD: number;
   /** Depth below the surface that still counts as over the station. */
   below: number;
+  /** Height above the surface that still counts as over the station. */
+  above: number;
 }
 
 /** Live station table, refreshed every frame; keyed by station kind. */
 export const stations = new Map<Kind, StationInfo>();
 
-/** Vertical band (m) above a station surface in which a hand counts as over it. */
-const ZONE_HEIGHT = 0.3;
 /** Bump the version when authored positions change, so old saved spots are ignored. */
 const STORAGE_PREFIX = 'sushi-vr.station.v6.';
 /** A pinch this close to a movable dish picks it up (closer than a saku pick). */
@@ -40,7 +40,7 @@ export function overStation(point: Vector3, kind: Kind): boolean {
   } else if (dx * dx + dz * dz > s.radius * s.radius) {
     return false;
   }
-  return point.y > s.pos.y - s.below && point.y < s.pos.y + ZONE_HEIGHT;
+  return point.y > s.pos.y - s.below && point.y < s.pos.y + s.above;
 }
 
 /**
@@ -72,7 +72,7 @@ export class StationSystem extends createSystem({
       const kind = entity.getValue(Station, 'kind') as Kind;
       let info = stations.get(kind);
       if (!info) {
-        info = { entity, pos: new Vector3(), radius: 0, halfW: 0, halfD: 0, below: 0.05 };
+        info = { entity, pos: new Vector3(), radius: 0, halfW: 0, halfD: 0, below: 0.05, above: 0.3 };
         stations.set(kind, info);
       }
       object.getWorldPosition(info.pos);
@@ -81,6 +81,7 @@ export class StationSystem extends createSystem({
       info.halfW = (entity.getValue(Station, 'width') ?? 0) / 2;
       info.halfD = (entity.getValue(Station, 'depth') ?? 0) / 2;
       info.below = entity.getValue(Station, 'below') ?? 0.05;
+      info.above = entity.getValue(Station, 'above') ?? 0.3;
     }
   }
 

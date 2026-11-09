@@ -36,3 +36,15 @@ export const rangeApi = {
   /** The cook took it to the back: it comes out seared and goes into the case. */
   bellyByCook: (): void => {},
 };
+
+/** The tamago's pan on the range (src/tamago-system.ts), for the prep's batter. */
+export const tamagoApi = {
+  /** The pan sits on a burner, empty: the batter can be poured. */
+  panReady: (): boolean => false,
+  /** The batter's bowl let go over the pan: poured. */
+  pour: (_root: Object3D, _at: Vector3): boolean => false,
+  /** The pan's middle (world), when it is on a burner. */
+  panAt: (_out: Vector3): boolean => false,
+  /** The cook took the batter to the back: no tamago on the range today. */
+  byCook: (): void => {},
+};

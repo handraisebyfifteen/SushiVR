@@ -58,10 +58,28 @@ export const KOHADA_VINEGAR_MINUTES = 20;
 /** Saba (the owner): salt 2-3 hours, then vinegar about 30 min. */
 export const SABA_SALT_MINUTES: readonly [number, number] = [120, 180];
 export const SABA_VINEGAR_MINUTES = 30;
-/** Pinches of salt over a tray (the saba is buried in it), seconds under the tap, seconds of vinegar poured. */
-export const SALT_PINCHES: Record<'Kohada' | 'Saba', number> = { Kohada: 3, Saba: 4 };
+/**
+ * Salting (the owner: till it is fairly white): each pinch whitens the salt
+ * within this radius of where the fingers open (most at the middle); the tray
+ * is salted once this share of it is white. Then seconds under the tap.
+ */
+export const SALT_RADIUS = 0.065;
+export const SALT_PER_PINCH = 1;
+export const SALT_COVER = 0.8;
 export const CURE_RINSE_SECONDS = 1.2;
-export const VINEGAR_POUR_SECONDS = 1.5;
+/** The kohada (the owner): out of the salt into a bowl of water till the salt is off, then laid out on the basket to drain before the vinegar (shop minutes; Claude's guesses). */
+export const KOHADA_SOAK_MINUTES = 2;
+export const KOHADA_DRAIN_MINUTES = 3;
+
+// --- the full difficulty's tamago (厚焼き) on the range (src/tamago-system.ts) ---
+/** Real seconds each side bakes on a low flame (the first, then the other after the one turn). */
+export const TAMAGO_SIDE_SECONDS: readonly [number, number] = [36, 18];
+/** By flame (off, low, medium, high): how fast it bakes, and how fast its face down browns (on low, golden as it is done). */
+export const TAMAGO_BAKE_RATE: readonly number[] = [0, 1, 1.5, 2];
+export const TAMAGO_BROWN_RATE: readonly number[] = [0, 1, 2.2, 3.5];
+/** A face browned past this is scorched (1 is golden); seconds the batter takes to pour. */
+export const TAMAGO_SCORCHED = 1.8;
+export const TAMAGO_POUR_SECONDS = 1.2;
 
 // --- money (yen) ---
 /**
@@ -104,28 +122,34 @@ export const PRICE: Record<MenuId, number> = {
   UmeShisoRoll: 450,
   UmeCucumberRoll: 450,
 };
-/** The fish shop's bill for each material it delivers (everything delivered is paid for, sold or not). */
+/**
+ * The fish shop's bill for each material it delivers (everything delivered
+ * is paid for, sold or not). The owner's prices (2026-11-10): the tuna belly
+ * is an eighth, about 12 kg at about ¥600 a kilo (a sixteenth is half); the
+ * hamachi a half, eight kohada, one saba; the tamago is its eggs and surimi.
+ */
 export const FISH_SHOP_PRICE: Partial<Record<PrepId, number>> = {
-  TunaBelly: 5000,
-  BonitoHalf: 1000,
-  Squid: 800,
+  TunaBelly: 7200,
+  BonitoHalf: 1500,
+  Squid: 1500,
   Octopus: 1500,
   SeaEel: 1200,
-  Abalone: 2500,
-  Kanpyo: 300,
-  // Stage 4: two mid-sized fish whole, the hamachi as a half (the fish shop's prices are Claude's guesses).
-  StripedJack: 4000,
-  Flounder: 3500,
+  Abalone: 5000,
+  Kanpyo: 500,
+  StripedJack: 2000,
+  Flounder: 2500,
   Yellowtail: 2500,
-  // The full difficulty's own: eight small kohada, and a whole saba (Claude's guesses).
   Kohada: 1600,
   Saba: 800,
+  Tamago: 1200,
 };
 /**
  * The full difficulty: what the fish shop (or, for the greengrocer's items,
  * the greengrocer) charges for a case item it brings ready to serve, for a
- * full case of it (a half is half). Claude's guesses, about a third of what
- * the case sells for: to be confirmed with the owner.
+ * full case of it (a half is half). The owner (2026-11-10): a full case is
+ * what this price buys, four servings ("全部4人前用でこの値段"): four prawns,
+ * four of each shell; the inari pouches a set of twelve; sweet shrimp one
+ * sheet. The menu's case stocks follow (src/menu.ts).
  */
 export const READY_PRICE: Partial<Record<NetaId, number>> = {
   Tamago: 500,
@@ -150,15 +174,27 @@ export const READY_PRICE: Partial<Record<NetaId, number>> = {
  * The full difficulty, where the case carries over. The owner: only tuna and
  * cooked things (anago, tamago, octopus...) may be kept from day to day;
  * everything else is for the day it came, and what is left is out the next
- * morning. The greengrocer's vegetables and pickles keep too (Claude's guess).
+ * morning. The greengrocer's garnishes (ツマ) have days of their own (KEEP_DAYS).
  */
 export const KEPT_OVERNIGHT: readonly NetaId[] = [
   'FattyTuna', 'MediumFattyTuna', 'LeanTuna', 'TunaStick',
   'SeaEel', 'Tamago', 'Octopus', 'Abalone', 'Kanpyo', 'InariAge',
-  'Cucumber', 'Shiso', 'Takuan', 'UmePaste',
 ];
-/** Days that differ: opened uni lasts the day it came and the next (the owner). */
-export const KEEP_DAYS: Partial<Record<NetaId, number>> = { Uni: 2 };
+/**
+ * Days that differ (the owner, 2026-11-10): uni and ikura last two business
+ * days, the day they came and the next; the garnishes "中2日", read as the
+ * day they came and two more (to confirm).
+ */
+export const KEEP_DAYS: Partial<Record<NetaId, number>> = { Uni: 2, Ikura: 2, Cucumber: 3, Shiso: 3, Takuan: 3, UmePaste: 3 };
+/**
+ * The full difficulty's shop money (営業モード): it starts at this and
+ * carries over from day to day. There is no borrowing: the fish shop takes
+ * no more than the shop can pay, and staff are not called in when their
+ * wages cannot be paid (the owner, 2026-11-10).
+ */
+export const START_FUNDS = 500_000;
+/** Below this the books warn: about one morning's order. */
+export const LOW_FUNDS = 40_000;
 /**
  * The garnish vegetables and pickles (ツマもの) come straight from the
  * greengrocer (the owner), not with the fish shop's order: on the full
@@ -188,6 +224,7 @@ export const COOK_MINUTES: Partial<Record<PrepId, number>> = {
   Yellowtail: 15,
   Kohada: 80,
   Saba: 40,
+  Tamago: 60,
 };
 export const CLEANUP_MINUTES = 30;
 /** Real seconds the cook takes over one material, and the part-timer over the cleaning. */
