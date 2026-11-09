@@ -2,7 +2,7 @@ import { Group, Mesh } from '@iwsdk/core';
 import { NETA, type NetaId } from '../menu.js';
 import { sliceLook } from './lib/neta-look.js';
 import { makeNetaMaterial, NetaPattern, restMaterial } from './lib/neta-material.js';
-import { Drape, SHARI_FINISHED, Shari, TOPPING_STIFFNESS } from './lib/nigiri-form.js';
+import { Drape, SHARI_FINISHED, SHARI_HALF_LENGTH, SHARI_HALF_WIDTH, SHARI_HEIGHT, Shari, TOPPING_STIFFNESS } from './lib/nigiri-form.js';
 
 /**
  * Inspection only (not placed in the shop): the nigiri's shapes laid out
@@ -17,7 +17,7 @@ const PITCH = 0.085;
 export function createNigiriStages(): Group {
   const root = new Group();
   root.name = 'NigiriStages';
-  const rice = restMaterial(makeNetaMaterial('shari-preview', NetaPattern.Shari, '#F4F0E7', '#DCD2BF', [0.05, 0.02, 0.023], 0.7, 0.3));
+  const rice = restMaterial(makeNetaMaterial('shari-preview', NetaPattern.Shari, '#F4F0E7', '#DCD2BF', [SHARI_HALF_LENGTH * 2, SHARI_HEIGHT, SHARI_HALF_WIDTH * 2], 0.7, 0.3));
   for (let i = 0; i <= SHARI_FINISHED; i++) {
     const shari = new Shari();
     shari.reseed(2.4);

@@ -30,7 +30,7 @@ import { playRustle, playTone } from './sfx.js';
 import { overStation, stations } from './station-system.js';
 import { Held, Judge, NigiriStage, Piece, PieceKindValue, StationKind } from './sushi-components.js';
 import { makeNetaMaterial, NetaPattern, restMaterial } from './scene-assets/lib/neta-material.js';
-import { ownPieceGeometry, Shari } from './scene-assets/lib/nigiri-form.js';
+import { ownPieceGeometry, Shari, SHARI_HALF_LENGTH, SHARI_HALF_WIDTH, SHARI_HEIGHT } from './scene-assets/lib/nigiri-form.js';
 import { makeTextSprite } from './text-sprites.js';
 import {
   FRESH_SECONDS,
@@ -54,7 +54,7 @@ const COUNTER_Y = 0.72;
 /** How fast the shari takes its next shape when pressed (stages per second: a touch shows in about 0.2 s). */
 const SHAPE_RATE = 5;
 /** Shari: packed grains of slightly warm white rice. */
-const SHARI_MATERIAL = restMaterial(makeNetaMaterial('shari', NetaPattern.Shari, '#F4F0E7', '#DCD2BF', [0.05, 0.02, 0.023], 0.7, 0.3));
+const SHARI_MATERIAL = restMaterial(makeNetaMaterial('shari', NetaPattern.Shari, '#F4F0E7', '#DCD2BF', [SHARI_HALF_LENGTH * 2, SHARI_HEIGHT, SHARI_HALF_WIDTH * 2], 0.7, 0.3));
 
 /** Let the cutting system start a nigiri without importing this class. */
 export const pieceApi = {

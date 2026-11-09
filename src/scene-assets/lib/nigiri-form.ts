@@ -2,9 +2,10 @@ import { BufferAttribute, BufferGeometry, type Object3D, Vector3 } from '@iwsdk/
 
 /**
  * The nigiri's shapes (the user's shop): the shari is a funagata (舟形), a
- * flat bottom, a gently domed top and ends that taper, about 15 g (5 x 2.3 x
- * 2 cm); the neta (7-8 cm long, 3 cm wide, 5-7 mm thick for lean tuna)
- * drapes over it. The shari is shaped through the work: a loose lump from
+ * flat bottom, a gently domed top and ends that taper, 29 g (the owner,
+ * 2026-11-10; about 6.5 x 2.9 x 2.4 cm, 31 cm3 of mesh); the neta (7-8 cm
+ * long, 3 cm wide, 5-7 mm thick for lean tuna, about 19 g: shari 6 to neta
+ * 4) drapes over it. The shari is shaped through the work: a loose lump from
  * the tub, rounded in the fist, then each of the three touches presses it
  * closer to the finished form, and the neta settles over it as it does.
  *
@@ -15,9 +16,9 @@ import { BufferAttribute, BufferGeometry, type Object3D, Vector3 } from '@iwsdk/
  */
 
 /** The finished shari: half length (along the neta), half width, height (m). */
-export const SHARI_HALF_LENGTH = 0.025;
-export const SHARI_HALF_WIDTH = 0.0115;
-export const SHARI_HEIGHT = 0.02;
+export const SHARI_HALF_LENGTH = 0.0325;
+export const SHARI_HALF_WIDTH = 0.0145;
+export const SHARI_HEIGHT = 0.024;
 
 /** One step of the shaping: half length a, half width b, height h; the ends' height (share of h), the flat bottom, the taper, the lumps. */
 interface ShariStage {
@@ -32,10 +33,10 @@ interface ShariStage {
 
 /** 0 loose from the tub, 1 rounded in the fist, 2 after touch 1, 3 after touch 2, 4 finished (touch 3). */
 const STAGES: readonly ShariStage[] = [
-  { a: 0.017, b: 0.0155, h: 0.028, base: 0.5, flat: 0, taper: 0, lump: 0.16 },
-  { a: 0.021, b: 0.0135, h: 0.025, base: 0.46, flat: 0.25, taper: 0.1, lump: 0.08 },
-  { a: 0.0232, b: 0.0125, h: 0.0218, base: 0.45, flat: 0.75, taper: 0.14, lump: 0.045 },
-  { a: 0.0244, b: 0.0118, h: 0.0206, base: 0.46, flat: 0.92, taper: 0.18, lump: 0.02 },
+  { a: 0.0221, b: 0.0195, h: 0.0336, base: 0.5, flat: 0, taper: 0, lump: 0.16 },
+  { a: 0.0273, b: 0.017, h: 0.03, base: 0.46, flat: 0.25, taper: 0.1, lump: 0.08 },
+  { a: 0.0302, b: 0.0158, h: 0.0262, base: 0.45, flat: 0.75, taper: 0.14, lump: 0.045 },
+  { a: 0.0317, b: 0.0149, h: 0.0247, base: 0.46, flat: 0.92, taper: 0.18, lump: 0.02 },
   { a: SHARI_HALF_LENGTH, b: SHARI_HALF_WIDTH, h: SHARI_HEIGHT, base: 0.48, flat: 1, taper: 0.2, lump: 0.006 },
 ];
 export const SHARI_FINISHED = STAGES.length - 1;
@@ -199,7 +200,7 @@ export class Shari {
 export const TOPPING_STIFFNESS: Partial<Record<string, number>> = { block: 0.25, shell: 0.55, halves: 0.6 };
 
 /** How low (m) the neta's tips may hang: this far above the shari's bottom (about its ends' height). */
-const TIP_CLEARANCE = 0.007;
+const TIP_CLEARANCE = 0.0084;
 /** How far its sides fall over the shari's width at full drape. */
 const SIDE_FALL = 0.0035;
 
