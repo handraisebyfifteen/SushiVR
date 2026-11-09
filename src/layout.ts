@@ -42,7 +42,7 @@ export const GETA_DEPTH = 0.1;
 /** Length of the counters, the tsukedai and the eaves. */
 export const BAR_LENGTH = 1.8;
 /** Neta case: outer length along the bar, and the machine housing at its left end. */
-export const NETA_CASE_WIDTH = 1.5;
+export const NETA_CASE_WIDTH = 1.525;
 export const NETA_HOUSING_WIDTH = 0.12;
 /** Sliding glass doors on the chef side, side by side across the glass part. */
 export const NETA_DOOR_COUNT = 5;
@@ -79,9 +79,13 @@ export const LANTERN_ALONG = 0.65;
 export const TILE_PITCH = 0.06;
 
 // --- back row, along X ---
-export const SINK_WIDTH = 1.1;
-/** Basin centre X: straight behind the player, so both hands reach it. */
-export const SINK_BASIN_X = 0;
+export const SINK_WIDTH = 0.9;
+/**
+ * Basin centre X: just left of straight behind the player (facing the sink),
+ * so both hands reach it and the work table on its right is wide enough for
+ * the hangiri and the ohitsu side by side.
+ */
+export const SINK_BASIN_X = 0.2;
 export const SINK_BASIN_WIDTH = 0.45;
 export const SINK_BASIN_DEPTH = 0.34;
 /** Rim between the sink's front face and the basin. */
@@ -98,10 +102,14 @@ export const CABINET_WIDTH = 0.7;
 export const CABINET_DEPTH = 0.4;
 export const CABINET_HEIGHT = 1.8;
 export const CABINET_GAP = 0.03;
-/** Stainless work table, then a commercial gas range, on the sink's right (seen facing the sink). */
-export const WORKTABLE_WIDTH = 0.4;
+/**
+ * Stainless work table, then a commercial gas range, on the sink's right
+ * (seen facing the sink). The table takes the hangiri (shari-kiri) with the
+ * ohitsu brought beside it; the gas rice cooker sits on its undershelf.
+ */
+export const WORKTABLE_WIDTH = 0.65;
 /** Gas range: four burners over an oven with a side cupboard on each side. */
-export const RANGE_WIDTH = 0.7;
+export const RANGE_WIDTH = 0.65;
 /** Height of the range's top frame (the grates sit just above it): level with the sink. */
 export const RANGE_HEIGHT = SINK_TOP;
 export const BACK_ROW_GAP = 0.01;
@@ -179,6 +187,78 @@ export const CABINET_X = SINK_UNIT_X + SINK_WIDTH / 2 + CABINET_GAP + CABINET_WI
 export const CABINET_Z = BACK_WALL_Z - CABINET_DEPTH / 2;
 export const WORKTABLE_X = SINK_UNIT_X - SINK_WIDTH / 2 - BACK_ROW_GAP - WORKTABLE_WIDTH / 2;
 export const STOVE_X = WORKTABLE_X - WORKTABLE_WIDTH / 2 - BACK_ROW_GAP - RANGE_WIDTH / 2;
+/**
+ * Standing at the back row (a step from the stool, in the morning prep): the
+ * head over this point, in front of the work table or of the range. From
+ * the range the ice box is in reach too, turned round.
+ */
+export const BACK_SPOT_Z = BACK_ROW_Z - 0.22;
+export const TABLE_SPOT_X = WORKTABLE_X;
+export const RANGE_SPOT_X = STOVE_X;
+/** On the work table: the hangiri at the back on the range side, the ohitsu (when brought) at the front by the sink, the awasezu at the front on the range side. */
+export const HANGIRI_X = WORKTABLE_X - WORKTABLE_WIDTH / 2 + 0.18;
+export const HANGIRI_Z = BACK_WALL_Z - 0.03 - 0.175;
+export const TUB_ON_TABLE_X = WORKTABLE_X + WORKTABLE_WIDTH / 2 - 0.17;
+export const TUB_ON_TABLE_Z = BACK_ROW_Z + 0.165;
+export const AWASEZU_X = WORKTABLE_X - WORKTABLE_WIDTH / 2 + 0.07;
+export const AWASEZU_Z = BACK_ROW_Z + 0.07;
+/** The grill net's hook on the end wall beside the range. */
+export const NET_HOOK_Y = 1.12;
+export const NET_HOOK_Z = BACK_ROW_Z + 0.02;
+/**
+ * Stage 4, washing the whole fish (水洗い) at the sink, a step from the stool
+ * (only the basin's front edge is in reach from it). A wash board lies across
+ * the basin's front under the tap; the scaler and the deba lie on the soap
+ * strip behind the soap, handles toward the chef; a second trash bin stands
+ * at the sink cabinet's foot, on the work table's side. The fish shop's long
+ * box stands at the sink's foot on the other side (the owner: on the floor;
+ * a low stand keeps it in reach), lengthwise in front of the dish cabinet,
+ * and the drainboard (the sink's far end, on the chef's left facing it) is
+ * kept for the full difficulty's curing (締め): kohada and saba salted, then
+ * soaked in vinegar, each in its tray. Its own standing spot is in front of
+ * it, a step from the sink.
+ */
+export const SINK_SPOT_X = SINK_BASIN_X;
+export const WASH_BOARD_WIDTH = 0.47;
+export const WASH_BOARD_DEPTH = 0.24;
+export const WASH_BOARD_THICKNESS = 0.02;
+export const WASH_BOARD_Z = BACK_ROW_Z + SINK_FRONT_RIM + 0.005 + WASH_BOARD_DEPTH / 2;
+/** The wash board's top: it rests on the basin's rims. */
+export const WASH_BOARD_TOP = SINK_TOP + WASH_BOARD_THICKNESS;
+export const FISH_BOX_WIDTH = 0.3;
+export const FISH_BOX_DEPTH = 0.48;
+export const FISH_BOX_HEIGHT = 0.13;
+/** Top of the ice bed inside (box-local y). */
+export const FISH_BOX_ICE_TOP = 0.05;
+/** The box's middle and its stand's top (the box lies long along X: its depth runs along X). */
+export const FISH_BOX_X = SINK_UNIT_X + SINK_WIDTH / 2 + 0.22;
+export const FISH_BOX_Z = BACK_ROW_Z - 0.02 - FISH_BOX_WIDTH / 2;
+export const FISH_STAND_HEIGHT = 0.25;
+/** In front of the drainboard: the curing's standing spot. */
+export const DRAIN_SPOT_X = SINK_BASIN_X + SINK_BASIN_WIDTH / 2 + (SINK_WIDTH - SINK_BASIN_WIDTH - SINK_END_STRIP) / 2;
+/** The drainboard's two trays (stainless バット, X by Z): the kohada's at the front, the saba's behind. */
+export const KOHADA_TRAY_W = 0.21;
+export const KOHADA_TRAY_D = 0.19;
+export const SABA_TRAY_W = 0.27;
+export const SABA_TRAY_D = 0.15;
+export const KOHADA_TRAY_X = DRAIN_SPOT_X - 0.04;
+export const KOHADA_TRAY_Z = BACK_ROW_Z + 0.035 + KOHADA_TRAY_D / 2;
+export const SABA_TRAY_X = DRAIN_SPOT_X;
+export const SABA_TRAY_Z = KOHADA_TRAY_Z + KOHADA_TRAY_D / 2 + 0.03 + SABA_TRAY_D / 2;
+/** The salt bowl and the vinegar bottle, right of the kohada's tray (on the chef's left). */
+export const SALT_BOWL_X = KOHADA_TRAY_X + KOHADA_TRAY_W / 2 + 0.045;
+export const SALT_BOWL_Z = KOHADA_TRAY_Z - 0.04;
+export const VINEGAR_X = SALT_BOWL_X;
+export const VINEGAR_Z = KOHADA_TRAY_Z + 0.06;
+export const SCALER_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - SINK_END_STRIP + 0.03;
+export const DEBA_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - 0.04;
+/** Where the scaler's grip and the deba's bolster lie (Z). */
+export const SCALER_Z = BACK_ROW_Z + 0.16;
+export const DEBA_Z = BACK_ROW_Z + 0.21;
+export const SINK_BIN_X = SINK_BASIN_X - 0.32;
+export const SINK_BIN_Z = BACK_ROW_Z - 0.16;
+/** The tweezers (骨抜き) on the board's back row, between the paper box and the wasabi (X from the board's centre). */
+export const TWEEZERS_X = 0.04;
 
 type Vec3 = [number, number, number];
 export interface NodeLayout {
@@ -194,9 +274,9 @@ const DISH_Z = MANAITA_Z - 0.1;
 /** The styrofoam ice box of the morning's materials: on the counter, left of the board. */
 export const ICE_BOX_WIDTH = 0.34;
 export const ICE_BOX_DEPTH = 0.32;
-export const ICE_BOX_HEIGHT = 0.13;
+export const ICE_BOX_HEIGHT = 0.18;
 /** Top of the ice bed inside, where the materials lie (box-local y). */
-export const ICE_BOX_ICE_TOP = 0.075;
+export const ICE_BOX_ICE_TOP = 0.1;
 export const ICE_BOX_WALL = 0.02;
 export const ICE_BOX_X = -MANAITA_WIDTH / 2 - 0.02 - ICE_BOX_WIDTH / 2;
 export const ICE_BOX_Z = MANAITA_Z + 0.03;
@@ -230,6 +310,13 @@ export const FOOD_SHELF_Z = AISLE_CENTER_Z - 0.1;
 export const OFFICE_BACK_Z = AISLE_CENTER_Z + 0.5;
 export const PHONE_SHELF_Y = 1.0;
 export const BOOKS_BOARD_Y = 1.5;
+/**
+ * The difficulty sign (easy or full), shown in the morning before the call:
+ * on the end wall between the phone and the call board, well apart from
+ * both as seen from the stool (pointing reads only left and right).
+ */
+export const MODE_SIGN_Y = 1.4;
+export const MODE_SIGN_Z = AISLE_CENTER_Z + 0.13;
 /**
  * The staff call board: two buttons (the cook, the part-timer) on the wall
  * over the food shelf. Pointed at from the seat like the phone, so the

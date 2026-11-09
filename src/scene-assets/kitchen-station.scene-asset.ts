@@ -25,7 +25,7 @@ import { type BoxPart, boxBatch, instances, mergeGeometries } from './lib/batch.
  * a gas stove, as in a Showa-era sushi bar's back row.
  *
  * - work-table: a stainless table with a backsplash and an undershelf
- *   carrying a wooden sushi tub (hangiri). Two draw calls.
+ *   carrying a gas rice cooker, the hangiri and paddle on the wall. Two draw calls.
  * - gas-stove: a floor-standing commercial gas range in stainless steel:
  *   four burners under cast-iron grates, a back guard, a dark control panel
  *   with five knobs over a rail, an oven in the middle with a bar handle and
@@ -90,9 +90,6 @@ export function createWorkTable(): Group {
     [{ w: W, h: 0.12, d: 0.03, x: 0, y: T + 0.06, z: D / 2 - 0.015 }, STEEL],
     [{ w: W - 0.06, h: 0.05, d: 0.02, x: 0, y: T - 0.055, z: -D / 2 + 0.03 }, STEEL_DARK],
     [{ w: W - 0.06, h: 0.02, d: D - 0.08, x: 0, y: 0.18, z: 0 }, STEEL],
-    // Two stacked stainless trays on the top.
-    [{ w: 0.3, h: 0.025, d: 0.22, x: 0, y: T + 0.0125, z: 0.06 }, '#B4BAC0'],
-    [{ w: 0.28, h: 0.025, d: 0.2, x: 0, y: T + 0.0375, z: 0.06 }, '#C2C8CE'],
   ];
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
@@ -114,8 +111,8 @@ export function createWorkTable(): Group {
     ]),
   );
   // The shari-kiri tools hung on the wall above the table: the hangiri (a
-  // wide, shallow cypress tub with copper hoops) on its edge, the rice paddle
-  // and the fan beside it.
+  // wide, shallow cypress tub with copper hoops) on its edge and the rice
+  // paddle beside it (no fan: the shop does not fan its shari).
   const wallZ = D / 2 - 0.05;
   const hy = T + 0.33;
   root.add(
@@ -129,9 +126,6 @@ export function createWorkTable(): Group {
       // Paddle (shamoji): blade and handle.
       [{ w: 0.07, h: 0.11, d: 0.008, x: -0.16, y: T + 0.2, z: wallZ - 0.07 }, '#E2C79A'],
       [{ w: 0.024, h: 0.13, d: 0.01, x: -0.16, y: T + 0.32, z: wallZ - 0.07 }, '#D9BC8C'],
-      // Fan (uchiwa): face and handle.
-      [{ w: 0.2, h: 0.18, d: 0.004, x: 0.17, y: T + 0.24, z: wallZ - 0.07, rz: 0.08 }, '#E8E2D2'],
-      [{ w: 0.016, h: 0.13, d: 0.008, x: 0.172, y: T + 0.1, z: wallZ - 0.068 }, '#9A7448'],
     ]),
   );
   return root;

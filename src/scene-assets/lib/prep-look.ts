@@ -1,8 +1,11 @@
-import { type BufferGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { type BufferGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, type Object3D, SphereGeometry, Vector3 } from '@iwsdk/core';
 import type { NetaId } from '../../menu.js';
 import type { PrepId } from '../../prep.js';
 import { type Dims, prepMaterial, roundedBlock } from './neta-look.js';
 import { flat, patterned, taperedTube, weld } from './neta-paint.js';
+import { kohadaRow } from './cure-look.js';
+import { flounder, hamachiHalf, stripedJack, wholeSaba } from './fillet-look.js';
+import { ingredientLook } from './range-look.js';
 
 /**
  * The fish of the morning delivery as they come out of the ice box (paper,
@@ -27,19 +30,35 @@ export interface PrepEffect {
   scrap?: string[];
   hide?: string[];
   show?: string[];
+  /** The fish rolls over about its length (its turnable group). */
+  flip?: boolean;
+  /** Done on the wash board at the sink (水洗い), not on the manaita. */
+  sink?: boolean;
 }
 
+/**
+ * Root-local points and lines. Stage 4 adds:
+ *  - scale: the scaler, held by a pinch, scraped over the fish until the
+ *    scales (the named overlay part) are gone.
+ *  - turn: the fish pinched at `at` and lifted a little; it rolls over.
+ *  - rinse: a hand rubs the belly cavity at `at`, under the running tap.
+ *  - pins: the tweezers, held by a pinch, pull each named pin bone out.
+ */
 export type PrepStep =
   | ({ kind: 'cut'; axis: 'z' | 'x'; at: number; mid: number; len: number; low?: boolean; say: string } & PrepEffect)
   | ({ kind: 'pull'; netaAt: Vector3; riceAt: Vector3; parts: string[]; say: string } & PrepEffect)
-  | ({ kind: 'wipe'; say: string } & PrepEffect);
+  | ({ kind: 'wipe'; say: string } & PrepEffect)
+  | ({ kind: 'scale'; part: string; say: string } & PrepEffect)
+  | ({ kind: 'turn'; at: Vector3; say: string } & PrepEffect)
+  | ({ kind: 'rinse'; at: Vector3; say: string } & PrepEffect)
+  | ({ kind: 'pins'; pins: string[]; say: string } & PrepEffect);
 
 export interface PrepProduct {
   /** The parts that go together; the first gives the centre and the length. */
   parts: string[];
   neta: NetaId;
-  /** Into its place in the case, or back on the ice to wait for the range. */
-  dest: 'case' | 'ice';
+  /** Into its place in the case, back on the ice to wait for the range, or into its tray on the drainboard to be cured (full). */
+  dest: 'case' | 'ice' | 'cure';
 }
 
 export interface PrepMaterialLook {
@@ -50,6 +69,16 @@ export interface PrepMaterialLook {
   top: number;
   steps: PrepStep[];
   products: PrepProduct[];
+  /** Lies along X (a whole fish: head on the chef's left, belly toward the chef) instead of toward the chef. */
+  alongX?: boolean;
+  /** On the manaita, the root this far from the board's centre (x, z), clear of the board's back row. */
+  boardAt?: [number, number];
+  /** Where its scraps on the board are piled (board-local x, z), clear of its work. */
+  pileAt?: [number, number];
+  /** Where it is taken up (root-local x, z) when not its near end: the kohada's row by its middle, clear of the heads and guts at both ends. */
+  takeAt?: [number, number];
+  /** The group that rolls over when the fish is turned, and how thick the fish lies. */
+  turnable?: { group: Object3D; thickness: number };
 }
 
 const plainMaterials = new Map<string, MeshStandardMaterial>();
@@ -282,8 +311,28 @@ function gesoFlat(): BufferGeometry {
   return weld(parts);
 }
 
-/** The look and work of a delivered material, built fresh (one per day). */
-export function prepMaterialLook(id: PrepId): PrepMaterialLook | null {
+/**
+ * The range's ingredients (stage 3), prepared by the fish shop: no work on
+ * the board, they go from the ice straight into their pots (src/range-system.ts
+ * reads their colours from root.userData.tints). For the cook, each fills
+ * its own case item.
+ */
+function simmered(id: 'Octopus' | 'SeaEel' | 'Abalone' | 'Kanpyo'): PrepMaterialLook {
+  const look = ingredientLook(id);
+  look.root.userData.tints = look.tints;
+  look.root.userData.top = look.top;
+  return {
+    root: look.root,
+    length: look.halfWidth * 2,
+    halfWidth: look.halfWidth,
+    top: look.top,
+    steps: [],
+    products: [{ parts: [], neta: id, dest: 'case' }],
+  };
+}
+
+/** The look and work of a delivered material, built fresh (one per day); the kohada come in the day's size. */
+export function prepMaterialLook(id: PrepId, kohadaSize = 1): PrepMaterialLook | null {
   switch (id) {
     case 'TunaBelly':
       return tunaBelly();
@@ -291,6 +340,21 @@ export function prepMaterialLook(id: PrepId): PrepMaterialLook | null {
       return bonitoHalf();
     case 'Squid':
       return squid();
+    case 'Octopus':
+    case 'SeaEel':
+    case 'Abalone':
+    case 'Kanpyo':
+      return simmered(id);
+    case 'StripedJack':
+      return stripedJack();
+    case 'Flounder':
+      return flounder();
+    case 'Yellowtail':
+      return hamachiHalf();
+    case 'Saba':
+      return wholeSaba();
+    case 'Kohada':
+      return kohadaRow(kohadaSize);
     default:
       return null;
   }

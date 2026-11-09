@@ -5,7 +5,9 @@ import { prep, staff } from './game-state.js';
 import { stations } from './station-system.js';
 import { StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
-import { DELIVERY_SECONDS, DIFFICULTY } from './tuning.js';
+import { fishOrder, orderTotal, pickKohadaSize, sizesOf } from './fish-order.js';
+import { yen } from './ledger.js';
+import { DELIVERY_SECONDS } from './tuning.js';
 
 /** The handset rises this far off its cradle, the call goes through after this long, and it goes back down after this. */
 const LIFT = 0.07;
@@ -15,7 +17,7 @@ const SPEECH_SECONDS = 4;
 
 /** How the office corner (src/office-system.ts) picks up the phone when it is pointed at. */
 export const phoneApi = {
-  /** True while a call can be made (the morning, before the order). */
+  /** True while the phone can be pointed at: to call (the morning, before the order), or to end the order (full). */
   ready: (): boolean => false,
   call: (): void => undefined,
 };
@@ -23,10 +25,11 @@ export const phoneApi = {
 /**
  * The telephone in the office corner, and the fish shop. It is out of reach
  * from the seat: point at it and pinch (src/office-system.ts), and the
- * handset comes up off its cradle; on the easy difficulty the shop brings
- * what is missing on its own ("omakase"). A while later the delivery, the
- * styrofoam ice box of wrapped fish, is on the counter (src/prep-cut-system.ts).
- * Ordering by checking the case stock is the full difficulty's (later).
+ * handset comes up off its cradle. On the easy difficulty the shop brings
+ * the usual ("omakase"). On the full difficulty the handset stays up while
+ * the chef orders from the case (src/fish-order-system.ts); a point at the
+ * phone again ends the call. A while later the delivery, the styrofoam ice
+ * box of wrapped fish, is on the counter (src/prep-cut-system.ts).
  */
 export class PhoneSystem extends createSystem({}) {
   private handset: Object3D | null = null;
@@ -43,9 +46,11 @@ export class PhoneSystem extends createSystem({}) {
     this.speech.name = 'PhoneSpeech';
     this.speech.visible = false;
     this.world.createTransformEntity(this.speech);
-    phoneApi.ready = () => !!this.handset && this.lifted < 0 && prep.active && !prep.ordered;
+    phoneApi.ready = () => !!this.handset && prep.active && !prep.ordered && (this.lifted < 0 || fishOrder.ordering);
     phoneApi.call = () => {
-      if (phoneApi.ready()) this.lifted = 0;
+      if (!phoneApi.ready()) return;
+      if (fishOrder.ordering) this.endOrder();
+      else this.lifted = 0;
     };
   }
 
@@ -66,10 +71,12 @@ export class PhoneSystem extends createSystem({}) {
     if (this.lifted >= 0) {
       // Up off the cradle and tilted, as held to the ear; then back down.
       this.lifted += delta;
+      // Held to the ear while the order is taken.
+      if (fishOrder.ordering) this.lifted = Math.min(this.lifted, RING_SECONDS + 0.3);
       const up = Math.min(1, this.lifted / 0.3, Math.max(0, (HANG_UP_SECONDS - this.lifted) / 0.3));
       handset.position.copy(this.home).add(this.tmp.set(0, LIFT * up, -0.02 * up));
       handset.rotation.x = 0.5 * up;
-      if (this.lifted >= RING_SECONDS && prep.active && !prep.ordered) this.order();
+      if (this.lifted >= RING_SECONDS && prep.active && !prep.ordered && !fishOrder.ordering) this.order();
       if (this.lifted >= HANG_UP_SECONDS) {
         this.lifted = -1;
         handset.position.copy(this.home);
@@ -83,17 +90,46 @@ export class PhoneSystem extends createSystem({}) {
   }
 
   private order(): void {
-    prep.ordered = true;
-    this.deliverIn = DELIVERY_SECONDS;
-    const words = DIFFICULTY === 'easy' ? 'Fish shop: Morning! The usual? Right away.' : 'Fish shop: Morning! What will it be?';
-    this.say(words, stations.get(StationKind.Phone)!.pos, 0.3);
     feedback.flash(StationKind.Phone, COLOR_DONE);
     coach.done('callFishShop');
+    if (fishOrder.difficulty === 'full') {
+      // The chef orders from the case; the call ends with a point at the phone.
+      fishOrder.ordering = true;
+      fishOrder.lines.clear();
+      fishOrder.version++;
+      this.say('Fish shop: Morning! What will it be?', stations.get(StationKind.Phone)!.pos, 0.3);
+      console.log('[Phone] called the fish shop: taking the order');
+      return;
+    }
+    prep.ordered = true;
+    this.deliverIn = DELIVERY_SECONDS;
+    this.say('Fish shop: Morning! The usual? Right away.', stations.get(StationKind.Phone)!.pos, 0.3);
     console.log('[Phone] called the fish shop: omakase');
+  }
+
+  /** The order is given (full): the shop repeats it, the handset goes down, the delivery is on its way. */
+  private endOrder(): void {
+    fishOrder.ordering = false;
+    prep.ordered = true;
+    this.deliverIn = DELIVERY_SECONDS;
+    this.lifted = Math.max(this.lifted, HANG_UP_SECONDS - 0.6);
+    const n = fishOrder.lines.size;
+    let words = n ? `Fish shop: ${n} item${n > 1 ? 's' : ''}, ${yen(orderTotal())}. Right away!` : 'Fish shop: Nothing today? All right.';
+    if (fishOrder.lines.has('Kohada')) {
+      pickKohadaSize();
+      words += ['', ' The kohada are small today.', ' The kohada are on the large side.'][fishOrder.kohadaSize === 0 ? 0 : fishOrder.kohadaSize < 0 ? 1 : 2];
+    }
+    this.say(words, stations.get(StationKind.Phone)!.pos, 0.3);
+    feedback.flash(StationKind.Phone, COLOR_DONE);
+    coach.done('orderFish');
+    const list = [...fishOrder.lines].map(([id, at]) => sizesOf(id)[at].name).join(', ');
+    console.log(`[Phone] the order: ${list || 'nothing'} (${yen(orderTotal())})`);
   }
 
   private deliver(): void {
     prep.delivered = true;
+    // Nothing ordered (full): nothing comes.
+    if (fishOrder.difficulty === 'full' && !fishOrder.lines.size) return;
     const box = stations.get(StationKind.IceBox);
     if (box) this.say('Delivery! On the counter.', box.pos, 0.28);
     console.log('[Phone] the delivery has come');

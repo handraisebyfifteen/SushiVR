@@ -16,7 +16,9 @@ import {
 } from '@iwsdk/core';
 import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
 import { debugLines } from './debug.js';
-import { chef, holdingAnything, orderKind, orderNeta, prep, progress, service, staff, tea } from './game-state.js';
+import { fishOrder } from './fish-order.js';
+import { chef, cure, holdingAnything, orderKind, orderNeta, type Place, prep, progress, range, service, shari, staff, tea } from './game-state.js';
+import { BACK_ROW_Z, RANGE_HEIGHT, SINK_BASIN_X, SINK_TOP, STOVE_X, WORKTABLE_X, DRAIN_SPOT_X } from './layout.js';
 import { hands } from './hands.js';
 import { MENU, NETA } from './menu.js';
 import { playClack } from './sfx.js';
@@ -75,6 +77,14 @@ const STEP_WORDS: Record<StepKey, string> = {
   squeezeRoll: 'Both fists on the beat',
   cutRoll: 'Cut on the line',
   callFishShop: 'Call the fish shop',
+  orderFish: 'Order: pinch what the case needs, then point at the phone',
+  stepDrain: 'Step to the drainboard beside the sink',
+  layCure: 'Into its tray on the drainboard',
+  saltCure: 'Salt them: a pinch from the bowl, over the tray',
+  rinseCure: 'Rinse the salt off: the tray under the tap',
+  vinegarCure: 'Pour the vinegar over them',
+  cureOut: 'Out of the vinegar, into the case',
+  waitCure: 'Get ready at the drainboard',
   takeMaterial: 'Take it from the ice',
   cutPrep: 'Along the line',
   pullPrep: 'Pull it off',
@@ -86,6 +96,35 @@ const STEP_WORDS: Record<StepKey, string> = {
   leanBoard: 'Stand it to drain',
   returnBoard: 'Board back on the counter',
   hangNoren: 'Point at the noren, pinch',
+  stepTable: 'Point at the work table, pinch',
+  stepRange: 'Point at the range, pinch',
+  stepSink: 'Point at the sink, pinch',
+  scaleFish: 'Scaler: scrape tail to head',
+  turnFish: 'Pinch it, lift: turn it over',
+  rinseFish: 'Wash it under the tap',
+  holdDeba: 'Take the deba: a fist',
+  putDeba: 'Deba back: open the hand',
+  pullPins: 'Tweezers: pull the pin bones',
+  putTool: 'Put it back: let go',
+  stepSeat: 'Point at the board, pinch',
+  lightRice: 'Light the rice: point, pinch',
+  turnOutRice: 'Rice into the hangiri: point, pinch',
+  pourAwasezu: 'Awasezu over the rice',
+  cutShari: 'Cut it through with the paddle',
+  bringTub: 'Bring the ohitsu over',
+  scoopShari: 'Scoop it into the ohitsu',
+  returnTub: 'Ohitsu back to its stand',
+  potIn: 'Into its pot',
+  turnKnob: 'Turn the knob',
+  potOut: 'Out of the pot, into the case',
+  hangNet: 'Net on a free burner',
+  skewer: 'Skewers through the skin side',
+  searTurn: 'Turn it with the skewers',
+  chillBelly: 'Onto the ice',
+  unskewer: 'Pull the skewers out',
+  bellyBoard: 'Belly onto the board',
+  bellyNet: 'Onto the net, skin down',
+  toCase: 'Into the case',
   check: 'The check: point at them, pinch',
   makeTea: 'Tea: point at the urn, pinch',
   serveTea: 'Tea: onto the tsukedai',
@@ -195,6 +234,9 @@ class GhostHand {
  * He reads the game through the shared progress snapshot and the coach
  * channel, and never changes the game state himself.
  */
+/** What the master is asking for now (practice mode's Tab does it). */
+export const masterApi = { step: null as StepKey | null };
+
 export class MasterSystem extends createSystem({
   items: { required: [CaseItem] },
 }) {
@@ -317,6 +359,7 @@ export class MasterSystem extends createSystem({
     this.readEvents();
 
     const step = this.computeStep();
+    masterApi.step = step;
     if (step !== this.step) {
       this.step = step;
       this.idle = 0;
@@ -407,15 +450,18 @@ export class MasterSystem extends createSystem({
       return back ? 'turnFront' : null;
     }
     // The morning prep starts with the call to the fish shop (the phone in the office corner, pointed at).
+    if (prep.active && fishOrder.ordering) return 'orderFish';
     if (prep.active && !prep.ordered && !holdingAnything()) return 'callFishShop';
     if (!holdingAnything()) {
+      if ((L.needsWash || R.needsWash || L.needsTowel || R.needsTowel) && chef.at !== 'seat') return this.goTo('seat', 'back', back, 'turnBack');
       if (L.needsWash || R.needsWash) {
         if (!back) return 'turnBack';
         return !chef.open && !chef.soaped ? 'soap' : 'washHands';
       }
       if (L.needsTowel || R.needsTowel) return back ? 'towel' : 'turnBack';
       if (chef.clothDirty) return back ? 'turnFront' : 'takeCloth';
-      if (back && !(prep.active && this.prepWantsBack())) return 'turnFront';
+      // In the prep, prepStep says which way to face (the back row has its own work).
+      if (back && !prep.active) return 'turnFront';
     }
     // The morning prep, before the bar opens.
     if (prep.active) return this.prepStep(back);
@@ -471,17 +517,58 @@ export class MasterSystem extends createSystem({
   /** The morning prep: a material from the ice box onto the board, its cuts, then each saku into the case. */
   /** The prep steps done facing the sink: washing the board and letting it drain. */
   private prepWantsBack(): boolean {
-    return prep.next === 'washBoard' || prep.next === 'leanBoard' || prep.next === 'dryBoard' || (prep.next === 'liftBoard' && prep.boardAt.z > 0);
+    return prep.next === 'washBoard' || prep.next === 'leanBoard' || prep.next === 'dryBoard' || (prep.next === 'liftBoard' && prep.boardAt.z > 0) || prep.where === 'sink';
   }
 
   /** The morning prep: the fish from the ice, its work, the saku into the case, the scraps out, the board washed, the noren. */
   private prepStep(back: boolean): StepKey | null {
+    // The whole fish's tools go back once their work is done: the deba at the sink, the scaler and the tweezers anywhere.
+    if (prep.debaHeld) return prep.next === 'cut' && prep.where === 'sink' ? this.goTo('sink', 'back', back, 'cutPrep') : 'putDeba';
+    if ((prep.scalerHeld && prep.next !== 'scale') || (prep.tweezersHeld && prep.next !== 'pins')) return 'putTool';
     if (progress.knifeHeld) {
-      if (prep.next === 'cut') return 'cutPrep';
+      if (prep.next === 'cut' && prep.where === 'board') return 'cutPrep';
       return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
     }
-    const front = (step: StepKey): StepKey => (back ? 'turnFront' : step);
+    const cured = this.cureStep(back);
+    if (cured) return cured;
+    const row = this.backRowStep(back);
+    if (row) return row;
+    const boardWork =
+      prep.next === 'take' || prep.next === 'cut' || prep.next === 'pull' || prep.next === 'wipe' || prep.next === 'stock' || prep.next === 'discard' ||
+      prep.next === 'scale' || prep.next === 'turn' || prep.next === 'rinse' || prep.next === 'pins';
+    if (!boardWork) {
+      const belly = this.bellyStep(back);
+      if (belly) return belly;
+    }
+    // The board's work is done from the stool, facing the bar; the board's washing facing the sink.
+    const front = (step: StepKey): StepKey => this.goTo('seat', 'front', back, step);
+    const sink = (step: StepKey): StepKey => this.goTo('seat', 'back', back, step);
+    // Stage 4's washing (水洗い), standing at the sink.
+    const atSink = (step: StepKey): StepKey => this.goTo('sink', 'back', back, step);
+    if (prep.where === 'sink') {
+      switch (prep.next) {
+        case 'take':
+          // The fish box stands at the drainboard's foot (the full difficulty's curing is on the drainboard).
+          return prep.takeFrom === 'fish' && !prep.materialHeld ? this.goTo('drain', 'back', back, 'takeMaterial') : atSink('takeMaterial');
+        case 'cut':
+          return atSink('holdDeba');
+        case 'pull':
+          return atSink('pullPrep');
+        case 'scale':
+          return atSink('scaleFish');
+        case 'turn':
+          return atSink('turnFish');
+        case 'rinse':
+          return atSink('rinseFish');
+        case 'discard':
+          return atSink('discardScrap');
+      }
+    }
     switch (prep.next) {
+      case 'turn':
+        return front('turnFish');
+      case 'pins':
+        return front('pullPins');
       case 'take':
         return front('takeMaterial');
       case 'cut':
@@ -491,15 +578,17 @@ export class MasterSystem extends createSystem({
       case 'wipe':
         return front('wipePaper');
       case 'stock':
+        // A fish to cure goes to its tray on the drainboard (picked up at the board first).
+        if (prep.stockTo === 'cure') return prep.productHeld ? this.goTo('drain', 'back', back, 'layCure') : front('layCure');
         return front('stockSaku');
       case 'discard':
         return front('discardScrap');
       case 'liftBoard':
-        return prep.boardAt.z > 0 ? (back ? 'liftBoard' : 'turnBack') : front('liftBoard');
+        return prep.boardAt.z > 0 ? sink('liftBoard') : front('liftBoard');
       case 'washBoard':
-        return back ? 'washBoard' : 'turnBack';
+        return sink('washBoard');
       case 'leanBoard':
-        return back ? 'leanBoard' : 'turnBack';
+        return sink('leanBoard');
       case 'dryBoard':
         return null;
       case 'returnBoard':
@@ -507,7 +596,130 @@ export class MasterSystem extends createSystem({
       case 'noren':
         return front('hangNoren');
     }
+    if (chef.at !== 'seat') return this.goTo('seat', 'front', back, 'turnFront');
     return back ? 'turnFront' : null;
+  }
+
+  /**
+   * The step itself when the chef is at `place` facing the right way, or how
+   * to get there: turned round, point at the work table or the range; back
+   * from there, facing the bar, point at the board.
+   */
+  private goTo(place: Place, facing: 'back' | 'front', back: boolean, step: StepKey): StepKey {
+    if (chef.at !== place) {
+      if (place === 'seat') return back ? 'turnFront' : 'stepSeat';
+      return back ? (place === 'table' ? 'stepTable' : place === 'sink' ? 'stepSink' : place === 'drain' ? 'stepDrain' : 'stepRange') : 'turnBack';
+    }
+    if (facing === 'back') return back ? step : 'turnBack';
+    return back ? 'turnFront' : step;
+  }
+
+  /** The ice box is in reach from the stool and from the range, facing the bar. */
+  private atIceBox(back: boolean, step: StepKey): StepKey {
+    if (chef.at === 'table') return back ? 'stepRange' : 'turnBack';
+    if (chef.at === 'sink' || chef.at === 'drain') return back ? 'turnFront' : 'stepSeat';
+    return back ? 'turnFront' : step;
+  }
+
+  /**
+   * The full difficulty's curing on the drainboard (src/cure-system.ts): what
+   * is in a hand of it first, then the salt, the rinse and the vinegar when
+   * their time has come; it waits while the prep has something in a hand.
+   */
+  private cureStep(back: boolean): StepKey | null {
+    const next = cure.next;
+    if (!next || next === 'wait') return null;
+    const held = cure.saltHeld || cure.trayHeld || cure.bottleHeld || cure.fishHeld;
+    if (!held && (prep.carrying[0] || prep.carrying[1] || prep.materialHeld)) return null;
+    const at = (step: StepKey): StepKey => this.goTo('drain', 'back', back, step);
+    switch (next) {
+      case 'salt':
+        return at('saltCure');
+      case 'rinse':
+      case 'back':
+        return at('rinseCure');
+      case 'vinegar':
+        return at('vinegarCure');
+      case 'out':
+        return at('cureOut');
+      case 'case':
+        return this.goTo('seat', 'front', back, 'cureOut');
+      case 'soon':
+        return at('waitCure');
+    }
+    return null;
+  }
+
+  /**
+   * The back row's work in the prep, before the board's: what is in a hand
+   * first, then a flame that wants turning (the eel near the boil, a pot
+   * done), the rice cooker (lit early, it takes time), the range's
+   * ingredients into their pots, what is done out of them, and the shari.
+   */
+  private backRowStep(back: boolean): StepKey | null {
+    // A flame wanting a turn comes first (the eel near the boil, a pot done): one free hand will do.
+    const handFree = chef.hands.some((h) => h.holding === Held.None);
+    if (handFree && range.burners.some((b) => b.want === 'knob')) return this.goTo('range', 'back', back, 'turnKnob');
+    if (shari.tubHeld) return shari.step === 'return' || shari.step === 'done' ? this.goTo('seat', 'front', back, 'returnTub') : this.goTo('table', 'back', back, 'bringTub');
+    if (shari.shamojiHeld) {
+      if (shari.step === 'cut') return this.goTo('table', 'back', back, 'cutShari');
+      if (shari.step === 'scoop') return this.goTo('table', 'back', back, shari.tubOnTable ? 'scoopShari' : 'bringTub');
+    }
+    if (shari.awasezuHeld && shari.step === 'vinegar') return this.goTo('table', 'back', back, 'pourAwasezu');
+    if (prep.next === 'pot') return this.goTo('range', 'back', back, 'potIn');
+    if (range.netHeld) return this.goTo('range', 'back', back, 'hangNet');
+    if (range.ingHeld) return this.goTo('seat', 'front', back, 'toCase');
+    if (range.bellyHeld) {
+      switch (range.belly) {
+        case 'ice':
+        case 'chilled':
+          return this.goTo('seat', 'front', back, 'bellyBoard');
+        case 'skewered':
+          return this.goTo('range', 'back', back, 'bellyNet');
+        case 'net':
+          return this.atIceBox(back, 'chillBelly');
+        case 'free':
+          return this.goTo('seat', 'front', back, 'toCase');
+      }
+    }
+    if (holdingAnything()) return null;
+    if (shari.step === 'light' || shari.step === 'turnOut') return this.goTo('table', 'back', back, shari.step === 'light' ? 'lightRice' : 'turnOutRice');
+    if (prep.next === 'take' && prep.takeToPot) return this.atIceBox(back, 'takeMaterial');
+    if (range.burners.some((b) => b.want === 'take')) return this.goTo('range', 'back', back, 'potOut');
+    switch (shari.step) {
+      case 'vinegar':
+        return this.goTo('table', 'back', back, 'pourAwasezu');
+      case 'cut':
+        return this.goTo('table', 'back', back, 'cutShari');
+      case 'scoop':
+        return shari.tubOnTable ? this.goTo('table', 'back', back, 'scoopShari') : this.goTo('seat', 'front', back, 'bringTub');
+      case 'return':
+        return this.goTo('table', 'back', back, 'returnTub');
+    }
+    return null;
+  }
+
+  /** The bonito belly after the saku-taking: skewers on the board, the net, the ice, paper, the case. */
+  private bellyStep(back: boolean): StepKey | null {
+    switch (range.belly) {
+      case 'ice':
+      case 'chilled':
+        return this.atIceBox(back, 'bellyBoard');
+      case 'board':
+        return this.goTo('seat', 'front', back, 'skewer');
+      case 'skewered':
+        if (range.netOn < 0) return range.burners.some((b) => b.state === 'out') ? this.goTo('range', 'back', back, 'hangNet') : null;
+        return this.goTo('seat', 'front', back, 'bellyNet');
+      case 'net':
+        return range.bellySeared ? this.goTo('range', 'back', back, 'chillBelly') : this.goTo('range', 'back', back, 'searTurn');
+      case 'wet':
+        return this.goTo('seat', 'front', back, 'wipePaper');
+      case 'patted':
+        return this.goTo('seat', 'front', back, 'unskewer');
+      case 'free':
+        return this.goTo('seat', 'front', back, 'toCase');
+    }
+    return null;
   }
 
   /** A gunkan: rice, a nori strip, wrap, wasabi if ordered, the topping, then the geta. */
@@ -585,7 +797,8 @@ export class MasterSystem extends createSystem({
     if (step === 'place' && (progress.kind ?? orderKind()) !== 'nigiri') return 'Onto the geta';
     if (step === 'place') return service.customerHandKnown ? 'Geta: on the diagonal' : 'Geta: straight across';
     // A cut or a pull in the prep says which one (Cut off the skin side, Off with the bag...).
-    if ((step === 'cutPrep' || step === 'pullPrep') && prep.say) return prep.say;
+    if ((step === 'cutPrep' || step === 'pullPrep' || step === 'scaleFish' || step === 'turnFish' || step === 'rinseFish' || step === 'pullPins') && prep.say) return prep.say;
+    if ((step === 'saltCure' || step === 'rinseCure' || step === 'vinegarCure' || step === 'cureOut' || step === 'waitCure') && cure.say) return cure.say;
     return STEP_WORDS[step];
   }
 
@@ -624,6 +837,17 @@ export class MasterSystem extends createSystem({
         return StationKind.IceBox;
       case 'callFishShop':
         return StationKind.Phone;
+      case 'orderFish':
+        return StationKind.NetaCase;
+      case 'stepDrain':
+      case 'layCure':
+      case 'saltCure':
+      case 'rinseCure':
+      case 'vinegarCure':
+      case 'waitCure':
+        return StationKind.Sink;
+      case 'cureOut':
+        return cure.fishHeld ? StationKind.NetaCase : StationKind.Sink;
       case 'wipePaper':
         return StationKind.PaperBox;
       case 'discardScrap':
@@ -636,6 +860,14 @@ export class MasterSystem extends createSystem({
         return StationKind.Sink;
       case 'cutPrep':
       case 'pullPrep':
+      case 'turnFish':
+        return prep.where === 'sink' ? StationKind.Sink : StationKind.CuttingBoard;
+      case 'scaleFish':
+      case 'rinseFish':
+      case 'holdDeba':
+      case 'putDeba':
+        return StationKind.Sink;
+      case 'pullPins':
         return StationKind.CuttingBoard;
       case 'stockSaku':
         return StationKind.NetaCase;
@@ -689,7 +921,40 @@ export class MasterSystem extends createSystem({
         out.copy(prep.guideAt).add(this.tmp.set(0, 0.15, 0));
         return;
       case 'pullPrep':
+      case 'scaleFish':
+      case 'turnFish':
         out.copy(prep.materialAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'rinseFish':
+        out.copy(prep.rinseAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'pullPins':
+        out.copy(prep.pinsAt[0] ?? prep.materialAt).add(this.tmp.set(0, 0.12, 0));
+        return;
+      case 'holdDeba':
+      case 'putDeba':
+        out.copy(prep.debaAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'putTool':
+        out.copy(prep.scalerHeld ? prep.scalerAt : prep.tweezersAt).add(this.tmp.set(0, 0.12, 0));
+        return;
+      case 'stepSink':
+        out.set(SINK_BASIN_X, SINK_TOP + 0.3, BACK_ROW_Z + 0.15);
+        return;
+      case 'stepDrain':
+        out.set(DRAIN_SPOT_X, SINK_TOP + 0.3, BACK_ROW_Z + 0.15);
+        return;
+      case 'layCure':
+        out.copy(prep.productHeld ? prep.slotAt : prep.productAt).add(this.tmp.set(0, 0.18, 0));
+        return;
+      case 'saltCure':
+      case 'rinseCure':
+      case 'vinegarCure':
+      case 'waitCure':
+        out.copy(cure.trayAt).add(this.tmp.set(0, 0.22, 0));
+        return;
+      case 'cureOut':
+        out.copy(cure.fishHeld ? cure.caseAt : cure.trayAt).add(this.tmp.set(0, 0.2, 0));
         return;
       case 'stockSaku':
         out.copy(prep.slotAt).add(this.tmp.set(0, 0.18, 0));
@@ -698,7 +963,79 @@ export class MasterSystem extends createSystem({
         out.copy(prep.scrapAt).add(this.tmp.set(0, 0.15, 0));
         return;
       case 'wipePaper':
-        out.copy(prep.materialAt).add(this.tmp.set(0, 0.15, 0));
+        out.copy(range.belly === 'wet' ? range.bellyAt : prep.materialAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      // The back row.
+      case 'stepTable':
+        out.set(WORKTABLE_X, SINK_TOP + 0.3, BACK_ROW_Z + 0.15);
+        return;
+      case 'stepRange':
+        out.set(STOVE_X, RANGE_HEIGHT + 0.35, BACK_ROW_Z + 0.15);
+        return;
+      case 'stepSeat': {
+        const board = stations.get(StationKind.CuttingBoard);
+        if (board) {
+          out.copy(board.pos).add(this.tmp.set(0, 0.25, 0));
+          return;
+        }
+        break;
+      }
+      case 'lightRice':
+      case 'turnOutRice':
+        out.copy(shari.cookerAt).setY(SINK_TOP + 0.22);
+        return;
+      case 'pourAwasezu':
+        out.copy(shari.awasezuHeld ? shari.hangiriAt : shari.awasezuAt).add(this.tmp.set(0, 0.22, 0));
+        return;
+      case 'cutShari':
+      case 'scoopShari':
+        out.copy(shari.hangiriAt).add(this.tmp.set(0, 0.25, 0));
+        return;
+      case 'bringTub':
+        out.copy(shari.tubHeld ? shari.tubTableAt : shari.tubHomeAt).add(this.tmp.set(0, 0.25, 0));
+        return;
+      case 'returnTub':
+        out.copy(shari.tubHeld ? shari.tubHomeAt : shari.tubTableAt).add(this.tmp.set(0, 0.25, 0));
+        return;
+      case 'potIn':
+        out.copy(prep.slotAt).add(this.tmp.set(0, 0.25, 0));
+        return;
+      case 'turnKnob':
+      case 'potOut': {
+        const b = range.burners.find((x) => x.want === (step === 'turnKnob' ? 'knob' : 'take'));
+        if (b) {
+          if (step === 'turnKnob') out.copy(b.knobAt).add(this.tmp.set(0, 0.12, -0.06));
+          else out.copy(b.at).add(this.tmp.set(0, 0.25, 0));
+          return;
+        }
+        break;
+      }
+      case 'hangNet': {
+        const free = range.netHeld ? range.burners.find((x) => x.state === 'out' && !x.net) : undefined;
+        out.copy(free ? free.at : range.netAt).add(this.tmp.set(0, 0.22, 0));
+        return;
+      }
+      case 'skewer':
+      case 'unskewer':
+        out.copy(range.ringsAt).add(this.tmp.set(0, 0.18, 0));
+        return;
+      case 'searTurn':
+        out.copy(range.bellyAt).add(this.tmp.set(0, 0.22, 0));
+        return;
+      case 'chillBelly':
+      case 'bellyBoard':
+      case 'bellyNet': {
+        const kind = step === 'chillBelly' ? StationKind.IceBox : step === 'bellyBoard' ? StationKind.CuttingBoard : null;
+        const to = kind ? stations.get(kind)?.pos : range.netAt;
+        out.copy(range.bellyHeld && to ? to : range.bellyAt).add(this.tmp.set(0, 0.22, 0));
+        return;
+      }
+      case 'toCase':
+        if ((range.ingHeld || range.bellyHeld) && this.netaAt(range.caseNeta, out)) {
+          out.y += 0.15;
+          return;
+        }
+        out.copy(range.bellyAt).add(this.tmp.set(0, 0.22, 0));
         return;
       case 'liftBoard':
         out.copy(prep.boardAt).add(this.tmp.set(0, 0.2, 0));
@@ -1163,7 +1500,7 @@ export class MasterSystem extends createSystem({
         if (!board) return false;
         if (step === 'takeMaterial') {
           a.copy(prep.boxAt);
-          b.copy(board).add(off.set(0, 0.03, 0));
+          b.copy(prep.slotAt).add(off.set(0, 0.03, 0));
         } else {
           a.copy(prep.productAt);
           b.copy(prep.slotAt).add(off.set(0, 0.04, 0));
@@ -1185,10 +1522,12 @@ export class MasterSystem extends createSystem({
       }
       case 'cutPrep': {
         const g = prep.guideAt;
-        neta.pose(a.copy(prep.materialAt).add(off.set(-0.06, 0.04, 0)), yaw, 0.1, 0);
+        // Toward the chef: +Z at the manaita, -Z at the sink.
+        const dz = prep.where === 'sink' ? -1 : 1;
+        neta.pose(a.copy(prep.materialAt).add(off.set(-0.06 * dz, 0.04, 0)), yaw, 0.1, 0);
         // The blade reaches 15 cm ahead of the fist: draw the fist back along the line.
-        b.copy(g).add(off.set(0, 0.05, 0.09));
-        c.copy(g).add(off.set(0, 0.05, 0.22));
+        b.copy(g).add(off.set(0, 0.05, 0.09 * dz));
+        c.copy(g).add(off.set(0, 0.05, 0.22 * dz));
         rice.pose(this.go(this.phase(2) * 1.4, b, c), yaw, 1, 0);
         return true;
       }

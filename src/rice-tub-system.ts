@@ -1,5 +1,5 @@
 import { createSystem, type Object3D, Vector3 } from '@iwsdk/core';
-import { chef, progress } from './game-state.js';
+import { chef, prep, progress, shari } from './game-state.js';
 import { hands } from './hands.js';
 import { stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
@@ -29,6 +29,8 @@ export class RiceTubSystem extends createSystem({}) {
 
   update(delta: number): void {
     if (!this.findLid()) return;
+    // Until the day's shari is in, the ohitsu is the shari-kiri's (src/shari-system.ts): it may be away on the work table.
+    if (prep.active && !shari.inTub) return;
     const tub = stations.get(StationKind.RiceTub)!;
     const hand = hands.all[chef.riceSide];
     let near = false;

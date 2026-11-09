@@ -100,8 +100,9 @@ export class HygieneSystem extends createSystem({}) {
 
     // --- washing hands: both palms under the faucet, rubbing ---
     const bothFree = chef.hands[0].holding === Held.None && chef.hands[1].holding === Held.None;
+    // Not while a whole fish lies on the wash board over the basin (the hands are working on it).
     const bothInSink =
-      bothFree && L.tracked && R.tracked &&
+      bothFree && L.tracked && R.tracked && !prep.washBusy &&
       overStation(L.palm, StationKind.Sink) && overStation(R.palm, StationKind.Sink);
     if (!bothInSink) this.washArmed = true;
     const counting = bothInSink && this.washArmed;

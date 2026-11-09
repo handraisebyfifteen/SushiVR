@@ -38,6 +38,7 @@ export class TurnSystem extends createSystem({
 }) {
   private blink!: Mesh<SphereGeometry, MeshBasicMaterial>;
   private phase: Phase = 'idle';
+  private action: (() => void) | null = null;
   private t = 0;
   barEntity!: Entity;
   /** Current head yaw relative to the rig, degrees; positive = left. */
@@ -80,7 +81,9 @@ export class TurnSystem extends createSystem({
     if (this.phase === 'closing') {
       m.opacity = Math.min(1, this.t / BLINK_CLOSE_SECONDS);
       if (this.t >= BLINK_CLOSE_SECONDS) {
-        this.rotateBar();
+        const act = this.action;
+        this.action = null;
+        act?.();
         this.phase = 'hold';
         this.t = 0;
       }
@@ -101,10 +104,17 @@ export class TurnSystem extends createSystem({
 
   /** Practice mode's turn: the view blinks and the rig turns half round about the head. */
   turnAround(): void {
-    if (this.phase !== 'idle') return;
+    this.blinkThen(() => this.rotateBar());
+  }
+
+  /** The view blinks (eyes shut a moment) and `act` runs while it is dark: a turn, or a step to another place. */
+  blinkThen(act: () => void): boolean {
+    if (this.phase !== 'idle') return false;
+    this.action = act;
     this.phase = 'closing';
     this.t = 0;
     this.blink.visible = true;
+    return true;
   }
 
   /** The facing, from where the head looks in the room: past 120 degrees off the bar the back row, within 60 the bar. */

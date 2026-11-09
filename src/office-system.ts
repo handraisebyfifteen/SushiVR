@@ -11,6 +11,8 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { debugLines } from './debug.js';
+import { fishOrder } from './fish-order.js';
+import { fishOrderApi } from './fish-order-system.js';
 import { COLOR_HINT, glowObject } from './feedback.js';
 import { chef, day, prep, type Side, staff, tea } from './game-state.js';
 import { hands } from './hands.js';
@@ -32,10 +34,10 @@ const SHEET_H = Math.round((SHEET_W * BOOKS_SHEET_HEIGHT) / BOOKS_SHEET_WIDTH);
 const NOTICE_SECONDS = 10;
 const WORD_SECONDS = 2.5;
 
-type Target = 'phone' | 'cook' | 'partTimer' | 'urn';
-const TARGETS: readonly Target[] = ['phone', 'cook', 'partTimer', 'urn'];
+type Target = 'phone' | 'cook' | 'partTimer' | 'urn' | 'mode';
+const TARGETS: readonly Target[] = ['phone', 'cook', 'partTimer', 'urn', 'mode'];
 /** Each target's rough radius, for looking at it (eye tracking). */
-const TARGET_RADIUS: Record<Target, number> = { phone: 0.1, cook: 0.04, partTimer: 0.04, urn: 0.08 };
+const TARGET_RADIUS: Record<Target, number> = { phone: 0.1, cook: 0.04, partTimer: 0.04, urn: 0.08, mode: 0.1 };
 
 /**
  * The office corner (帳場) on the aisle's right end wall, out of the
@@ -54,6 +56,9 @@ const TARGET_RADIUS: Record<Target, number> = { phone: 0.1, cook: 0.04, partTime
  *  - The books on the wall over the phone keep the day's takings, the fish
  *    shop's bill and the wages up to date; when the last customer has left
  *    they are the day's final books, and a word over the counter says so.
+ *    They show the difficulty (easy or full, src/fish-order.ts).
+ *  - The difficulty sign (the morning, before the call): pointed at, easy
+ *    and full change places (src/fish-order-system.ts).
  */
 export class OfficeSystem extends createSystem({}) {
   private time = 0;
@@ -108,14 +113,18 @@ export class OfficeSystem extends createSystem({}) {
   }
 
   private enabled(t: Target): boolean {
+    // The office corner is worked from the stool (from the back row a point at the board could line up with it).
+    if (chef.at !== 'seat') return false;
     if (t === 'phone') return phoneApi.ready();
     if (t === 'urn') return chef.open && !!this.urn && tea.wanted && tea.cup === 'none' && !staff.partTimer;
+    if (t === 'mode') return fishOrderApi.canSwitch();
     if (!this.buttons[t] || day.closed) return false;
     return t === 'cook' ? prep.active : prep.active || chef.open;
   }
 
   private where(t: Target): Vector3 {
     if (t === 'urn') return tea.urnAt;
+    if (t === 'mode') return fishOrder.signAt;
     return t === 'phone' ? staff.phoneAt : t === 'cook' ? staff.cookButtonAt : staff.partTimerButtonAt;
   }
 
@@ -179,6 +188,7 @@ export class OfficeSystem extends createSystem({}) {
     playPress();
     if (t === 'phone') phoneApi.call();
     else if (t === 'urn') teaApi.pour();
+    else if (t === 'mode') fishOrderApi.toggle();
     else this.ask(t);
   }
 
@@ -198,6 +208,11 @@ export class OfficeSystem extends createSystem({}) {
   }
 
   private glowTarget(t: Target, on: boolean): void {
+    if (t === 'mode') {
+      // A sign of text: it redraws itself lit (src/fish-order-system.ts).
+      fishOrder.signHover = on;
+      return;
+    }
     const object = t === 'phone' ? stations.get(StationKind.Phone)?.entity.object3D : t === 'urn' ? this.urn : this.buttons[t]?.button;
     if (object) glowObject(object, on ? COLOR_HINT : null);
   }
@@ -267,7 +282,7 @@ export class OfficeSystem extends createSystem({}) {
   /** Redrawn only when a figure changes (a sale, a bill, a wage), and once more when the day is over. */
   private updateBooks(): void {
     if (!this.sheet) return;
-    const key = `${ledger.sales}|${ledger.paid}|${ledger.costTotal()}|${ledger.costs.length}|${day.closed}`;
+    const key = `${ledger.sales}|${ledger.paid}|${ledger.costTotal()}|${ledger.costs.length}|${day.closed}|${fishOrder.difficulty}|${fishOrder.day}`;
     if (key === this.drawn) return;
     this.drawn = key;
     if (day.closed) {
@@ -295,7 +310,15 @@ export class OfficeSystem extends createSystem({}) {
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     ctx.font = 'bold 40px sans-serif';
-    ctx.fillText(day.closed ? "Today's books: closed" : "Today's books", SHEET_W / 2, 54);
+    const full = fishOrder.difficulty === 'full';
+    const title = full ? `Day ${fishOrder.day} books` : "Today's books";
+    ctx.fillText(day.closed ? `${title}: closed` : title, SHEET_W / 2, 50);
+    // The difficulty; in the morning before the call, pointing here changes it.
+    ctx.font = '20px sans-serif';
+    ctx.fillStyle = '#5B5348';
+    const mode = full ? 'Full: the case carries over, you order' : 'Easy: the usual comes, the cook fills the rest';
+    ctx.fillText(mode, SHEET_W / 2, 88);
+    ctx.fillStyle = '#2B2118';
     let y = 120;
     for (const [label, n] of rows) {
       ctx.textAlign = 'right';
@@ -327,7 +350,7 @@ export class OfficeSystem extends createSystem({}) {
       ctx.font = '22px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#5B5348';
-      ctx.fillText('Thank you for today. Reload for a new day.', SHEET_W / 2, SHEET_H - 30);
+      ctx.fillText(full ? 'Thank you. The case is kept: reload for the next day.' : 'Thank you for today. Reload for a new day.', SHEET_W / 2, SHEET_H - 30);
     }
     this.sheet.texture.needsUpdate = true;
   }

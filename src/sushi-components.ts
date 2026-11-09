@@ -97,6 +97,20 @@ export const Held = {
   Phone: 'Phone',
   /** A cup of tea, on its way to the customer. */
   Tea: 'Tea',
+  /** The rice paddle (shari-kiri). */
+  Shamoji: 'Shamoji',
+  /** The bowl of awasezu, poured over the rice. */
+  Awasezu: 'Awasezu',
+  /** The ohitsu, brought to the work table and back. */
+  Ohitsu: 'Ohitsu',
+  /** The grill net, from its hook onto a burner. */
+  Net: 'Net',
+  /** The scaler (鱗取り), from the sink's soap strip. */
+  Scaler: 'Scaler',
+  /** The deba (出刃包丁), the sink's own knife for heads and bellies. */
+  Deba: 'Deba',
+  /** The tweezers (骨抜き) for pin bones. */
+  Tweezers: 'Tweezers',
 } as const;
 
 /** The chef's hands and tools, mirrored from the game state for inspection. */

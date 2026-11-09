@@ -9,6 +9,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { COLOR_READY, COLOR_WARN, glowObject } from './feedback.js';
+import { caseLabel, fishOrder } from './fish-order.js';
 import { caseStock, chef, type HeldKind, service } from './game-state.js';
 import { hands } from './hands.js';
 import {
@@ -145,6 +146,9 @@ const ZOOM_Y = NETA_CASE_HEIGHT + 0.06;
 const ZOOM_TILT = 0.6;
 /** Item names in the zoom: one label per item behind a door (a door covers up to 7). */
 const ZOOM_LABELS = 8;
+/** The name over the item a hand is at (wider while the order is taken: stock and order too). */
+const TAG_WIDTH = 0.13;
+const TAG_WIDTH_ORDERING = 0.26;
 /** The item under the fingers rises this much out of the zoom. */
 const ZOOM_LIFT = 0.025;
 
@@ -196,6 +200,8 @@ export class NetaCaseSystem extends createSystem({
   private readonly visuals = new Map<Entity, Visual>();
   private readonly glowed: [Entity | null, Entity | null] = [null, null];
   private readonly tags: Sprite[] = [];
+  private readonly tagVersion = [-1, -1];
+  private zoomVersion = -1;
   private readonly local = new Vector3();
   private readonly itemLocal = new Vector3();
   private readonly itemPos = new Vector3();
@@ -220,7 +226,7 @@ export class NetaCaseSystem extends createSystem({
       for (const e of this.queries.items.entities) e.setValue(CaseItem, 'remaining', NETA[caseApi.neta(e)].stock);
     };
     for (let side = 0; side < 2; side++) {
-      const tag = makeTextSprite(' ', { width: 0.13 });
+      const tag = makeTextSprite(' ', { width: TAG_WIDTH });
       tag.name = `CaseTag${side}`;
       tag.visible = false;
       this.world.createTransformEntity(tag);
@@ -362,10 +368,11 @@ export class NetaCaseSystem extends createSystem({
     let currentD = Infinity;
     for (const entity of this.queries.items.entities) {
       const object = entity.object3D;
-      if (!object?.visible) continue;
+      if (!object) continue;
       const def = NETA[caseApi.neta(entity)];
       if (!itemLive(def.prep)) continue;
-      if ((entity.getValue(CaseItem, 'remaining') ?? 0) < def.perPiece) continue;
+      // While the fish shop takes the order, a sold-out item can be pointed out too.
+      if (!fishOrder.ordering && (!object.visible || (entity.getValue(CaseItem, 'remaining') ?? 0) < def.perPiece)) continue;
       object.getWorldPosition(this.itemPos);
       caseDoors.object!.worldToLocal(this.itemPos);
       // Only items at home (a saku on the board is not in the case).
@@ -411,23 +418,32 @@ export class NetaCaseSystem extends createSystem({
   /** Glow and name for what this hand is about to take; whether it may. */
   private updateChoice(side: number): void {
     const item = caseApi.hovered[side];
+    const ordering = fishOrder.ordering;
     let mine = false;
     if (item) {
       const def = NETA[caseApi.neta(item)];
-      mine = def.hand === 'neta' ? side === chef.netaSide : side === chef.riceSide;
+      // Ordering, either hand points out anything.
+      mine = ordering || (def.hand === 'neta' ? side === chef.netaSide : side === chef.riceSide);
       item.object3D!.getWorldPosition(this.itemPos);
     }
     caseApi.wrongHand[side] = !!item && !mine;
-    caseApi.ready[side] = !!item && mine && caseDoors.isOpenAt(this.itemPos);
+    caseApi.ready[side] = !!item && mine && !ordering && caseDoors.isOpenAt(this.itemPos);
     const tag = this.tags[side];
-    if (item !== this.glowed[side]) {
+    const version = ordering ? fishOrder.version : -1;
+    if (item !== this.glowed[side] || version !== this.tagVersion[side]) {
       const old = this.glowed[side];
       if (old?.object3D && old !== this.glowed[1 - side]) glowObject(old.object3D, null);
       if (item?.object3D) {
         glowObject(item.object3D, mine ? COLOR_READY : COLOR_WARN);
-        setSpriteText(tag, NETA[caseApi.neta(item)].name, { color: mine ? '#ffffff' : '#F2B134' });
+        const neta = caseApi.neta(item);
+        const text = ordering ? caseLabel(neta, caseApi.stock(item), true) : NETA[neta].name;
+        setSpriteText(tag, text, { color: mine ? '#ffffff' : '#F2B134' });
+        // Ordering, the tag carries the stock and the order: wider.
+        const w = ordering ? TAG_WIDTH_ORDERING : TAG_WIDTH;
+        tag.scale.set(w, w / 4, 1);
       }
       this.glowed[side] = item;
+      this.tagVersion[side] = version;
     }
     tag.visible = !!item;
     if (item) {
@@ -444,9 +460,11 @@ export class NetaCaseSystem extends createSystem({
       const g = this.granted[side];
       if (g >= 0 && this.reaching[side] && caseDoors.open[g] > 0.5) door = g;
     }
-    if (door !== this.zoomDoor) {
+    const version = fishOrder.ordering ? fishOrder.version : -1;
+    if (door !== this.zoomDoor || version !== this.zoomVersion) {
       this.buildZoom(door);
       this.zoomDoor = door;
+      this.zoomVersion = version;
       this.zoomHover = null;
     }
     this.zoom.visible = door >= 0;
@@ -481,13 +499,25 @@ export class NetaCaseSystem extends createSystem({
     caseObject.getWorldQuaternion(this.zoom.quaternion);
     this.zoom.rotateX(ZOOM_TILT);
     let n = 0;
+    const ordering = fishOrder.ordering;
     for (const entity of this.queries.items.entities) {
       const object = entity.object3D;
-      if (!object?.visible) continue;
+      if (!object || (!object.visible && !ordering)) continue;
       object.getWorldPosition(this.itemPos);
       caseObject.worldToLocal(this.itemPos);
       if (this.itemPos.x < slotLeft || this.itemPos.x >= slotLeft + NETA_DOOR_PITCH) continue;
       if (Math.abs(this.itemPos.z) > NETA_CASE_DEPTH / 2 + 0.02 || this.itemPos.y > 0.12) continue;
+      if (!object.visible) {
+        // Sold out, while the order is taken: only its label, where it would lie.
+        if (n < ZOOM_LABELS) {
+          const label = this.zoomLabels[n];
+          setSpriteText(label, caseLabel(caseApi.neta(entity), 0, false));
+          label.position.set((this.itemPos.x - centre) * ZOOM_SCALE, 0.012, 0.035 + (n % 2) * 0.04);
+          label.visible = true;
+        }
+        n++;
+        continue;
+      }
       let clone = this.zoomClones.get(entity);
       if (!clone) {
         clone = object.clone(true);
@@ -508,7 +538,8 @@ export class NetaCaseSystem extends createSystem({
       this.zoom.add(clone);
       if (n < ZOOM_LABELS) {
         const label = this.zoomLabels[n];
-        setSpriteText(label, NETA[caseApi.neta(entity)].name);
+        const neta = caseApi.neta(entity);
+        setSpriteText(label, ordering ? caseLabel(neta, caseApi.stock(entity), false) : NETA[neta].name);
         label.position.set(clone.position.x, 0.012, 0.035 + (n % 2) * 0.04);
         label.visible = true;
       }

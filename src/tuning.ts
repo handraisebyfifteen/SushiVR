@@ -4,7 +4,7 @@
  */
 
 import type { Grade } from './coach.js';
-import type { MenuId, PieceKind } from './menu.js';
+import type { MenuId, NetaId, PieceKind } from './menu.js';
 import type { PrepId } from './prep.js';
 
 /** Swap the rice hand and the neta hand for a left-handed chef. */
@@ -15,10 +15,16 @@ export const CHEF_LEFT_HANDED = false;
 export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri', 'gunkan', 'inari', 'maki'];
 
 // --- prep (仕込み), before service ---
-/** 'easy' fills every case item that is not prepped; 'full' (a later stage) keeps what is left. */
-export const DIFFICULTY: 'easy' | 'full' = 'easy';
+/**
+ * The difficulty a new player starts on (chosen on the books board in the
+ * office corner each morning, before the call; remembered). 'easy': the fish
+ * shop brings the usual and the cook fills every case item that is not
+ * prepped. 'full' (本格): the case keeps what is left from day to day, and
+ * the chef checks it and orders by item and amount (src/fish-order.ts).
+ */
+export const START_DIFFICULTY: 'easy' | 'full' = 'easy';
 /** Prep stages built so far (src/prep.ts); the items of later stages start the day full. */
-export const PREP_STAGE = 1;
+export const PREP_STAGE = 4;
 /** Blade off the guide line (average over the stroke) for each grade of a prep cut. */
 export const PREP_CUT_EXCELLENT = 0.006;
 export const PREP_CUT_GOOD = 0.012;
@@ -31,6 +37,31 @@ export const BOARD_DRY_SECONDS = 10;
 export const SQUID_PULL_DISTANCE = 0.08;
 /** Slices a saku loses for each prep cut below Excellent (a crooked cut wastes flesh). */
 export const PREP_YIELD_LOSS: Record<Grade, number> = { Excellent: 0, Good: 1, Poor: 2, Bad: 3 };
+// --- stage 4: whole fish, washed at the sink (水洗い), then filleted on the board ---
+/** Scaler travel over one side of a fish (scraped tail to head, again and again) to clear its scales. */
+export const SCALE_RUB = 0.7;
+/** Rubbing the belly cavity under the tap to wash it clean. */
+export const RINSE_RUB = 0.45;
+/** How high the fish is lifted to turn it over. */
+export const TURN_LIFT = 0.05;
+/** The tweezers' tip this close to a pin bone grips it; lifted this far, the bone comes out. */
+export const PIN_GRIP = 0.025;
+export const PIN_PULL = 0.02;
+
+// --- the full difficulty's curing (締め) on the drainboard (src/cure-system.ts) ---
+/** Real seconds for one shop minute of curing (time runs faster than in a shop). */
+export const CURE_MINUTE_SECONDS = 1;
+/** Kohada (the owner): salt about 40 min, 5 more or less with their size; then vinegar 20 min. */
+export const KOHADA_SALT_MINUTES = 40;
+export const KOHADA_SIZE_MINUTES = 5;
+export const KOHADA_VINEGAR_MINUTES = 20;
+/** Saba (the owner): salt 2-3 hours, then vinegar about 30 min. */
+export const SABA_SALT_MINUTES: readonly [number, number] = [120, 180];
+export const SABA_VINEGAR_MINUTES = 30;
+/** Pinches of salt over a tray (the saba is buried in it), seconds under the tap, seconds of vinegar poured. */
+export const SALT_PINCHES: Record<'Kohada' | 'Saba', number> = { Kohada: 3, Saba: 4 };
+export const CURE_RINSE_SECONDS = 1.2;
+export const VINEGAR_POUR_SECONDS = 1.5;
 
 // --- money (yen) ---
 /**
@@ -46,6 +77,7 @@ export const PRICE: Record<MenuId, number> = {
   BonitoNigiri: 300,
   BonitoBellyNigiri: 300,
   FlounderNigiri: 400,
+  EngawaNigiri: 450,
   StripedJackNigiri: 500,
   YellowtailNigiri: 350,
   CuredMackerelNigiri: 300,
@@ -73,7 +105,66 @@ export const PRICE: Record<MenuId, number> = {
   UmeCucumberRoll: 450,
 };
 /** The fish shop's bill for each material it delivers (everything delivered is paid for, sold or not). */
-export const FISH_SHOP_PRICE: Partial<Record<PrepId, number>> = { TunaBelly: 5000, BonitoHalf: 1000, Squid: 800 };
+export const FISH_SHOP_PRICE: Partial<Record<PrepId, number>> = {
+  TunaBelly: 5000,
+  BonitoHalf: 1000,
+  Squid: 800,
+  Octopus: 1500,
+  SeaEel: 1200,
+  Abalone: 2500,
+  Kanpyo: 300,
+  // Stage 4: two mid-sized fish whole, the hamachi as a half (the fish shop's prices are Claude's guesses).
+  StripedJack: 4000,
+  Flounder: 3500,
+  Yellowtail: 2500,
+  // The full difficulty's own: eight small kohada, and a whole saba (Claude's guesses).
+  Kohada: 1600,
+  Saba: 800,
+};
+/**
+ * The full difficulty: what the fish shop (or, for the greengrocer's items,
+ * the greengrocer) charges for a case item it brings ready to serve, for a
+ * full case of it (a half is half). Claude's guesses, about a third of what
+ * the case sells for: to be confirmed with the owner.
+ */
+export const READY_PRICE: Partial<Record<NetaId, number>> = {
+  Tamago: 500,
+  Kohada: 900,
+  HorseMackerel: 700,
+  CuredMackerel: 900,
+  Prawn: 1500,
+  SweetShrimp: 800,
+  Scallop: 1200,
+  ArkShell: 1200,
+  Cockle: 1100,
+  InariAge: 400,
+  Uni: 3000,
+  Ikura: 2000,
+  TunaStick: 1800,
+  Cucumber: 200,
+  Takuan: 300,
+  UmePaste: 400,
+  Shiso: 200,
+};
+/**
+ * The full difficulty, where the case carries over. The owner: only tuna and
+ * cooked things (anago, tamago, octopus...) may be kept from day to day;
+ * everything else is for the day it came, and what is left is out the next
+ * morning. The greengrocer's vegetables and pickles keep too (Claude's guess).
+ */
+export const KEPT_OVERNIGHT: readonly NetaId[] = [
+  'FattyTuna', 'MediumFattyTuna', 'LeanTuna', 'TunaStick',
+  'SeaEel', 'Tamago', 'Octopus', 'Abalone', 'Kanpyo', 'InariAge',
+  'Cucumber', 'Shiso', 'Takuan', 'UmePaste',
+];
+/** Days that differ: opened uni lasts the day it came and the next (the owner). */
+export const KEEP_DAYS: Partial<Record<NetaId, number>> = { Uni: 2 };
+/**
+ * The garnish vegetables and pickles (ツマもの) come straight from the
+ * greengrocer (the owner), not with the fish shop's order: on the full
+ * difficulty the greengrocer tops them up each morning, with the fish.
+ */
+export const GREENGROCER: readonly NetaId[] = ['Cucumber', 'Shiso', 'Takuan', 'UmePaste'];
 /** Hourly wages: the cook (prep) and the part-timer (cleaning). */
 export const WAGE_COOK = 2000;
 export const WAGE_PART_TIMER = 1300;
@@ -83,11 +174,64 @@ export const WAGE_PART_TIMER = 1300;
  * every case item the chef does not prep.
  */
 export const COOK_MINUTES_PER_CASE_ITEM = 3;
-export const COOK_MINUTES: Partial<Record<PrepId, number>> = { TunaBelly: 20, BonitoHalf: 20, Squid: 15 };
+export const COOK_MINUTES: Partial<Record<PrepId, number>> = {
+  TunaBelly: 20,
+  BonitoHalf: 20,
+  Squid: 15,
+  Octopus: 20,
+  SeaEel: 40,
+  Abalone: 60,
+  Kanpyo: 30,
+  BonitoBelly: 15,
+  StripedJack: 30,
+  Flounder: 35,
+  Yellowtail: 15,
+  Kohada: 80,
+  Saba: 40,
+};
 export const CLEANUP_MINUTES = 30;
 /** Real seconds the cook takes over one material, and the part-timer over the cleaning. */
 export const COOK_SECONDS = 10;
 export const CLEANUP_SECONDS = 8;
+// --- the back row in the morning prep: shari and the range (time runs faster) ---
+/** The gas rice cooker: seconds on the flame (it goes out by itself), then steaming (蒸らし) with the lid on. */
+export const RICE_COOK_SECONDS = 40;
+export const RICE_STEAM_SECONDS = 15;
+/** Seconds the awasezu pours while the bowl is held over the hangiri. */
+export const AWASEZU_SECONDS = 1.5;
+/** How far (m) the shamoji travels through the rice to cut the vinegar in. */
+export const SHARI_CUT_DISTANCE = 1.4;
+/** Scoops of shari from the hangiri into the ohitsu. */
+export const SHARI_SCOOPS = 6;
+/** The broth and water start warm (°C); each flame level's heating, °C a second (low settles at its own level). */
+export const POT_START_TEMP = 60;
+export const HEAT_RATE: readonly number[] = [-0.6, 1.5, 2.5, 4];
+/** Where a low flame holds the broth (°C): the conger eel's 90. */
+export const LOW_FLAME_TEMP = 90;
+/** The conger eel simmers at 90 degrees: seconds within this band; boiling breaks it (seconds of boil for Poor, Bad). */
+export const EEL_BAND: readonly [number, number] = [85, 95];
+export const EEL_SECONDS = 30;
+export const EEL_BOIL_POOR = 4;
+export const EEL_BOIL_BAD = 10;
+/** The octopus is cooked (炊く) at a rolling boil on a high flame; boiled on past it, it toughens (seconds for Poor, Bad). */
+export const OCTOPUS_SECONDS = 20;
+export const OCTOPUS_OVER_POOR = 10;
+export const OCTOPUS_OVER_BAD = 25;
+/** Simmered until the liquid is gone (煮切る): seconds to boil it all off on a high flame (a medium one takes half as fast again). */
+export const KANPYO_REDUCE_SECONDS = 18;
+export const ABALONE_REDUCE_SECONDS = 30;
+/** The liquid counts as gone below this; left on the flame dry this long, it scorches. */
+export const REDUCED_LEVEL = 0.08;
+export const SCORCH_SECONDS = 8;
+/** Searing the bonito belly on the net (seconds on a high flame per face); a face left this many times over burns. */
+export const SEAR_SKIN_SECONDS = 6;
+export const SEAR_SIDE_SECONDS = 2.5;
+export const SEAR_BURN_FACTOR = 2.2;
+/** Seconds the seared belly chills on the ice. */
+export const CHILL_SECONDS = 6;
+/** How far (m) the skewers are slid through the belly, and pulled back out. */
+export const SKEWER_DISTANCE = 0.1;
+
 /** Seconds after opening before the noren can be taken in again (closing). */
 export const CLOSE_AFTER_SECONDS = 5;
 

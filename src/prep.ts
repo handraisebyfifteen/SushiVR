@@ -7,12 +7,17 @@ import type { NetaId } from './menu.js';
  * Saku-taking (柵取り) happens on the itaba manaita: each material comes out
  * of the ice box, lies on the board with its length toward the chef and is
  * cut along guide lines, each one drawn toward the chef. Every saku it gives
- * goes into the case, where one saku fills that item. Simmering (煮る,
- * 炊く, 煮切る) and searing on the gas range (stage 3) and filleting whole
- * white fish (stage 4) come later; until a stage is built, its items start
- * the day full. Stage 2 turns the score into money.
+ * goes into the case, where its saku fill that item. Simmering (煮る,
+ * 炊く, 煮切る) and searing on the gas range came with stage 3. Stage 4
+ * brings the mid-sized fish whole (the user's shop): washed at the back sink
+ * (水洗い: scales, head, guts) on a wash board, then filleted on the manaita,
+ * the striped jack in three pieces (三枚おろし) and the flounder in five
+ * (五枚おろし, its engawa served too). Big fish are bought as only what the
+ * case takes: the hamachi comes as a half (its form will follow the season
+ * later: big in winter, semi-big in summer). Stage 2 turned the score into
+ * money.
  */
-export type PrepKind = 'block' | 'squid' | 'fillet3' | 'fillet5' | 'simmer';
+export type PrepKind = 'block' | 'squid' | 'fillet3' | 'fillet5' | 'half' | 'simmer' | 'kohada';
 
 export interface PrepTask {
   name: string;
@@ -21,6 +26,12 @@ export interface PrepTask {
   kind: PrepKind;
   /** The case items it fills, in the order its saku lie on the board, left to right. */
   makes: readonly NetaId[];
+  /** Delivered in the long fish box on the sink's drainboard (stage 4), not the ice box by the board. */
+  fishBox?: boolean;
+  /** Not bought on its own: part of another material's work (the bonito belly comes with the half). */
+  from?: string;
+  /** Prepped only on the full difficulty (on easy its case item is readied by the cook). */
+  hard?: boolean;
 }
 
 export const PREP = {
@@ -37,7 +48,7 @@ export const PREP = {
   /** A whole squid, taken apart: legs and body both opened flat, the body skinned and patted dry. */
   Squid: { name: 'Squid', stage: 1, kind: 'squid', makes: ['Squid', 'Geso'] },
   /** The bonito belly, seared on the skin side, chilled on ice and drained (on the range). */
-  BonitoBelly: { name: 'Bonito belly', stage: 3, kind: 'simmer', makes: ['BonitoBelly'] },
+  BonitoBelly: { name: 'Bonito belly', stage: 3, kind: 'simmer', makes: ['BonitoBelly'], from: 'BonitoHalf' },
   // Stage 3: the gas range (prepared already; from putting it in the pot).
   /** 炊く on a high flame. */
   Octopus: { name: 'Octopus', stage: 3, kind: 'simmer', makes: ['Octopus'] },
@@ -46,23 +57,31 @@ export const PREP = {
   /** 煮切る: until the liquid is gone. */
   Kanpyo: { name: 'Gourd strips', stage: 3, kind: 'simmer', makes: ['Kanpyo'] },
   Abalone: { name: 'Abalone', stage: 3, kind: 'simmer', makes: ['Abalone'] },
-  // Stage 4: whole white fish, filleted in the shop.
-  Flounder: { name: 'Flounder', stage: 4, kind: 'fillet5', makes: ['Flounder'] },
-  StripedJack: { name: 'Striped jack', stage: 4, kind: 'fillet3', makes: ['StripedJack'] },
-  Yellowtail: { name: 'Young yellowtail', stage: 4, kind: 'fillet3', makes: ['Yellowtail'] },
+  // Stage 4: the fish box at the sink (filleted in the shop).
+  /** A whole flounder: washed at the sink, then five pieces on the board (four saku and the engawa). */
+  Flounder: { name: 'Flounder', stage: 4, kind: 'fillet5', makes: ['Flounder', 'Engawa'], fishBox: true },
+  /** A whole striped jack: washed at the sink, then three pieces on the board (two fillets, four saku). */
+  StripedJack: { name: 'Striped jack', stage: 4, kind: 'fillet3', makes: ['StripedJack'], fishBox: true },
+  /** A hamachi half (半身): no washing; belly bones, pin bones, skin, then back and belly saku. */
+  Yellowtail: { name: 'Hamachi half', stage: 4, kind: 'half', makes: ['Yellowtail'], fishBox: true },
+  // The full difficulty's own (the owner's shop): cured on the day, on the drainboard beside the sink.
+  /** Eight whole kohada: washed, each opened from the belly and its backbone out (丸づけ, one a piece), salted then vinegared. */
+  Kohada: { name: 'Kohada', stage: 4, kind: 'kohada', makes: ['Kohada'], fishBox: true, hard: true },
+  /** A whole saba: washed, three pieces, belly and pin bones; the fillets salted 2-3 hours, then vinegared (skin on: it is peeled when served). */
+  Saba: { name: 'Saba', stage: 4, kind: 'fillet3', makes: ['CuredMackerel'], fishBox: true, hard: true },
 } as const satisfies Record<string, PrepTask>;
 
 export type PrepId = keyof typeof PREP;
 
-/** The saku-taking materials, in the ice box from right (nearest the board) to left. */
-export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoHalf', 'Squid'];
+/** What the fish shop's ice box holds: the saku-taking fish, and over them the range's prepared ingredients (they come out first). */
+export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoHalf', 'Squid', 'Octopus', 'SeaEel', 'Abalone', 'Kanpyo'];
+/** The long fish box at the sink's foot, bottom first: the flounder flat on the ice, the jack and the hamachi half over it, then the saba and the row of kohada (full). */
+export const FISH_BOX_ORDER: readonly PrepId[] = ['Flounder', 'StripedJack', 'Yellowtail', 'Saba', 'Kohada'];
 
-/** The tasks of the stages built so far. */
-export function prepTasks(stage: number): PrepId[] {
-  return (Object.keys(PREP) as PrepId[]).filter((id) => PREP[id].stage <= stage);
-}
-
-/** True when this case item is filled by a prep task of the stages built so far. */
-export function isPrepped(neta: NetaId, stage: number): boolean {
-  return prepTasks(stage).some((id) => (PREP[id].makes as readonly NetaId[]).includes(neta));
+/** The tasks of the stages built so far (with the full difficulty's own, or without). */
+export function prepTasks(stage: number, full = true): PrepId[] {
+  return (Object.keys(PREP) as PrepId[]).filter((id) => {
+    const task: PrepTask = PREP[id];
+    return task.stage <= stage && (full || !task.hard);
+  });
 }

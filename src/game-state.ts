@@ -16,6 +16,8 @@ export interface HandState {
   holding: HeldKind;
 }
 
+export type Place = 'seat' | 'table' | 'range' | 'sink' | 'drain';
+
 /** Plain game state shared by the systems (fast to read every frame). */
 export const chef = {
   hands: [
@@ -32,6 +34,8 @@ export const chef = {
   /** Set by the knife system when the knife is put down dirty; consumed per piece. */
   knifeUnwiped: false,
   facingBack: false,
+  /** Where the chef is: on the stool at the bar, or a step back at the work table or the range (the morning prep). */
+  at: 'seat' as Place,
   /** Side index of the rice hand and the neta hand. */
   riceSide: (CHEF_LEFT_HANDED ? 0 : 1) as Side,
   netaSide: (CHEF_LEFT_HANDED ? 1 : 0) as Side,
@@ -137,7 +141,12 @@ export type PrepNext =
   | 'cut'
   | 'pull'
   | 'wipe'
+  | 'scale'
+  | 'turn'
+  | 'rinse'
+  | 'pins'
   | 'stock'
+  | 'pot'
   | 'discard'
   | 'liftBoard'
   | 'washBoard'
@@ -169,8 +178,12 @@ export const prep = {
   /** The next guide line runs across the board (X) instead of toward the chef, or flat along the board (a shave). */
   guideAcross: false,
   guideLow: false,
-  /** Burners still lit (the gas range, a later stage): the bar does not open with the fire on. */
+  /** Burners still lit (the gas range): the bar does not open with the fire on. */
   burnersOn: 0,
+  /** Something of the range's work lies on the board (the bonito belly): no fish goes on it meanwhile. */
+  boardBusy: false,
+  /** The next thing to take from the ice box goes into a pot on the range (not onto the board). */
+  takeToPot: false,
   tasksDone: 0,
   tasksTotal: 0,
   next: null as PrepNext | null,
@@ -196,6 +209,136 @@ export const prep = {
   boardHome: new Vector3(),
   /** The noren at the entrance, hung inside until the bar opens. */
   norenAt: new Vector3(),
+  // Stage 4: the whole fish, washed at the sink (水洗い).
+  /** Where the next step is done: on the manaita, or on the wash board at the sink. */
+  where: 'board' as 'board' | 'sink',
+  /** Where the next material to take lies, and where it goes. */
+  takeFrom: 'ice' as 'ice' | 'fish' | 'wash',
+  takeTo: 'board' as 'board' | 'wash' | 'pot',
+  /** A hand carries a material (from a box or the wash board). */
+  materialHeld: false,
+  /** Where the next product goes (the case, the ice, its curing tray), and a hand carries it. */
+  stockTo: 'case' as 'case' | 'ice' | 'cure',
+  productHeld: false,
+  /** Something at the sink wants the chef there (a fish to wash, its scraps). */
+  sinkWanted: false,
+  /** A fish lies on the wash board over the basin: hands there are working on it, not washing. */
+  washBusy: false,
+  /** The wash board's middle, the spot to rub under the tap, the sink's trash bin. */
+  washAt: new Vector3(),
+  rinseAt: new Vector3(),
+  sinkBinAt: new Vector3(),
+  /** The tools' grips and whether each is in a hand: the scaler, the deba (sink), the tweezers (board). */
+  scalerAt: new Vector3(),
+  debaAt: new Vector3(),
+  tweezersAt: new Vector3(),
+  scalerHeld: false,
+  debaHeld: false,
+  tweezersHeld: false,
+  /** The pin bones still in the fillet (world tips), for the tweezers. */
+  pinsAt: [] as Vector3[],
+};
+
+/** The shari of the day (src/shari-system.ts): cooked, vinegared and cut on the work table, then into the ohitsu. */
+export type ShariStep = 'light' | 'cooking' | 'steaming' | 'turnOut' | 'vinegar' | 'cut' | 'scoop' | 'return' | 'done';
+export const shari = {
+  step: 'light' as ShariStep,
+  /** Seconds left on the flame or steaming. */
+  left: 0,
+  /** The ohitsu stands on the work table (brought for the scooping); a hand holds it. */
+  tubOnTable: false,
+  tubHeld: false,
+  scoops: 0,
+  /** A scoop of shari is on the paddle. */
+  loaded: false,
+  /** The ohitsu holds the day's shari (the bar's rice comes from it). */
+  inTub: false,
+  /** World points: the cooker's gas tap, the hangiri's middle, the awasezu bowl, the paddle's grip, the ohitsu at home and on the table. */
+  cookerAt: new Vector3(),
+  hangiriAt: new Vector3(),
+  awasezuAt: new Vector3(),
+  shamojiAt: new Vector3(),
+  tubHomeAt: new Vector3(),
+  tubTableAt: new Vector3(),
+  /** The paddle is in a hand; the awasezu is in a hand. */
+  shamojiHeld: false,
+  awasezuHeld: false,
+};
+
+/** One pot on the range (src/range-system.ts), or the grill net. */
+export interface BurnerView {
+  id: string;
+  /** 0 off, 1 low, 2 medium, 3 high. */
+  level: number;
+  temp: number;
+  liquid: number;
+  state: 'empty' | 'cooking' | 'done' | 'out';
+  /** The grill net is on this burner (its pot put away). */
+  net: boolean;
+  /** What is wanted of it next, for the master and practice ('' when nothing): its ingredient in, the knob to `target`, it out. */
+  want: '' | 'put' | 'knob' | 'take';
+  target: number;
+  /** The pot's middle (or the net's), and the knob's face (world). */
+  at: Vector3;
+  knobAt: Vector3;
+}
+
+/** What the curing on the drainboard (src/cure-system.ts) wants next, and of which tray. */
+export type CureNext = 'lay' | 'salt' | 'rinse' | 'back' | 'vinegar' | 'out' | 'case' | 'soon' | 'wait';
+
+/**
+ * The full difficulty's curing (締め) on the drainboard: kohada and saba
+ * salted, rinsed, vinegared. Published by src/cure-system.ts each frame.
+ */
+export const cure = {
+  /** Something there wants the chef (a fish to lay, salt, a rinse, vinegar, taking them out). */
+  wanted: false,
+  next: null as CureNext | null,
+  /** Which tray it is about ('Kohada' or 'Saba'). */
+  tray: '',
+  /** Its words for the master: "Salt them: about 45 min, they are large". */
+  say: '',
+  /** Shop minutes until the tray's time (salt or vinegar). */
+  left: 0,
+  /** World points: the tray, the salt bowl, the vinegar bottle's neck, the tap, the tray's rim. */
+  trayAt: new Vector3(),
+  rimAt: new Vector3(),
+  bowlAt: new Vector3(),
+  bottleAt: new Vector3(),
+  tapAt: new Vector3(),
+  /** The case item the cured fish go to. */
+  caseAt: new Vector3(),
+  /** A hand holds the salt, the tray, the bottle, the cured fish. */
+  saltHeld: false,
+  trayHeld: false,
+  bottleHeld: false,
+  fishHeld: false,
+};
+
+/** The range in the morning prep: four pots, then the net for the bonito belly. */
+export const range = {
+  burners: [] as BurnerView[],
+  /** The bonito belly's sear: where it is in its work. */
+  belly: 'none' as 'none' | 'ice' | 'board' | 'skewered' | 'net' | 'chilling' | 'chilled' | 'wet' | 'patted' | 'free' | 'done',
+  /** Every face seared enough; a hand holds it. */
+  bellySeared: false,
+  bellyHeld: false,
+  /** The belly's middle; the skewers' rings (where they are pinched). */
+  bellyAt: new Vector3(),
+  ringsAt: new Vector3(),
+  /** The face of the belly down on the net (0 skin, 1-3 round). */
+  bellyFace: 0,
+  netAt: new Vector3(),
+  /** The burner the net is on (-1: on its hook); a hand holds it. */
+  netOn: -1,
+  netHeld: false,
+  /** Something cooked is in a hand on its way to the case (its case item). */
+  ingHeld: false,
+  caseNeta: '',
+  /** That item's place in the case (world). */
+  caseAt: new Vector3(),
+  /** The belly's face down on the net has had its sear. */
+  faceDone: false,
 };
 
 /**

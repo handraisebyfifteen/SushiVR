@@ -20,7 +20,7 @@ import { type Assembly, normYaw, type PieceCore } from './assembly/types.js';
 import { coach, type Grade } from './coach.js';
 import { customerApi } from './customer-system.js';
 import { COLOR_DONE, feedback } from './feedback.js';
-import { chef, type JudgeKind, progress, service } from './game-state.js';
+import { chef, type JudgeKind, prep, progress, service, shari } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { hands } from './hands.js';
 import { addPieceDirt } from './hygiene-system.js';
@@ -265,7 +265,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     // Reaching down to the rice tub on the right: by zone, or by leaving the camera's view there.
     const lowRight = hand.tracked && hand.palm.y < TUB_MAX_Y && hand.palm.x > TUB_MIN_X && hand.palm.z > TUB_MIN_Z;
     const inZone = hand.tracked && overStation(hand.palm, StationKind.RiceTub);
-    if (free && !this.hasRice && !this.inTub && (inZone || lowRight || (!hand.tracked && this.lastLowRight))) {
+    const riceIn = shari.inTub || !prep.active;
+    if (riceIn && free && !this.hasRice && !this.inTub && (inZone || lowRight || (!hand.tracked && this.lastLowRight))) {
       this.inTub = true;
       playRustle();
     }
