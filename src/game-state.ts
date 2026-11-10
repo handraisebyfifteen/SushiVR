@@ -352,17 +352,28 @@ export const range = {
 };
 
 /** What the tamago (full difficulty, src/tamago-system.ts) wants next. */
-export type TamagoNext = 'pan' | 'place' | 'pour' | 'bake' | 'turn' | 'out' | 'case';
+export type TamagoNext = 'makings' | 'grind' | 'eggs' | 'whisk' | 'pan' | 'place' | 'pour' | 'bake' | 'turn' | 'out' | 'case';
 
 /**
- * The full difficulty's tamago (厚焼き) on the range: the square pan onto a
- * free burner, the batter poured, baked on a low flame, turned once, out
- * into the case. Published by src/tamago-system.ts each frame.
+ * The full difficulty's tamago (厚焼き): the batter made in the suribachi on
+ * the work table (the surimi ground with the pestle, the eggs in, mixed
+ * till frothy), the square pan onto a free burner, the batter poured, baked
+ * on a low flame, turned once, out into the case. Published by
+ * src/tamago-system.ts each frame.
  */
 export const tamago = {
   next: null as TamagoNext | null,
   /** Its words for the master. */
   say: '',
+  /** World points: the suribachi's middle (over its floor), its front rim, the pestle's grip, the bowl of eggs. */
+  bowlAt: new Vector3(),
+  rimAt: new Vector3(),
+  pestleAt: new Vector3(),
+  eggBowlAt: new Vector3(),
+  /** A hand holds the pestle (grinding, mixing), the bowl of eggs, the suribachi (to pour). */
+  pestleHeld: false,
+  eggBowlHeld: false,
+  bowlHeld: false,
   /** World points: the handle's grip (on the hook or on the burner), the pan's middle, a free burner, the case item. */
   gripAt: new Vector3(),
   panAt: new Vector3(),

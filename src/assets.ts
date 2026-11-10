@@ -29,6 +29,7 @@ import {
 import { createNigiriStages } from './scene-assets/nigiri-stages.scene-asset.js';
 import { createBackRowPreview } from './scene-assets/back-row-preview.scene-asset.js';
 import { createWholeFishPreview } from './scene-assets/whole-fish-preview.scene-asset.js';
+import { createTamagoToolsPreview } from './scene-assets/tamago-tools-preview.scene-asset.js';
 import { createTeaStation } from './scene-assets/tea-station.scene-asset.js';
 import { caseItemAssets } from './scene-assets/case-items.scene-asset.js';
 import { createDishCabinet } from './scene-assets/dish-cabinet.scene-asset.js';
@@ -73,6 +74,7 @@ export default defineAssets({
   'nigiri-stages': createNigiriStages(),
   'back-row-preview': createBackRowPreview(),
   'whole-fish-preview': createWholeFishPreview(),
+  'tamago-tools-preview': createTamagoToolsPreview(),
   'menu-board': createMenuBoard(),
   'food-shelf': createFoodShelf(),
   entrance: createEntrance(),

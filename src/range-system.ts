@@ -157,9 +157,9 @@ export class RangeSystem extends createSystem({
     for (const e of this.queries.items.entities) this.caseItems.set(e.getValue(CaseItem, 'neta') as NetaId, e);
     this.active = prep.active && PREP_STAGE >= 3;
     // The tamago's batter goes into its pan (src/tamago-system.ts), not a pot.
-    rangeApi.putIn = (id, root, at) => (id === 'Tamago' ? tamagoApi.pour(root, at) : this.putIn(id, root, at));
+    rangeApi.putIn = (id, root, at) => (id === 'Tamago' ? tamagoApi.makingsIn(root, at) : this.putIn(id, root, at));
     rangeApi.potAt = (id, out) => {
-      if (id === 'Tamago') return tamagoApi.panAt(out);
+      if (id === 'Tamago') return tamagoApi.bowlAt(out);
       const b = this.burners.find((x) => x.id === id);
       if (!b) return false;
       out.copy(b.centre);

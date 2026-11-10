@@ -52,8 +52,6 @@ import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import {
   CURE_MINUTE_SECONDS,
   CURE_RINSE_SECONDS,
-  KOHADA_DRAIN_MINUTES,
-  KOHADA_SOAK_MINUTES,
   KOHADA_VINEGAR_MINUTES,
   SABA_SALT_MINUTES,
   SABA_VINEGAR_MINUTES,
@@ -66,10 +64,10 @@ type FishId = 'Kohada' | 'Saba';
 const FISH: readonly FishId[] = ['Saba', 'Kohada'];
 /**
  * The kohada: empty basket, salted basket (bedded), laid, salted over, in the
- * water (soaking, soaked), drained on the basket, in the vinegar. The saba:
- * empty tray, laid, salted, rinsed, in the vinegar.
+ * water (soaked: the salt comes off as they go in), drained on the basket, in
+ * the vinegar. The saba: empty tray, laid, salted, rinsed, in the vinegar.
  */
-type State = 'empty' | 'bedded' | 'laid' | 'salted' | 'soaking' | 'soaked' | 'draining' | 'rinsed' | 'vinegar' | 'done';
+type State = 'empty' | 'bedded' | 'laid' | 'salted' | 'soaked' | 'draining' | 'rinsed' | 'vinegar' | 'done';
 type Side = 0 | 1;
 type From = 'salt' | 'water' | 'pot';
 type Place = { p: Vector3; q: Quaternion };
@@ -129,9 +127,11 @@ const KOHADA_OPEN = 0.086;
  *  - Kohada: the round bamboo basket (平ざる) salted, the opened kohada laid
  *    on it skin up in a row, overlapping, salted over (both sides); about 40
  *    minutes (five more or less with the day's size: the fish shop says it).
- *    Then into the bowl of water in the sink till the salt is off; the
+ *    Then into the bowl of water in the sink to take the salt off; the
  *    basket rinsed under the tap meanwhile; the kohada back on it in a row,
- *    overlapping, to drain; then into the vinegar, 20 minutes.
+ *    overlapping, to drain; then into the vinegar, 20 minutes. The water and
+ *    the drain are steps of the work, not times (the owner): each goes on
+ *    as soon as the chef moves them.
  *  - Saba: the fillets in the stainless tray, salted till white; 2-3 hours
  *    (the owner keeps it in the fridge: to come with the fridge); the tray
  *    rinsed under the tap; into the vinegar, 30 minutes.
@@ -364,15 +364,11 @@ export class CureSystem extends createSystem({
     }
     const minutes = delta / CURE_MINUTE_SECONDS;
     for (const b of this.batches) {
-      if (b.state === 'salted' || b.state === 'soaking' || b.state === 'draining' || b.state === 'vinegar') b.minutes += minutes;
-      if (b.state === 'soaking' && b.minutes >= KOHADA_SOAK_MINUTES) {
-        b.state = 'soaked';
-        console.log('[Cure] the salt is off the kohada: onto the clean basket to drain');
-      }
+      if (b.state === 'salted' || b.state === 'vinegar') b.minutes += minutes;
     }
     // The bowl of water stands in the sink from the kohada's salting till they come out of it.
     const kohada = this.batches.find((b) => b.id === 'Kohada');
-    if (this.water) this.water.visible = !!kohada && (kohada.state === 'salted' || kohada.state === 'soaking' || kohada.state === 'soaked' || this.fishHand?.from === 'water');
+    if (this.water) this.water.visible = !!kohada && (kohada.state === 'salted' || kohada.state === 'soaked' || this.fishHand?.from === 'water');
     this.time += delta;
     for (const side of [0, 1] as const) this.remember(side);
     for (const side of [0, 1] as const) this.updateHand(side);
@@ -456,7 +452,7 @@ export class CureSystem extends createSystem({
   /** The salter is to go under the tap: the saba's tray with its fish salted; the kohada's basket once its fish are in the water. */
   private rinseWanted(b: Batch): boolean {
     if (b.id === 'Saba') return b.state === 'salted';
-    return (b.state === 'soaking' || b.state === 'soaked') && !b.clean;
+    return b.state === 'soaked' && !b.clean;
   }
 
   /** Over a container's floor (within its sides and `margin`, up to `high` above it). */
@@ -604,11 +600,11 @@ export class CureSystem extends createSystem({
     const g = hand.grasp;
     if (h.from === 'salt' && b.state === 'salted' && this.water && this.near(this.waterHome, 2 * WATER_BOWL_R, 2 * WATER_BOWL_R, g, 0.06, 0.35)) {
       b.saved.water = this.pile(this.water, b.parts);
-      b.state = 'soaking';
+      b.state = 'soaked';
       b.minutes = 0;
       playPut();
       coach.done('vinegarCure');
-      console.log('[Cure] the kohada are in the water: the salt comes off (rinse the basket meanwhile)');
+      console.log('[Cure] the kohada are in the water: the salt comes off (rinse the basket, then onto it to drain)');
       return;
     }
     if (h.from === 'water' && this.near(b.home, b.W, b.D, g, 0.06, 0.35)) {
@@ -696,10 +692,6 @@ export class CureSystem extends createSystem({
     switch (b.state) {
       case 'salted':
         return this.saltAim(b);
-      case 'soaking':
-        return KOHADA_SOAK_MINUTES;
-      case 'draining':
-        return KOHADA_DRAIN_MINUTES;
       case 'vinegar':
         return this.vinegarMinutes(b);
       default:
@@ -777,7 +769,7 @@ export class CureSystem extends createSystem({
     cure.saltAt.copy(b.saltAt);
     // Where the fish are, and where they go next.
     const waterAt = this.tmp2.copy(this.waterHome).add(this.tmp.set(0, 0.03, 0));
-    const inWater = b.state === 'soaked' || b.state === 'soaking';
+    const inWater = b.state === 'soaked';
     if (inWater) cure.fishAt.copy(waterAt);
     else if (b.state === 'vinegar') cure.fishAt.copy(cure.potAt);
     else cure.fishAt.copy(cure.trayAt);
@@ -787,10 +779,10 @@ export class CureSystem extends createSystem({
     const item = this.caseItems.get(b.neta);
     if (item) item.getWorldPosition(cure.caseAt);
     const name = b.id === 'Kohada' ? 'kohada' : 'saba';
-    const stage = b.state === 'salted' ? 'salt' : b.state === 'draining' ? 'basket' : b.state === 'soaking' ? 'water' : 'vinegar';
+    const stage = b.state === 'salted' ? 'salt' : 'vinegar';
     const move =
       b.state === 'salted' ? `The kohada have had their salt (${this.saltWords(b)}): into the bowl of water in the sink`
-      : inWater ? 'The salt is off: the kohada onto the clean basket, in a row, to drain'
+      : inWater ? 'The salt is off in the water: the kohada onto the clean basket, in a row, to drain'
       : `Into the vinegar: the ${name} into the enamel container`;
     cure.say =
       next === 'bed' ? 'The basket first: salt it (a pinch from the bowl, opened over the bare parts)'
@@ -814,12 +806,10 @@ export class CureSystem extends createSystem({
         return 'salt';
       case 'salted':
         return this.timed(b.minutes, this.saltAim(b), b.id === 'Kohada' ? 'move' : 'rinse');
-      case 'soaking':
-        return b.clean ? 'wait' : 'rinse';
       case 'soaked':
         return b.clean ? 'move' : 'rinse';
       case 'draining':
-        return this.potBy ? 'wait' : this.timed(b.minutes, KOHADA_DRAIN_MINUTES, 'move');
+        return this.potBy ? 'wait' : 'move';
       case 'rinsed':
         return this.potBy ? 'wait' : 'move';
       case 'vinegar':

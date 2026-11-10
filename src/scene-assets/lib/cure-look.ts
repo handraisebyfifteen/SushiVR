@@ -22,7 +22,7 @@ import {
 } from '@iwsdk/core';
 import { prepMaterial } from './neta-look.js';
 import { paint, patterned, taperedTube, weld } from './neta-paint.js';
-import { at, box, cap, eye, named, scalesMaterial, shell, type Sta } from './fillet-look.js';
+import { at, box, cap, eye, named, plate, scalesMaterial, shell, type Sta } from './fillet-look.js';
 import type { PrepMaterialLook, PrepStep } from './prep-look.js';
 
 /**
@@ -36,7 +36,8 @@ import type { PrepMaterialLook, PrepStep } from './prep-look.js';
  * same fish are done a stage at a time, each fish on its own (a sushi bar's
  * small space): each fish to the middle, head left and belly toward the
  * chef, its head cut off, and onto the ice; once every head is off, each
- * from the ice, its belly slit and the guts out; then all washed and back
+ * from the ice, its dorsal fin cut off and then its belly cut off, the guts
+ * going with it (the owner: a kohada is not slit); then all washed and back
  * on the ice. On the board the same: every fish opened from the belly
  * (腹開き), then every backbone shaved out; eight, one a piece (丸づけ). Then
  * the eight go to their tray together. Runtime meshes (src/prep-cut-system.ts,
@@ -69,9 +70,55 @@ const ICE_TOP = 0.03;
 /** The whole fish, loose on the right (a few over the others); later the gutted ones, and on the board the opened ones. */
 const heapAt = (i: number, s: number): Vector3 => new Vector3(0.13 + (i >= 4 ? 0.02 : 0), i >= 4 ? 0.011 * s : 0, -0.075 + (i % 4) * 0.05 + (i >= 4 ? 0.02 : 0));
 const iceAt = (i: number): Vector3 => new Vector3(BOWL_X - 0.0125 + ((((i * 37) % 5) - 2) * 0.004), ICE_TOP + (i >> 2) * 0.009 + (i % 4) * 0.0015, -0.033 + (i % 4) * 0.022);
-/** Cut-off heads and pulled guts, pushed behind the work (heads by their fish's origin). */
+/** Cut-off heads, bellies (with the guts) and dorsal fins, pushed behind the work (heads and fins by their fish's origin). */
 const headAt = (i: number): Vector3 => new Vector3(-0.02 + (i % 4) * 0.009, 0, -0.098 + (i >> 2) * 0.012);
-const gutAt = (i: number, s: number): Vector3 => new Vector3(0.035 + (i % 4) * 0.008, 0.0055 * s, -0.098 + (i >> 2) * 0.01);
+const gutAt = (i: number, s: number): Vector3 => new Vector3(0.035 + (i % 4) * 0.005, 0.0055 * s + (i % 4) * 0.0012 + (i >> 2) * 0.004, -0.1 + (i >> 2) * 0.011 + (i % 4) * 0.003);
+const finAt = (i: number): Vector3 => new Vector3(0.085 + (i % 4) * 0.006, -0.0057 + i * 0.0004, -0.074 + (i >> 2) * 0.008);
+
+/** The belly's cut (the owner: cut off, the guts with it): from behind the gill, slanting out to the belly edge before the vent. */
+const bellyCut = (x: number): number => 0.0105 + Math.max(0, x - 0.002) * 0.6;
+/** Where the belly's cut comes out at the edge (fish-local x). */
+const BELLY_END = 0.013;
+/** The dorsal fin's outline: along the back (x) and out from its edge; its last ray runs on as a thread (the kohada's). */
+const DORSAL: ReadonlyArray<[number, number]> = [[-0.013, -0.0015], [-0.0122, 0.0035], [-0.009, 0.0068], [-0.003, 0.0074], [0.005, 0.006], [0.016, 0.0052], [0.027, 0.005], [0.027, 0.0043], [0.012, 0.001], [0.012, -0.0015]];
+const finColor = '#6F7C84';
+const cavity = new Color('#9C6F68');
+
+/** Clamps a whole fish's skin to the belly's cut (each vertex past it onto the flat cut face). */
+function cutBelly(g: BufferGeometry): BufferGeometry {
+  const p = g.attributes.position;
+  for (let k = 0; k < p.count; k++) {
+    const x = p.getX(k);
+    if (x < BELLY_END + 0.002 && p.getZ(k) > bellyCut(x)) p.setZ(k, bellyCut(x));
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** The cut belly: a sliver between the cut and the belly edge, its skin silver-white, the cut side flesh, the guts on it; middle at the origin. */
+function bellyPiece(): BufferGeometry {
+  const st: Sta[] = [];
+  for (let k = 0; k <= 6; k++) {
+    const x = GILL + ((BELLY_END - GILL) * k) / 6;
+    const s = at(KOHADA, x);
+    st.push({ x, w: Math.max(0.0004, (s.w - bellyCut(x)) / 2), t: s.t * 0.85 });
+  }
+  const g = weld([shell(st, 0, Math.PI * 2, 12), cap(st[0], 0, Math.PI * 2, 12, new Vector3(-1, 0, 0))]);
+  const p = g.attributes.position;
+  for (let k = 0; k < p.count; k++) {
+    const x = Math.min(BELLY_END, Math.max(GILL, p.getX(k)));
+    p.setZ(k, p.getZ(k) + (at(KOHADA, x).w + bellyCut(x)) / 2);
+  }
+  g.computeVertexNormals();
+  const piece = paint(g, (q, _n, out) => {
+    const x = Math.min(BELLY_END, Math.max(GILL, q.x));
+    const mid = (at(KOHADA, x).w + bellyCut(x)) / 2;
+    out.copy(q.z < mid - 0.0008 ? fleshPink : kBelly);
+  });
+  const guts = paint(new SphereGeometry(1, 10, 6).scale(0.013, 0.0042, 0.0035).translate(GILL + 0.016, 0.006, bellyCut(GILL + 0.016) - 0.0015), (q, _n, out) => out.set(q.x > GILL + 0.02 ? '#A88F4E' : '#6E2A23'));
+  const c = at(KOHADA, (GILL + BELLY_END) / 2);
+  return weld([piece, guts]).translate(-(GILL + BELLY_END) / 2, -c.t * 0.85, -(c.w + bellyCut(c.x)) / 2);
+}
 /** On the board: opened (backbone still in) in a row, overlapping, on the right; done the same on the left (the owner lays them so, as on the basket). */
 const openedAt = (i: number): Vector3 => new Vector3(0.143, i * 0.0009, -0.08 + i * 0.02);
 const doneAt = (i: number): Vector3 => new Vector3(-0.17, i * 0.0009, -0.08 + i * 0.02);
@@ -178,8 +225,9 @@ function iceBowl(): Group {
 /**
  * Eight whole kohada (the day's size: 0.92 small, 1 middling, 1.08 large)
  * and the bowl of ice, with their steps: at the sink the scales off, every
- * head (each fish to the middle, then onto the ice), every belly slit and
- * gutted, all washed and back on the ice; on the board every fish opened,
+ * head (each fish to the middle, then onto the ice), every dorsal fin and
+ * belly cut off (the guts with it), all washed and back on the ice; on the
+ * board every fish opened,
  * then every backbone out. The opened eight go to the kohada's tray
  * together.
  */
@@ -199,7 +247,17 @@ export function kohadaRow(size = 1): PrepMaterialLook {
   const tail = paint(new CylinderGeometry(0.0001, 0.009, 0.014, 4, 1).rotateZ(Math.PI / 2).scale(1, 0.12, 1).translate(0.061, 0.002, 0), (_p, _n, out) => out.set('#8E9AA0'));
   const bodyGeo = weld([paint(shell(body, 0, Math.PI * 2, 18), kohadaSkin), patterned(cap(body[0], 0, Math.PI * 2, 18, new Vector3(-1, 0, 0))), tail]);
   const scalesGeo = shell(body.slice(0, -1), 0, Math.PI * 2, 14, 0.0006);
-  const gutsGeo = paint(new SphereGeometry(1, 10, 6).scale(0.012, 0.004, 0.005), (p, _n, out) => out.set(p.x > 0.004 ? '#A88F4E' : '#6E2A23'));
+  const gutsGeo = bellyPiece();
+  const finGeo = plate(DORSAL.map(([x, dz]): [number, number] => [x, -at(KOHADA, x).w - dz]), 0.0067, finColor);
+  // The body with its belly cut off: the flat cut face flesh, the body cavity showing along its middle.
+  const trimGeo = weld([
+    paint(cutBelly(shell(body, 0, Math.PI * 2, 18)), (p, n, out) => {
+      if (p.x < BELLY_END + 0.002 && p.z >= bellyCut(p.x) - 1e-6) out.copy(Math.abs(p.y - at(KOHADA, p.x).t) < 0.0022 ? cavity : fleshPink);
+      else kohadaSkin(p, n, out);
+    }),
+    patterned(cutBelly(cap(body[0], 0, Math.PI * 2, 18, new Vector3(-1, 0, 0)))),
+    tail,
+  ]);
   const L = 0.086;
   const openGeo = openedKohada(L);
   const spineGeo = paint(
@@ -222,6 +280,8 @@ export function kohadaRow(size = 1): PrepMaterialLook {
       root.add(mesh);
     };
     add(bodyGeo, `K${i}`, 0, true);
+    add(trimGeo, `K${i}Trim`, 0, false);
+    add(finGeo, `F${i}`, 0, true);
     add(headGeo, `H${i}`, 0, true);
     add(openGeo, `K${i}Open`, GILL, false, 1);
     add(spineGeo, `K${i}Spine`, GILL + 0.005, false, 1);
@@ -237,17 +297,20 @@ export function kohadaRow(size = 1): PrepMaterialLook {
   bowl.visible = false;
   root.add(bowl);
   root.add(named(new Mesh(weld(fishes.map((i) => translated(headGeo, headAt(i), s))), mat), 'HeadPile', false));
-  root.add(named(new Mesh(weld(fishes.map((i): [BufferGeometry, Matrix4] => [gutsGeo, new Matrix4().makeTranslation(gutAt(i, s).x, gutAt(i, s).y, gutAt(i, s).z)])), mat), 'GutsPile', false));
+  // The cut bellies (the guts with them) and the dorsal fins, in one pile.
+  root.add(named(new Mesh(weld([...fishes.map((i) => translated(gutsGeo, gutAt(i, s), 1)), ...fishes.map((i) => translated(finGeo, finAt(i), s))]), mat), 'GutsPile', false));
   root.add(named(new Mesh(weld(scales), scalesMaterial()), 'Scales'));
   const pile = named(new Mesh(weld(spines), mat), 'Spines', false);
   pile.position.set(0.2, 0, -0.03);
   root.add(pile);
   type Shift = [string, number, number, number];
-  /** Fish i to a place (its body, opened flesh and backbone; its head too while it has one). */
+  /** Each fish's dorsal fin still on it. */
+  const finOn = fishes.map(() => true);
+  /** Fish i to a place (its body whole or trimmed, opened flesh and backbone; its fin while on, its head too while it has one). */
   const move = (i: number, to: Vector3, withHead = false): Shift[] => {
     const d = to.clone().sub(now[i]);
     now[i] = to.clone();
-    return [`K${i}`, `K${i}Open`, `K${i}Spine`, ...(withHead ? [`H${i}`] : [])].map((n): Shift => [n, d.x, d.z, d.y]);
+    return [`K${i}`, `K${i}Trim`, `K${i}Open`, `K${i}Spine`, ...(finOn[i] ? [`F${i}`] : []), ...(withHead ? [`H${i}`] : [])].map((n): Shift => [n, d.x, d.z, d.y]);
   };
   const all = (prefix: string, suffix = ''): string[] => fishes.map((i) => `${prefix}${i}${suffix}`);
   const steps: PrepStep[] = [{ kind: 'scale', part: 'Scales', show: ['Bowl'], shift: move(0, SPOT, true), say: 'Scaler: the scales off, tail to head', sink: true }];
@@ -262,14 +325,24 @@ export function kohadaRow(size = 1): PrepMaterialLook {
       say: `Head off behind the gill, onto the ice (${i + 1} of ${N})`, sink: true,
     });
   }
-  // Then every belly: each off the ice, slit, the guts out with the blade; the gutted ones on the right.
+  // Then each off the ice in turn (the owner: a kohada is not slit): its dorsal fin cut off along the back, then its
+  // belly cut off, slanting from behind the gill to the edge, the guts going with it; the trimmed ones on the right.
   for (const i of fishes) {
     const last = i === N - 1;
+    const f = finAt(i).sub(now[i]);
+    finOn[i] = false;
     steps.push({
-      kind: 'cut', axis: 'x', at: SPOT.z + 0.011 * s, mid: SPOT.x + (GILL + 0.026) * s, len: 0.05,
+      kind: 'cut', axis: 'x', at: SPOT.z - 0.0195 * s, mid: SPOT.x + 0.004 * s, len: 0.04 * s,
+      shift: [[`F${i}`, f.x, f.z, f.y]],
+      say: `The dorsal fin off along the back (${i + 1} of ${N})`, sink: true,
+    });
+    steps.push({
+      kind: 'cut', axis: 'x', at: SPOT.z + 0.012 * s, mid: SPOT.x + ((GILL + BELLY_END) / 2) * s, len: (BELLY_END - GILL + 0.006) * s,
+      hide: [`K${i}`, ...(last ? [...all('G'), ...all('F')] : [])],
+      show: [`K${i}Trim`, ...(last ? ['GutsPile'] : [`G${i}`])],
       shift: [...move(i, heapAt(i, s)), ...(last ? [] : move(i + 1, SPOT))],
-      ...(last ? { hide: all('G'), show: ['GutsPile'], scrap: ['GutsPile'] } : { show: [`G${i}`] }),
-      say: `Slit the belly, the guts out (${i + 1} of ${N})`, sink: true,
+      ...(last ? { scrap: ['GutsPile'] } : {}),
+      say: `The belly cut off, the guts with it (${i + 1} of ${N})`, sink: true,
     });
   }
   // Washed together, then back on the ice (the first one to the middle for the board).
@@ -282,7 +355,7 @@ export function kohadaRow(size = 1): PrepMaterialLook {
   for (const i of fishes) {
     const last = i === N - 1;
     steps.push({
-      kind: 'cut', axis: 'x', at: SPOT.z + 0.011 * s, mid, len: L * s, hide: [`K${i}`, ...(last ? ['Bowl'] : [])], show: [`K${i}Open`, `K${i}Spine`],
+      kind: 'cut', axis: 'x', at: SPOT.z + 0.011 * s, mid, len: L * s, hide: [`K${i}Trim`, ...(last ? ['Bowl'] : [])], show: [`K${i}Open`, `K${i}Spine`],
       shift: [...move(i, openedAt(i)), ...(last ? move(0, SPOT) : move(i + 1, SPOT))],
       say: `Open it from the belly (${i + 1} of ${N})`,
     });

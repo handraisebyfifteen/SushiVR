@@ -67,9 +67,7 @@ export const SALT_RADIUS = 0.065;
 export const SALT_PER_PINCH = 1;
 export const SALT_COVER = 0.8;
 export const CURE_RINSE_SECONDS = 1.2;
-/** The kohada (the owner): out of the salt into a bowl of water till the salt is off, then laid out on the basket to drain before the vinegar (shop minutes; Claude's guesses). */
-export const KOHADA_SOAK_MINUTES = 2;
-export const KOHADA_DRAIN_MINUTES = 3;
+// The kohada's bowl of water and the drain on the basket have no times: they are steps of the work (the owner).
 
 // --- the full difficulty's tamago (厚焼き) on the range (src/tamago-system.ts) ---
 /** Real seconds each side bakes on a low flame (the first, then the other after the one turn). */
@@ -80,6 +78,9 @@ export const TAMAGO_BROWN_RATE: readonly number[] = [0, 1, 2.2, 3.5];
 /** A face browned past this is scorched (1 is golden); seconds the batter takes to pour. */
 export const TAMAGO_SCORCHED = 1.8;
 export const TAMAGO_POUR_SECONDS = 1.2;
+/** The tamago's batter in the suribachi (the owner: the surimi ground, the eggs in, mixed till frothy): how far the hand goes round with the pestle (metres, about 6 and 5 rounds). */
+export const TAMAGO_GRIND_TRAVEL = 1.8;
+export const TAMAGO_WHISK_TRAVEL = 1.4;
 
 // --- money (yen) ---
 /**

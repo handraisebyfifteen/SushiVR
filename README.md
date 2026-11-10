@@ -187,11 +187,17 @@ and the pots go on first, the fish is cut while they cook.
      scorch.
    When one is done, put its flame out, take it out of the pot and let go
    over the case (step back to the board). Its pot is put away.
-   - Tamago (full difficulty only; the shop's way: 厚焼き with surimi, baked
-     in the shop): the square copper tamago pan hangs on the end wall
-     beside the net. Take it by its handle and let go over a burner whose
-     pot is put away; take the bowl of mixed batter from the ice box and let
-     go over the pan to pour it; light that burner low (higher bakes faster
+   - Tamago (full difficulty only; the shop's way: 厚焼き with surimi, made
+     and baked in the shop): the batter is made in the suribachi (すり鉢) at
+     the work table's back corner by the sink. Take the surimi and eggs from
+     the ice box and let go over the suribachi: the surimi goes in and the
+     bowl of eggs is set beside it. Pinch the pestle (すりこぎ) and go round
+     and round till the surimi is smooth; let go of the bowl of eggs over
+     the suribachi; go round again till the batter is frothy. The square
+     copper tamago pan hangs on the end wall beside the net. Take it by its
+     handle and let go over a burner whose pot is put away; pinch the
+     suribachi's front rim and let go over the pan to pour it (the suribachi
+     is then put away); light that burner low (higher bakes faster
      but scorches the face down). When the first side is done, pinch the
      handle and lift: it is turned once (the board over the pan, turned,
      slid back, in one move). When the other side is done too, the flame
@@ -254,7 +260,8 @@ and the pots go on first, the fish is cut while they cook.
      time (a small bar's way of working): the scales off, then each fish in
      turn to the middle, its head cut off (each on its own, never a row at
      once) and onto the ice; once every head is off, each from the ice, its
-     belly slit and the guts out; all washed and back on the ice. On the
+     dorsal fin cut off along the back, then its belly cut off (a kohada is
+     not slit: the guts go with the belly); all washed and back on the ice. On the
      board, every fish opened from the belly first, then every backbone
      shaved out, laid in a row, overlapping. Fish lie head left for the head
      to come off, then head right (belly still toward you) to be filleted
@@ -272,10 +279,11 @@ and the pots go on first, the fish is cut while they cook.
      day's size (the fish shop says it on the phone), the saba 2-3 hours. A
      minute here is a second; two kitchen timers on the dish cabinet's side
      (facing the sink, out of the customers' sight) count them down and beep
-     at zero. The kohada then go into the bowl of water in the sink till the
-     salt is off; meanwhile the basket is rinsed under the tap (pinch its
-     front rim, hold it under the tap, let go); then the kohada back on the
-     clean basket in a row, overlapping, to drain (3 minutes). The saba's
+     at zero. The kohada then go into the bowl of water in the sink, which
+     takes the salt off; meanwhile the basket is rinsed under the tap (pinch
+     its front rim, hold it under the tap, let go); then the kohada back on
+     the clean basket in a row, overlapping, to drain, and on into the
+     vinegar. The water and the drain are steps, not timed. The saba's
      tray is rinsed under the tap. One enamel container of vinegar (kept for
      vinegar) stands at the back: the kohada first (20 minutes), then the
      saba (30); lift the fish and let go over it, then out of it and over
@@ -367,7 +375,7 @@ name and whether wasabi is wanted):
 
    The shari is shaped through the work, the way the shop's owner shapes it:
    a funagata (舟形: a flat bottom, a gently domed top, ends rounding off),
-   about 15 g (5 x 2.3 x 2 cm). Touch 1 presses the top (its future bottom)
+   about 29 g (6.5 x 2.9 x 2.4 cm). Touch 1 presses the top (its future bottom)
    flat, touch 2 sets the form and lays the neta over it, touch 3 evens it
    into the finished piece. The neta (7.5 x 3 cm, 6 mm thick for a saku
    slice) lies along the shari and drapes over it; stiff toppings (tamago,
@@ -570,7 +578,7 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/place-system.ts` | Where the chef stands: the stool, or a step back at the work table or the range |
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
 | `src/range-system.ts` | The gas range: the pots, their knobs and heat, and the bonito belly on skewers |
-| `src/tamago-system.ts` | The full difficulty's tamago: the square pan from its hook onto a burner, the batter poured, baked low, turned once, into the case |
+| `src/tamago-system.ts` | The full difficulty's tamago: the surimi ground in the suribachi, the eggs in, mixed till frothy; the square pan from its hook onto a burner, the batter poured, baked low, turned once, into the case |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
 | `src/tuning.ts` | Every gameplay number: prices, wages, the fish shop's bill, timings, tolerances |
 | `src/ledger.ts` | The day's books: sales, the fish shop, wages and the pieces by grade (the shop's money across days is in `src/fish-order.ts`) |

@@ -37,14 +37,14 @@ export const rangeApi = {
   bellyByCook: (): void => {},
 };
 
-/** The tamago's pan on the range (src/tamago-system.ts), for the prep's batter. */
+/** The tamago's suribachi on the work table (src/tamago-system.ts), for the prep's surimi and eggs. */
 export const tamagoApi = {
-  /** The pan sits on a burner, empty: the batter can be poured. */
-  panReady: (): boolean => false,
-  /** The batter's bowl let go over the pan: poured. */
-  pour: (_root: Object3D, _at: Vector3): boolean => false,
-  /** The pan's middle (world), when it is on a burner. */
-  panAt: (_out: Vector3): boolean => false,
+  /** The suribachi is out, empty: the surimi and eggs can come from the ice box. */
+  ready: (): boolean => false,
+  /** The surimi and eggs let go over the suribachi: the surimi in, the eggs set down beside it. */
+  makingsIn: (_root: Object3D, _at: Vector3): boolean => false,
+  /** The suribachi's middle (world). */
+  bowlAt: (_out: Vector3): boolean => false,
   /** The cook took the batter to the back: no tamago on the range today. */
   byCook: (): void => {},
 };

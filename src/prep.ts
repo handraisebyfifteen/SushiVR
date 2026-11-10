@@ -69,8 +69,8 @@ export const PREP = {
   Kohada: { name: 'Kohada', stage: 4, kind: 'kohada', makes: ['Kohada'], fishBox: true, hard: true },
   /** A whole saba: washed, three pieces, belly and pin bones; the fillets salted 2-3 hours, then vinegared (skin on: it is peeled when served). */
   Saba: { name: 'Saba', stage: 4, kind: 'fillet3', makes: ['CuredMackerel'], fishBox: true, hard: true },
-  /** 厚焼き with surimi, baked in the shop (the owner): the mixed batter poured into the square pan, a low flame, turned once. */
-  Tamago: { name: 'Tamago batter', stage: 3, kind: 'simmer', makes: ['Tamago'], hard: true },
+  /** 厚焼き with surimi, made in the shop (the owner): the surimi ground in the suribachi, the eggs in, mixed till frothy, poured into the square pan, a low flame, turned once. */
+  Tamago: { name: 'Surimi and eggs', stage: 3, kind: 'simmer', makes: ['Tamago'], hard: true },
 } as const satisfies Record<string, PrepTask>;
 
 export type PrepId = keyof typeof PREP;

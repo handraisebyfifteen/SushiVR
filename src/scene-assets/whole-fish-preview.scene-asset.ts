@@ -10,7 +10,8 @@ import { flounder, hamachiHalf, stripedJack, wholeSaba } from './lib/fillet-look
  * flounder white side up, the hamachi half (unwrapped, and in its wrapping),
  * the saba (whole, and filleted for curing), the eight kohada (whole and
  * loose beside their bowl of ice, and opened, half with their backbone
- * still in), and the drainboard's things: the bamboo basket (its salt half
+ * still in; behind them, headless with the dorsal fin and belly cut off,
+ * the cut bellies and fins piled), and the drainboard's things: the bamboo basket (its salt half
  * on), the enamel vinegar container, the bowl of water, the salt bowl and a
  * kitchen timer.
  */
@@ -55,9 +56,18 @@ export function createWholeFishPreview(): Group {
   opened.traverse((o) => {
     const m = /^K(\d)(Open|Spine)?$/.exec(o.name);
     if (m) o.visible = m[2] === 'Open' || (m[2] === 'Spine' && Number(m[1]) % 2 === 0);
-    if (/^H\d$/.test(o.name) || o.name === 'Scales') o.visible = false;
+    if (/^[HF]\d$/.test(o.name) || o.name === 'Scales') o.visible = false;
   });
   place(opened, 0.45, 1.15);
+  // Headless, the dorsal fin and the belly cut off (the guts with it): the trimmed fish, the cut bellies and fins piled behind.
+  const trimmed = kohadaRow().root;
+  trimmed.name = 'KohadaTrimmed';
+  loose.name = 'KohadaWhole';
+  trimmed.traverse((o) => {
+    if (/^(K\d|H\d|F\d|Scales)$/.test(o.name)) o.visible = false;
+    if (/^K\dTrim$/.test(o.name) || o.name === 'GutsPile') o.visible = true;
+  });
+  place(trimmed, 0, 1.7);
   // The basket with its salt half on (the front half white), the vinegar container, the bowl of water, the salt bowl, a timer.
   const zaru = createZaru(0.21);
   const salt = zaru.getObjectByName('SaltBed') as Mesh;

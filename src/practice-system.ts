@@ -1315,6 +1315,9 @@ export class PracticeSystem extends createSystem({
       case 'panOn':
       case 'turnEgg':
       case 'eggOut':
+      case 'grindTamago':
+      case 'eggsTamago':
+      case 'pourTamago':
         return this.tamagoKey();
       case 'potIn':
       case 'turnKnob':
@@ -1527,8 +1530,10 @@ export class PracticeSystem extends createSystem({
     if (held !== null) {
       const other = (1 - held) as 0 | 1;
       if (prep.next === 'pot') {
-        if (!this.reachPlace('range', 'back', other)) return;
-        return this.dropAt(held, prep.slotAt.clone().add(v(0, 0.08, 0)), 'Into its pot');
+        // The tamago's surimi goes into the suribachi on the work table.
+        const tamagoIn = prep.onBoard === 'Tamago';
+        if (!this.reachPlace(tamagoIn ? 'table' : 'range', 'back', other)) return;
+        return this.dropAt(held, prep.slotAt.clone().add(v(0, 0.08, 0)), tamagoIn ? 'Into the suribachi' : 'Into its pot');
       }
       if (range.ingHeld || (range.bellyHeld && range.belly === 'free')) {
         if (!this.reachPlace('seat', 'front', other)) return;
@@ -1563,10 +1568,47 @@ export class PracticeSystem extends createSystem({
     return this.bellyKey();
   }
 
-  /** The tamago (full): the pan off its hook onto a free burner, turned once by its handle, out into the case. */
+  /**
+   * The tamago (full): the batter in the suribachi (the pestle round and
+   * round, the eggs in, round again), the pan off its hook onto a free
+   * burner, the batter poured, turned once by its handle, out into the case.
+   */
   private tamagoKey(): void {
     if (!prep.active) return this.say('The bar is open');
     const side = chef.riceSide;
+    if (tamago.pestleHeld) return this.say('Going round with the pestle');
+    if (tamago.eggBowlHeld) {
+      const held = this.handWith(Held.Saku) ?? side;
+      if (!this.reachPlace('table', 'back', (1 - held) as 0 | 1)) return;
+      return this.dropAt(held, tamago.bowlAt.clone().add(v(0, 0.1, 0)), 'The eggs in');
+    }
+    if (tamago.bowlHeld) {
+      const held = this.handWith(Held.Saku) ?? side;
+      if (!this.reachPlace('range', 'back', (1 - held) as 0 | 1)) return;
+      return this.dropAt(held, tamago.panAt.clone().add(v(0, 0.12, 0)), 'Poured into the pan');
+    }
+    if (tamago.next === 'grind' || tamago.next === 'whisk') {
+      if (!this.reachPlace('table', 'back')) return;
+      if (!this.ready(side, Held.None)) return;
+      const grip = tamago.pestleAt.clone();
+      const c = tamago.bowlAt.clone();
+      const steps = [pinch(0), move(grip, v(0, 0.04, -0.03), 'grasp', 0.3), move(grip, v(0, 0, 0), 'grasp', 0.2), wait(0.2), pinch(1), wait(0.15)];
+      // Round and round over the floor's middle, eight rounds.
+      for (let k = 0; k <= 8 * 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        steps.push(move(c, v(Math.cos(a) * 0.05, 0.12, Math.sin(a) * 0.05), 'grasp', 0.08));
+      }
+      steps.push(pinch(0), wait(0.1), this.rest(side));
+      return this.run(side, tamago.next === 'grind' ? 'Grinding the surimi' : 'Mixing till frothy', steps);
+    }
+    if (tamago.next === 'eggs') {
+      if (!this.reachPlace('table', 'back')) return;
+      return this.pickHold(side, tamago.eggBowlAt.clone(), 'The bowl of eggs');
+    }
+    if (tamago.next === 'pour') {
+      if (!this.reachPlace('table', 'back')) return;
+      return this.pickHold(side, tamago.rimAt.clone(), 'The suribachi, by its rim');
+    }
     if (tamago.panHeld) {
       if (!this.reachPlace('range', 'back', (1 - side) as 0 | 1)) return;
       return this.dropAt(side, tamago.burnerAt.clone().add(v(0, 0.06, 0)), 'The pan onto the burner');
