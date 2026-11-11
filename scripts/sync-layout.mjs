@@ -121,6 +121,9 @@ order.forEach((id, i) => {
   row('TrashBin', layout.TRASH_BIN_X, layout.TRASH_BIN_TOP + 0.05, layout.TRASH_BIN_Z, -layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
   row('PaperBox', layout.PAPER_BOX_X, layout.MANAITA_TOP + 0.06, layout.MANAITA_Z - 0.1, -layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
   row('RiceTub', layout.RICE_TUB_X, layout.RICE_TUB_TOP + 0.03, layout.RICE_TUB_Z, layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
+  // The knife's handle, 12 cm out of the knife box toward the chef, and the cloth beside the board (rice hand).
+  row('KnifeHandle', layout.KNIFE_HOLDER_X + layout.KNIFE_REST[0], layout.WORK_COUNTER_TOP + layout.KNIFE_REST[1] + 0.03, layout.KNIFE_HOLDER_Z + layout.KNIFE_REST[2] + 0.12, layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
+  row('WetCloth', layout.WET_CLOTH_X, layout.WORK_COUNTER_TOP + 0.03, layout.MANAITA_NEAR_Z - 0.06, layout.SHOULDER_HALF_WIDTH, layout.SHOULDER_BEHIND_EYES);
 }
 
 if (check) {

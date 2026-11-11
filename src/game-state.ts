@@ -361,11 +361,12 @@ export const range = {
 };
 
 /** What the tamago (full difficulty, src/tamago-system.ts) wants next. */
-export type TamagoNext = 'makings' | 'grind' | 'eggs' | 'whisk' | 'pan' | 'place' | 'pour' | 'bake' | 'turn' | 'out' | 'case';
+export type TamagoNext = 'cupboard' | 'suribachi' | 'makings' | 'grind' | 'eggs' | 'whisk' | 'pan' | 'place' | 'pour' | 'bake' | 'turn' | 'out' | 'case';
 
 /**
- * The full difficulty's tamago (厚焼き): the batter made in the suribachi on
- * the work table (the surimi ground with the pestle, the eggs in, mixed
+ * The full difficulty's tamago (厚焼き): the suribachi from the cupboard under
+ * the sink onto the work table, the batter made in it (the scallops ground
+ * with the pestle, the eggs tapped in from their pack, mixed with chopsticks
  * till frothy), the square pan onto a free burner, the batter poured, baked
  * on a low flame, turned once, out into the case. Published by
  * src/tamago-system.ts each frame.
@@ -374,14 +375,17 @@ export const tamago = {
   next: null as TamagoNext | null,
   /** Its words for the master. */
   say: '',
-  /** World points: the suribachi's middle (over its floor), its front rim, the pestle's grip, the bowl of eggs. */
+  /** World points: the cupboard door's handle, the suribachi's place on the work table, the suribachi's middle (over its floor), its front rim, the pestle's grip, the chopsticks' grip, the pack of eggs. */
+  doorAt: new Vector3(),
+  tableAt: new Vector3(),
   bowlAt: new Vector3(),
   rimAt: new Vector3(),
   pestleAt: new Vector3(),
-  eggBowlAt: new Vector3(),
-  /** A hand holds the pestle (grinding, mixing), the bowl of eggs, the suribachi (to pour). */
+  sticksAt: new Vector3(),
+  packAt: new Vector3(),
+  /** A hand holds the pestle (grinding), the chopsticks (mixing), the suribachi (from the cupboard, or to pour). */
   pestleHeld: false,
-  eggBowlHeld: false,
+  sticksHeld: false,
   bowlHeld: false,
   /** World points: the handle's grip (on the hook or on the burner), the pan's middle, a free burner, the case item. */
   gripAt: new Vector3(),

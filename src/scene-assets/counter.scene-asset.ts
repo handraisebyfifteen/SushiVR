@@ -15,6 +15,14 @@ import {
   CUSTOMER_COUNTER_DEPTH,
   CUSTOMER_COUNTER_HEIGHT,
   GETA_DEPTH,
+  KNIFE_HOLDER_HEIGHT,
+  KNIFE_HOLDER_LENGTH,
+  KNIFE_HOLDER_LIP,
+  KNIFE_HOLDER_TOOL_BAY,
+  KNIFE_HOLDER_WALL,
+  KNIFE_HOLDER_WIDTH,
+  KNIFE_PITCH_DEG,
+  KNIFE_REST,
   MANAITA_DEPTH,
   MANAITA_THICKNESS,
   MANAITA_WIDTH,
@@ -324,46 +332,67 @@ export function createKnife(): Group {
   return root;
 }
 
-/** The knife holder's height; the knife's blade root stands this far over the counter (src/layout.ts KNIFE_STAND). */
-export const KNIFE_HOLDER_HEIGHT = 0.27;
-
 /**
- * The knife holder (包丁桶): a slim hinoki box on a low plinth, bound with
- * two copper hoops, standing on the work counter beside the board. The
- * yanagiba stands in it blade down during service, its edge toward the
- * customers, only its handle and the root of the blade showing; the slot
- * in the top runs along Z, the blade's width. Origin: counter contact,
- * under the slot's centre. Symmetric in X, so it crosses over unchanged
- * for a left-handed chef (src/handedness.ts).
+ * The knife box (包丁桶; the user's photo): a long open hinoki box lying on
+ * the counter, its length running away from the chef (-Z): two slots side
+ * by side for the knives, either side of a partition, and a bay at the far
+ * end where the cooking chopsticks stand. The lip at the chef's end is low:
+ * the yanagiba lies over it, blade in the box pitched down to the floor,
+ * handle out toward the chef (src/layout.ts KNIFE_REST). Origin: counter
+ * contact under the box's centre. Mirrored in X for a left-handed chef
+ * (src/handedness.ts).
  */
 export function createKnifeHolder(): Group {
   const root = new Group();
   root.name = 'KnifeHolder';
+  const L = KNIFE_HOLDER_LENGTH;
+  const W = KNIFE_HOLDER_WIDTH;
   const H = KNIFE_HOLDER_HEIGHT;
-  const base = box(0.058, 0.012, 0.088, lightWood, 'Base');
-  base.position.y = 0.006;
-  const body = box(0.046, H - 0.012, 0.075, paleWood, 'Body');
-  body.position.y = 0.012 + (H - 0.012) / 2;
-  const slot = box(0.008, 0.002, 0.046, lacquer, 'Slot');
-  slot.position.y = H + 0.001;
-  root.add(base, body, slot);
-  for (const [i, y] of [0.075, 0.205].entries()) {
-    const hoop = box(0.052, 0.012, 0.081, copper, `Hoop${i + 1}`);
-    hoop.position.y = y;
-    root.add(hoop);
+  const t = KNIFE_HOLDER_WALL;
+  const floorT = 0.01;
+  const floor = box(W, floorT, L, paleWood, 'Floor');
+  floor.position.y = floorT / 2;
+  root.add(floor);
+  for (const [i, x] of [-(W - t) / 2, (W - t) / 2].entries()) {
+    const side = box(t, H, L, paleWood, `Side${i + 1}`);
+    side.position.set(x, H / 2, 0);
+    root.add(side);
+  }
+  const farEnd = box(W - 2 * t, H, t, paleWood, 'FarEnd');
+  farEnd.position.set(0, H / 2, -(L - t) / 2);
+  const lip = box(W - 2 * t, KNIFE_HOLDER_LIP, t, paleWood, 'Lip');
+  lip.position.set(0, KNIFE_HOLDER_LIP / 2, (L - t) / 2);
+  // The wall across, closing the chopsticks' bay, and the partition along, between the two slots.
+  const bayWallZ = -L / 2 + t + KNIFE_HOLDER_TOOL_BAY + t / 2;
+  const bayWall = box(W - 2 * t, H, t, paleWood, 'BayWall');
+  bayWall.position.set(0, H / 2, bayWallZ);
+  const slotsFrom = bayWallZ + t / 2;
+  const slotsTo = L / 2 - t;
+  const partition = box(t, H, slotsTo - slotsFrom, paleWood, 'Partition');
+  partition.position.set(0, H / 2, (slotsFrom + slotsTo) / 2);
+  root.add(farEnd, lip, bayWall, partition);
+  // Two cooking chopsticks (菜箸) standing in the bay, leaning a little on the far wall.
+  const stickLength = 0.33;
+  const baseZ = -L / 2 + t + 0.012;
+  for (const [i, [x, leanDeg]] of ([[-0.014, -3], [0.012, -2.5]] as const).entries()) {
+    const stick = new Mesh(new CylinderGeometry(0.003, 0.0038, stickLength, 8, 1), bamboo);
+    stick.name = `Chopstick${i + 1}`;
+    const lean = (leanDeg * Math.PI) / 180;
+    stick.rotation.x = lean;
+    stick.position.set(x, floorT + (stickLength / 2) * Math.cos(lean), baseZ + (stickLength / 2) * Math.sin(lean));
+    root.add(stick);
   }
   return root;
 }
 
-/** The holder with the knife standing in it, for the isolated preview (src/assets.ts knife-holder-preview). */
+/** The box with the knife lying in it, for the isolated preview (src/assets.ts knife-holder-preview). */
 export function createKnifeHolderPreview(): Group {
   const root = new Group();
   root.name = 'KnifeHolderPreview';
   const knife = createKnife();
-  // Standing, the blade's thickness offset (1.6 cm) runs across: the knife stands that far over to centre the blade in the slot.
-  knife.position.set(0.016, 0.23, 0);
-  // Blade (local +X) down, edge (local +Z) toward -Z: Euler XYZ (0, 180°, -90°), as the scene node has it.
-  knife.rotation.set(0, Math.PI, -Math.PI / 2);
+  knife.position.set(...KNIFE_REST);
+  // Blade (local +X) into the box (-Z), edge outward (+X), pitched down: Euler XYZ (-pitch, 90°, 0), as the scene node has it.
+  knife.rotation.set((-KNIFE_PITCH_DEG * Math.PI) / 180, Math.PI / 2, 0);
   root.add(createKnifeHolder(), knife);
   return root;
 }

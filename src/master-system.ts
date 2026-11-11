@@ -88,8 +88,11 @@ const STEP_WORDS: Record<StepKey, string> = {
   cureOut: 'Out of the vinegar, into the case',
   waitCure: 'Get ready at the drainboard',
   panOn: 'The tamago pan: off its hook, onto a free burner',
+  cupboardTamago: 'The cupboard under the sink: slide its door open',
+  suribachiOut: 'The suribachi from the cupboard, onto the work table',
   grindTamago: 'The pestle round and round in the suribachi',
-  eggsTamago: 'The eggs into the suribachi',
+  eggsTamago: 'Tap the pack of eggs: the eggs into the suribachi',
+  whiskTamago: 'The chopsticks round and round in the suribachi',
   pourTamago: 'The batter into the pan: the suribachi by its rim',
   turnEgg: 'Turn the tamago over: lift the pan by its handle',
   eggOut: 'The tamago: out of the pan, into the case',
@@ -688,13 +691,14 @@ export class MasterSystem extends createSystem({
       if (shari.step === 'scoop') return this.goTo('table', 'back', back, shari.tubOnTable ? 'scoopShari' : 'bringTub');
     }
     if (shari.awasezuHeld && shari.step === 'vinegar') return this.goTo('table', 'back', back, 'pourAwasezu');
-    // The tamago's surimi goes to the suribachi on the work table; the rest to their pots on the range.
+    // The tamago's scallops go to the suribachi on the work table; the rest to their pots on the range.
     if (prep.next === 'pot') return this.goTo(prep.onBoard === 'Tamago' ? 'table' : 'range', 'back', back, 'potIn');
     if (tamago.panHeld) return this.goTo('range', 'back', back, 'panOn');
     if (tamago.eggHeld) return this.goTo('seat', 'front', back, 'eggOut');
     if (tamago.pestleHeld) return this.goTo('table', 'back', back, 'grindTamago');
-    if (tamago.eggBowlHeld) return this.goTo('table', 'back', back, 'eggsTamago');
-    if (tamago.bowlHeld) return this.goTo('range', 'back', back, 'pourTamago');
+    if (tamago.sticksHeld) return this.goTo('table', 'back', back, 'whiskTamago');
+    // The suribachi in hand: from the cupboard to the work table, or (with the batter) to the pan.
+    if (tamago.bowlHeld) return this.goTo(tamago.next === 'suribachi' ? 'table' : 'range', 'back', back, tamago.next === 'suribachi' ? 'suribachiOut' : 'pourTamago');
     if (range.netHeld) return this.goTo('range', 'back', back, 'hangNet');
     if (range.ingHeld) return this.goTo('seat', 'front', back, 'toCase');
     if (range.bellyHeld) {
@@ -715,8 +719,11 @@ export class MasterSystem extends createSystem({
     if (tamago.next === 'pan' || tamago.next === 'turn' || tamago.next === 'out') {
       return this.goTo('range', 'back', back, tamago.next === 'pan' ? 'panOn' : tamago.next === 'turn' ? 'turnEgg' : 'eggOut');
     }
-    // The tamago's batter in the suribachi on the work table: ground, the eggs in, mixed; then taken to the pan.
-    if (tamago.next === 'grind' || tamago.next === 'whisk') return this.goTo('table', 'back', back, 'grindTamago');
+    // The suribachi from the cupboard under the sink onto the work table; the batter made in it there: ground, the eggs in, mixed; then taken to the pan.
+    if (tamago.next === 'cupboard') return this.goTo('sink', 'back', back, 'cupboardTamago');
+    if (tamago.next === 'suribachi') return this.goTo('sink', 'back', back, 'suribachiOut');
+    if (tamago.next === 'grind') return this.goTo('table', 'back', back, 'grindTamago');
+    if (tamago.next === 'whisk') return this.goTo('table', 'back', back, 'whiskTamago');
     if (tamago.next === 'eggs') return this.goTo('table', 'back', back, 'eggsTamago');
     if (tamago.next === 'pour') return this.goTo('table', 'back', back, 'pourTamago');
     if (shari.step === 'light' || shari.step === 'turnOut') return this.goTo('table', 'back', back, shari.step === 'light' ? 'lightRice' : 'turnOutRice');
@@ -835,7 +842,7 @@ export class MasterSystem extends createSystem({
     // A cut or a pull in the prep says which one (Cut off the skin side, Off with the bag...).
     if ((step === 'cutPrep' || step === 'pullPrep' || step === 'scaleFish' || step === 'turnFish' || step === 'rinseFish' || step === 'pullPins') && prep.say) return prep.say;
     if ((step === 'saltCure' || step === 'rinseCure' || step === 'vinegarCure' || step === 'cureOut' || step === 'waitCure') && cure.say) return cure.say;
-    if ((step === 'panOn' || step === 'turnEgg' || step === 'eggOut' || step === 'grindTamago' || step === 'eggsTamago' || step === 'pourTamago') && tamago.say) return tamago.say;
+    if ((step === 'panOn' || step === 'turnEgg' || step === 'eggOut' || step === 'cupboardTamago' || step === 'suribachiOut' || step === 'grindTamago' || step === 'eggsTamago' || step === 'whiskTamago' || step === 'pourTamago') && tamago.say) return tamago.say;
     if (step === 'potIn' && prep.onBoard === 'Tamago' && tamago.next === 'makings') return tamago.say;
     return STEP_WORDS[step];
   }
@@ -1063,8 +1070,17 @@ export class MasterSystem extends createSystem({
       case 'grindTamago':
         out.copy(tamago.pestleHeld ? tamago.bowlAt : tamago.pestleAt).add(this.tmp.set(0, 0.18, 0));
         return;
+      case 'cupboardTamago':
+        out.copy(tamago.doorAt).add(this.tmp.set(0, 0.12, 0));
+        break;
+      case 'suribachiOut':
+        out.copy(tamago.bowlHeld ? tamago.tableAt : tamago.rimAt).add(this.tmp.set(0, 0.18, 0));
+        break;
+      case 'whiskTamago':
+        out.copy(tamago.sticksHeld ? tamago.bowlAt : tamago.sticksAt).add(this.tmp.set(0, 0.18, 0));
+        break;
       case 'eggsTamago':
-        out.copy(tamago.eggBowlHeld ? tamago.bowlAt : tamago.eggBowlAt).add(this.tmp.set(0, 0.18, 0));
+        out.copy(tamago.packAt).add(this.tmp.set(0, 0.15, 0));
         return;
       case 'pourTamago':
         out.copy(tamago.bowlHeld ? tamago.panAt : tamago.rimAt).add(this.tmp.set(0, 0.2, 0));
@@ -1410,8 +1426,9 @@ export class MasterSystem extends createSystem({
         const knife = this.stationPos(StationKind.Knife);
         if (!knife) return false;
         const k = this.phase(1.6);
-        a.copy(knife).add(off.set(0, 0.14, 0.1));
-        b.copy(knife).add(off.set(0, 0.04, 0.1));
+        // The handle, out of the knife box toward the chef.
+        a.copy(knife).add(off.set(0, 0.16, 0.12));
+        b.copy(knife).add(off.set(0, 0.06, 0.12));
         const closed = k > 0.45;
         rice.pose(this.there(k, a, b), yaw, (step === 'holdKnife') === closed ? 1 : 0, 0);
         return true;

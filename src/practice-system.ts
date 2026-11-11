@@ -862,8 +862,9 @@ export class PracticeSystem extends createSystem({
     const at = this.reachable(StationKind.Knife);
     if (!at) return;
     this.run(side, 'Knife in hand', [
-      move(at, v(0, 0.12, 0.02), 'palm', 0.35, { yaw: 0 }),
-      move(at, v(0, 0.04, 0.02), 'palm', 0.15),
+      // The handle stands out of the knife box toward the chef, 12 cm from the knife's origin.
+      move(at, v(0, 0.14, 0.12), 'palm', 0.35, { yaw: 0 }),
+      move(at, v(0, 0.06, 0.12), 'palm', 0.15),
       pose('fist'),
       wait(0.12),
       moveLocal(sideV(KNIFE_READY), 'palm', 0.3),
@@ -1323,8 +1324,11 @@ export class PracticeSystem extends createSystem({
       case 'panOn':
       case 'turnEgg':
       case 'eggOut':
+      case 'cupboardTamago':
+      case 'suribachiOut':
       case 'grindTamago':
       case 'eggsTamago':
+      case 'whiskTamago':
       case 'pourTamago':
         return this.tamagoKey();
       case 'potIn':
@@ -1548,7 +1552,7 @@ export class PracticeSystem extends createSystem({
     if (held !== null) {
       const other = (1 - held) as 0 | 1;
       if (prep.next === 'pot') {
-        // The tamago's surimi goes into the suribachi on the work table.
+        // The tamago's scallops go into the suribachi on the work table.
         const tamagoIn = prep.onBoard === 'Tamago';
         if (!this.reachPlace(tamagoIn ? 'table' : 'range', 'back', other)) return;
         return this.dropAt(held, prep.slotAt.clone().add(v(0, 0.08, 0)), tamagoIn ? 'Into the suribachi' : 'Into its pot');
@@ -1595,20 +1599,32 @@ export class PracticeSystem extends createSystem({
     if (!prep.active) return this.say('The bar is open');
     const side = chef.riceSide;
     if (tamago.pestleHeld) return this.say('Going round with the pestle');
-    if (tamago.eggBowlHeld) {
-      const held = this.handWith(Held.Saku) ?? side;
-      if (!this.reachPlace('table', 'back', (1 - held) as 0 | 1)) return;
-      return this.dropAt(held, tamago.bowlAt.clone().add(v(0, 0.1, 0)), 'The eggs in');
-    }
+    if (tamago.sticksHeld) return this.say('Going round with the chopsticks');
     if (tamago.bowlHeld) {
       const held = this.handWith(Held.Saku) ?? side;
+      if (tamago.next === 'suribachi') {
+        // From the cupboard to its place on the work table.
+        if (!this.reachPlace('table', 'back', (1 - held) as 0 | 1)) return;
+        return this.dropAt(held, tamago.tableAt.clone().add(v(0, 0.1, 0)), 'The suribachi onto the work table');
+      }
       if (!this.reachPlace('range', 'back', (1 - held) as 0 | 1)) return;
       return this.dropAt(held, tamago.panAt.clone().add(v(0, 0.12, 0)), 'Poured into the pan');
+    }
+    if (tamago.next === 'cupboard') {
+      // The cupboard under the sink: a pinch on its door's handle slides it open.
+      if (!this.reachPlace('sink', 'back')) return;
+      if (!this.ready(side, Held.None)) return;
+      const h = tamago.doorAt.clone();
+      return this.run(side, 'The cupboard door', [move(h, v(0, 0, -0.08), 'grasp', 0.4), move(h, v(0, 0, -0.01), 'grasp', 0.2), wait(0.2), pinch(1), wait(0.15), pinch(0), wait(0.1), this.rest(side)]);
+    }
+    if (tamago.next === 'suribachi') {
+      if (!this.reachPlace('sink', 'back')) return;
+      return this.pickHold(side, tamago.rimAt.clone(), 'The suribachi from the cupboard', v(0, 0.08, -0.15));
     }
     if (tamago.next === 'grind' || tamago.next === 'whisk') {
       if (!this.reachPlace('table', 'back')) return;
       if (!this.ready(side, Held.None)) return;
-      const grip = tamago.pestleAt.clone();
+      const grip = (tamago.next === 'grind' ? tamago.pestleAt : tamago.sticksAt).clone();
       const c = tamago.bowlAt.clone();
       const steps = [pinch(0), move(grip, v(0, 0.04, -0.03), 'grasp', 0.3), move(grip, v(0, 0, 0), 'grasp', 0.2), wait(0.2), pinch(1), wait(0.15)];
       // Round and round over the floor's middle, eight rounds.
@@ -1617,11 +1633,14 @@ export class PracticeSystem extends createSystem({
         steps.push(move(c, v(Math.cos(a) * 0.05, 0.12, Math.sin(a) * 0.05), 'grasp', 0.08));
       }
       steps.push(pinch(0), wait(0.1), this.rest(side));
-      return this.run(side, tamago.next === 'grind' ? 'Grinding the surimi' : 'Mixing till frothy', steps);
+      return this.run(side, tamago.next === 'grind' ? 'Grinding the scallops' : 'Mixing till frothy', steps);
     }
     if (tamago.next === 'eggs') {
+      // A tap on the pack of eggs: they go in (the cracking is skipped).
       if (!this.reachPlace('table', 'back')) return;
-      return this.pickHold(side, tamago.eggBowlAt.clone(), 'The bowl of eggs');
+      if (!this.ready(side, Held.None)) return;
+      const at = tamago.packAt.clone();
+      return this.run(side, 'Tap the pack of eggs', [move(at, v(0, 0.08, 0), 'grasp', 0.4), move(at, v(0, 0.01, 0), 'grasp', 0.2), wait(0.15), pinch(1), wait(0.15), pinch(0), wait(0.1), this.rest(side)]);
     }
     if (tamago.next === 'pour') {
       if (!this.reachPlace('table', 'back')) return;

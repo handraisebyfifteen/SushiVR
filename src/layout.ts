@@ -57,6 +57,8 @@ export const TSUKEDAI_TOP = 0.78;
 /** Customer counter height above the customer floor. */
 export const CUSTOMER_COUNTER_HEIGHT = 0.75;
 export const SINK_TOP = 0.85;
+/** The shelf halfway up the cupboard under the sink (its top): the suribachi lives there (full difficulty). */
+export const SINK_SHELF_Y = 0.46;
 export const CEILING_HEIGHT = 2.4;
 
 // --- eaves (hisashi) over the tsukedai ---
@@ -323,18 +325,39 @@ export const RICE_TUB_X = 0.48;
 export const RICE_TUB_Z = 0.12;
 export const RICE_TUB_TOP = 0.6;
 /**
- * The knife stands blade down in its hinoki holder (包丁桶) beside the board,
- * on the knife hand's side (the user: bare on the counter looks odd; the
- * holder is used in service). The knife node's origin (its blade root) is
- * KNIFE_STAND over the counter; the handle's middle KNIFE_GRIP over that.
+ * The knife box (包丁桶; the user's photo, 2026-11-11): a long open hinoki
+ * box lying on the counter to the right of the board, running away from the
+ * chef, with a low lip at the chef's end. The yanagiba lies over the lip,
+ * blade in the box pitched down to the floor, handle out toward the chef,
+ * who takes it by the handle (the user: bare on the counter looks odd; the
+ * box is used in service). KNIFE_REST is the knife node's place in the box
+ * (box-local, right-handed), from the knife's own measures: its blade's
+ * underside 1.4 cm over its origin, its heel 6 cm behind it; the heel rests
+ * 6 mm out from the lip. The box, with the knife, is mirrored for a
+ * left-handed chef (src/handedness.ts). The cloth lies between the board
+ * and the box.
  */
-export const KNIFE_X = 0.57;
-export const KNIFE_Z = MANAITA_Z + 0.03;
-export const KNIFE_STAND = 0.23;
-export const KNIFE_GRIP = 0.125;
-export const KNIFE_HOLDER_HEIGHT = 0.27;
-/** Lying flat, the blade's centre is this far over the knife's origin; standing, that far across, so the knife node stands this far from the holder's centre to put the blade in the slot. */
-export const KNIFE_BLADE_LIFT = 0.016;
+export const KNIFE_HOLDER_X = 0.7;
+export const KNIFE_HOLDER_Z = MANAITA_Z + 0.02;
+export const KNIFE_HOLDER_LENGTH = 0.38;
+export const KNIFE_HOLDER_WIDTH = 0.11;
+export const KNIFE_HOLDER_HEIGHT = 0.075;
+export const KNIFE_HOLDER_WALL = 0.008;
+/** The low lip at the chef's end, that the blade lies over. */
+export const KNIFE_HOLDER_LIP = 0.044;
+/** The bay at the far end, where the cooking chopsticks stand. */
+export const KNIFE_HOLDER_TOOL_BAY = 0.07;
+/** The two knife slots' centres, either side of the middle partition; the knife lies in the inner one. */
+export const KNIFE_SLOT_X = KNIFE_HOLDER_WALL / 2 + (KNIFE_HOLDER_WIDTH - 3 * KNIFE_HOLDER_WALL) / 4;
+/** The blade's pitch down into the box, degrees. */
+export const KNIFE_PITCH_DEG = 7;
+const knifePitch = (KNIFE_PITCH_DEG * Math.PI) / 180;
+export const KNIFE_REST: Vec3 = [
+  -KNIFE_SLOT_X,
+  KNIFE_HOLDER_LIP - (0.014 * Math.cos(knifePitch) + 0.06 * Math.sin(knifePitch)),
+  KNIFE_HOLDER_LENGTH / 2 + 0.006 - (0.06 * Math.cos(knifePitch) - 0.014 * Math.sin(knifePitch)),
+];
+export const WET_CLOTH_X = 0.575;
 /** The kitchen paper box on the board's back edge, between the nori box and the work. */
 export const PAPER_BOX_X = -0.2;
 /**
@@ -404,9 +427,16 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
     station: { width: ICE_BOX_WIDTH - 2 * ICE_BOX_WALL, depth: ICE_BOX_DEPTH - 2 * ICE_BOX_WALL, height: ICE_BOX_ICE_TOP },
   },
   // Standing in its holder: the zone is a fist's reach round the handle.
-  knife: { position: [KNIFE_X + KNIFE_BLADE_LIFT, WORK_COUNTER_TOP + KNIFE_STAND, KNIFE_Z], station: { radius: 0.09, height: KNIFE_GRIP, below: 0.12, above: 0.14 } },
-  'knife-holder': { position: [KNIFE_X, WORK_COUNTER_TOP, KNIFE_Z], station: { radius: 0.05, height: KNIFE_HOLDER_HEIGHT } },
-  'wet-cloth': { position: [0.66, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
+  // The knife's zone: from its origin at the box's lip, out along the handle (14 cm reaches the handle's far half).
+  knife: {
+    position: [KNIFE_HOLDER_X + KNIFE_REST[0], WORK_COUNTER_TOP + KNIFE_REST[1], KNIFE_HOLDER_Z + KNIFE_REST[2]],
+    station: { radius: 0.14, height: 0.03, below: 0.06, above: 0.12 },
+  },
+  'knife-holder': {
+    position: [KNIFE_HOLDER_X, WORK_COUNTER_TOP, KNIFE_HOLDER_Z],
+    station: { width: KNIFE_HOLDER_WIDTH, depth: KNIFE_HOLDER_LENGTH, height: KNIFE_HOLDER_HEIGHT },
+  },
+  'wet-cloth': { position: [WET_CLOTH_X, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
   ledge: { position: [0, 0, TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2] },
   'neta-case': {
     position: [NETA_CASE_X, TSUKEDAI_TOP, NETA_CASE_Z],

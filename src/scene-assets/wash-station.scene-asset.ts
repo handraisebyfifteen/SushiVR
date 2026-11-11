@@ -11,6 +11,7 @@ import {
   SINK_BASIN_WIDTH,
   SINK_BASIN_X,
   SINK_FRONT_RIM,
+  SINK_SHELF_Y,
   SINK_TOP,
   SINK_UNIT_X,
   SINK_WIDTH,
@@ -73,24 +74,43 @@ export function createSinkUnit(): Group {
   const bx = SINK_BASIN_LOCAL_X;
   const bz = -D / 2 + SINK_FRONT_RIM + BD / 2;
   const nearFace = -(D - 0.04) / 2 - 0.002;
-  // Cabinet on four short legs.
-  const body = box(W, top - 0.1, D - 0.04, steel, 'Body');
-  body.position.set(0, 0.07 + (top - 0.1) / 2, 0);
-  root.add(body);
+  // Cabinet on four short legs: a cupboard, its floor, back, ends and a shelf halfway up (the suribachi lives in
+  // its left half; full difficulty, src/tamago-system.ts). The near face is two sliding doors.
+  const BD_ = D - 0.04;
+  const H = top - 0.1;
+  const floorC = box(W, 0.02, BD_, steel, 'CupboardFloor');
+  floorC.position.set(0, 0.08, 0);
+  const backC = box(W, H, 0.02, steel, 'CupboardBack');
+  backC.position.set(0, 0.07 + H / 2, BD_ / 2 - 0.01);
+  const endL = box(0.02, H, BD_, steel, 'CupboardEndL');
+  endL.position.set(-W / 2 + 0.01, 0.07 + H / 2, 0);
+  const endR = box(0.02, H, BD_, steel, 'CupboardEndR');
+  endR.position.set(W / 2 - 0.01, 0.07 + H / 2, 0);
+  const shelf = box(W - 0.04, 0.015, BD_ - 0.03, steelDark, 'CupboardShelf');
+  shelf.position.set(0, SINK_SHELF_Y - 0.0075, 0);
+  root.add(floorC, backC, endL, endR, shelf);
   for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
     const leg = new Mesh(new CylinderGeometry(0.02, 0.02, 0.07, 8, 1), steelDark);
     leg.name = 'Leg';
     leg.position.set(x * (W / 2 - 0.05), 0.035, z * (D / 2 - 0.05));
     root.add(leg);
   }
-  // Sliding doors: a centre groove and two recessed black handles on the near face.
-  const seam = box(0.006, top - 0.2, 0.004, groove, 'DoorSeam');
-  seam.position.set(0, 0.42, nearFace);
+  // Sliding doors, each half the width with a recessed black handle: the left one runs in the outer groove, and
+  // slides to the right (over the other) to open the cupboard's left half.
+  const doorH = H - 0.02;
+  const doorL = new Group();
+  doorL.name = 'DoorL';
+  doorL.position.set(-W / 4, 0.08 + doorH / 2, nearFace - 0.004);
   const handleL = box(0.02, 0.1, 0.004, groove, 'HandleL');
-  handleL.position.set(-0.08, 0.5, nearFace);
+  handleL.position.set(W / 4 - 0.08, 0, -0.006);
+  doorL.add(box(W / 2 - 0.004, doorH, 0.008, steel, 'DoorPanel'), handleL);
+  const doorR = new Group();
+  doorR.name = 'DoorR';
+  doorR.position.set(W / 4, 0.08 + doorH / 2, nearFace + 0.006);
   const handleR = box(0.02, 0.1, 0.004, groove, 'HandleR');
-  handleR.position.set(W / 2 - 0.08, 0.5, nearFace);
-  root.add(seam, handleL, handleR);
+  handleR.position.set(W / 4 - 0.08, 0, -0.006);
+  doorR.add(box(W / 2 - 0.004, doorH, 0.008, steel, 'DoorPanel'), handleR);
+  root.add(doorL, doorR);
 
   // Top slab, built around the basin opening.
   const slabY = top - 0.015;

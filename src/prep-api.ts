@@ -37,11 +37,11 @@ export const rangeApi = {
   bellyByCook: (): void => {},
 };
 
-/** The tamago's suribachi on the work table (src/tamago-system.ts), for the prep's surimi and eggs. */
+/** The tamago's suribachi on the work table (src/tamago-system.ts), for the prep's scallops and eggs. */
 export const tamagoApi = {
-  /** The suribachi is out, empty: the surimi and eggs can come from the ice box. */
+  /** The suribachi is out on the work table, empty: the scallops and eggs can come from the ice box. */
   ready: (): boolean => false,
-  /** The surimi and eggs let go over the suribachi: the surimi in, the eggs set down beside it. */
+  /** The scallops and eggs let go over the suribachi: the scallops in, the pack of eggs set down beside it. */
   makingsIn: (_root: Object3D, _at: Vector3): boolean => false,
   /** The suribachi's middle (world). */
   bowlAt: (_out: Vector3): boolean => false,

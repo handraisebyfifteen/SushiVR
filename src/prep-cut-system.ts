@@ -1500,7 +1500,7 @@ export class PrepCutSystem extends createSystem({
     const washed = wash && !this.sinkNext(wash) && !m && !prep.boardBusy ? wash : null;
     const byTop = (a: Material, b: Material) => b.slot.y - a.slot.y;
     const inBox = this.materials.filter((x) => x.state === 'box');
-    // The tamago's surimi and eggs wait on the ice till the suribachi is out.
+    // The tamago's scallops and eggs wait on the ice till the suribachi is out on the work table.
     const fromIce = inBox.filter((x) => !this.fromFishBox(x) && (x.id !== 'Tamago' || tamagoApi.ready())).sort(byTop)[0];
     const fromFish = wash ? undefined : inBox.filter((x) => this.fromFishBox(x)).sort(byTop)[0];
     // The wash board cleared of scraps before a fish comes off it or onto it (the last one's would be in the way).

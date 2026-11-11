@@ -4,12 +4,14 @@ import { paint, seeded, weld } from './neta-paint.js';
 import type { PrepMaterialLook } from './prep-look.js';
 
 /**
- * The full difficulty's tamago (the owner's shop): 厚焼き with surimi, baked
+ * The full difficulty's tamago (the owner's shop): 厚焼き with scallop, baked
  * in the shop in a square copper pan (玉子焼き鍋) on a low flame and turned
- * once. The batter is made in the shop (the owner): the surimi ground in a
- * suribachi (すり鉢) with its pestle (すりこぎ), the eggs in, mixed till
- * frothy, then poured into the pan. Runtime meshes (src/tamago-system.ts;
- * the surimi and the eggs come in the ice box, src/prep-cut-system.ts).
+ * once. The batter is made in the shop (the owner): the scallops ground in a
+ * suribachi (すり鉢) with its pestle (すりこぎ), the eggs tapped in from their
+ * pack, mixed with cooking chopsticks (菜箸) till frothy, then poured into
+ * the pan. The suribachi lives in the cupboard under the sink. Runtime meshes
+ * (src/tamago-system.ts; the scallops and the eggs come in the ice box,
+ * src/prep-cut-system.ts).
  */
 
 /** The pan's inside (square) and its depth; origin at its floor's middle. */
@@ -21,7 +23,7 @@ const HANDLE_TILT = 0.26;
 const HANDLE_ROOT = new Vector3(0, 0.022, -(PAN_INNER / 2 + WALL));
 /** Where the handle is pinched (pan-local): its wooden grip's middle. */
 export const PAN_GRIP = new Vector3(0, HANDLE_ROOT.y + Math.sin(HANDLE_TILT) * 0.1, HANDLE_ROOT.z - Math.cos(HANDLE_TILT) * 0.1);
-/** The baked block's height (surimi makes it rise thick). */
+/** The baked block's height (the scallop paste makes it rise thick). */
 export const EGG_HEIGHT = 0.03;
 
 const copper = new MeshStandardMaterial({ color: '#B66A3C', metalness: 0.75, roughness: 0.35 });
@@ -95,16 +97,24 @@ export const SURIBACHI_FLOOR = 0.014;
 /** The pestle (すりこぎ): its length, and where along it the hand holds it (from its rounded tip, the origin; it runs along +Y). */
 export const PESTLE_LENGTH = 0.28;
 export const PESTLE_GRIP = 0.2;
-/** The beaten batter's level in the suribachi (about ten eggs with the surimi). */
+/** The beaten batter's level in the suribachi (about ten eggs with the scallop paste). */
 export const BATTER_LEVEL = 0.05;
 
 const glaze = new MeshStandardMaterial({ vertexColors: true, roughness: 0.55 });
 const pestleWood = new MeshStandardMaterial({ color: '#C7A574', roughness: 0.75 });
-const surimiMat = new MeshStandardMaterial({ color: '#E7DDD3', roughness: 0.6 });
-const eggWhite = new MeshStandardMaterial({ color: '#F6EFC6', roughness: 0.08, transparent: true, opacity: 0.55, depthWrite: false });
-const yolk = new MeshStandardMaterial({ color: '#F0A21E', roughness: 0.2 });
+const scallopMat = new MeshStandardMaterial({ color: '#F1E6D6', roughness: 0.5 });
+const pasteMat = new MeshStandardMaterial({ color: '#EEE3D3', roughness: 0.6 });
+const shell = new MeshStandardMaterial({ color: '#E6D3B4', roughness: 0.6 });
+const packPlastic = new MeshStandardMaterial({ color: '#EAF1F5', roughness: 0.1, transparent: true, opacity: 0.3, depthWrite: false, side: DoubleSide });
+const bamboo = new MeshStandardMaterial({ color: '#D9C39A', roughness: 0.7 });
+/** The cooking chopsticks (菜箸): this long, their tips this far apart when held together. */
+export const SAIBASHI_LENGTH = 0.33;
+export const SAIBASHI_GRIP = 0.24;
+/** The pack of eggs (ten, two by five): its footprint. */
+export const EGG_PACK_W = 0.15;
+export const EGG_PACK_D = 0.065;
 
-/** The suribachi's parts the work changes: the surimi (lumpy, then ground smooth), the batter and its froth. */
+/** The suribachi's parts the work changes: the scallops (in pieces, then ground to a paste), the batter and its froth. */
 export interface SuribachiParts {
   bowl: Group;
   lumpy: Mesh;
@@ -117,9 +127,9 @@ export interface SuribachiParts {
 
 /**
  * The suribachi: glazed dark brown outside, the unglazed inside combed with
- * fine grooves (櫛目) from the floor up, which grind the surimi. In it, hidden
- * till the work puts them there: the surimi in lumps, the same ground smooth,
- * the beaten batter and its froth.
+ * fine grooves (櫛目) from the floor up, which grind the scallops. In it, hidden
+ * till the work puts them there: the scallops in pieces, the same ground to a
+ * paste, the beaten batter and its froth.
  */
 export function createSuribachi(): SuribachiParts {
   const bowl = new Group();
@@ -141,18 +151,18 @@ export function createSuribachi(): SuribachiParts {
     if (r > 0.012 && Math.cos(a * 48) > 0.2) out.lerp(groove, 0.55);
   });
   bowl.add(named(new Mesh(g, glaze), 'Bowl'));
-  // The surimi as it goes in: lumps on the floor, one mesh.
-  const rnd = seeded('surimi');
+  // The scallops as they go in: the adductor muscles whole, a few halved, on the floor; one mesh.
+  const rnd = seeded('scallops');
   const lumps: Array<[BufferGeometry, Matrix4]> = [];
-  for (let k = 0; k < 9; k++) {
-    const a = rnd() * Math.PI * 2;
-    const r = 0.012 + rnd() * 0.022;
-    const size = 0.012 + rnd() * 0.008;
-    lumps.push([new SphereGeometry(1, 10, 7), new Matrix4().compose(new Vector3(Math.cos(a) * r, SURIBACHI_FLOOR + 0.008 + rnd() * 0.006, Math.sin(a) * r), new Quaternion(), new Vector3(size, size * 0.7, size))]);
+  for (let k = 0; k < 7; k++) {
+    const a = (k / 7) * Math.PI * 2 + rnd() * 0.5;
+    const r = k === 0 ? 0 : 0.022 + rnd() * 0.012;
+    const d = k % 3 === 2 ? 0.011 : 0.015;
+    lumps.push([new CylinderGeometry(d, d * 0.9, 0.014, 14), new Matrix4().compose(new Vector3(Math.cos(a) * r, SURIBACHI_FLOOR + 0.009 + rnd() * 0.004, Math.sin(a) * r), new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), (rnd() - 0.5) * 0.6), new Vector3(1, 1, 1))]);
   }
-  const lumpyMesh = named(new Mesh(weld(lumps), surimiMat), 'SurimiLumps', false);
+  const lumpyMesh = named(new Mesh(weld(lumps), scallopMat), 'ScallopPieces', false);
   bowl.add(lumpyMesh);
-  const smooth = named(new Mesh(new SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.046, 0.016, 0.046).translate(0, SURIBACHI_FLOOR + 0.004, 0), surimiMat), 'SurimiSmooth', false);
+  const smooth = named(new Mesh(new SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.046, 0.016, 0.046).translate(0, SURIBACHI_FLOOR + 0.004, 0), pasteMat), 'ScallopPaste', false);
   bowl.add(smooth);
   const batterMat = new MeshStandardMaterial({ color: '#E7B23A', roughness: 0.18 });
   const batter = named(new Mesh(new CylinderGeometry(0.067, 0.041, BATTER_LEVEL - 0.016, 40).translate(0, (BATTER_LEVEL + 0.016) / 2, 0), batterMat), 'Batter', false);
@@ -172,33 +182,43 @@ export function createPestle(): Group {
   return g;
 }
 
-/** A small steel bowl, its foot at the origin: `r` across the rim, `h` deep. */
-function steelBowl(r: number, h: number): Mesh {
-  const profile = [new Vector2(0.001, 0), new Vector2(r * 0.6, 0), new Vector2(r * 0.8, h * 0.2), new Vector2(r * 0.95, h * 0.6), new Vector2(r, h), new Vector2(r + 0.003, h + 0.002)];
-  return new Mesh(new LatheGeometry(profile, 28), bowlSteel);
+/** The cooking chopsticks (菜箸), held as one: their tips together at the origin, running up +Y, a little apart toward the top. */
+export function createChopsticks(): Group {
+  const g = new Group();
+  g.name = 'Saibashi';
+  for (const side of [-1, 1]) {
+    const stick = named(new Mesh(new CylinderGeometry(0.0035, 0.0022, SAIBASHI_LENGTH, 8).translate(0, SAIBASHI_LENGTH / 2, 0), bamboo), side < 0 ? 'StickL' : 'StickR');
+    stick.position.set(side * 0.003, 0, 0);
+    stick.rotation.z = -side * 0.035;
+    g.add(stick);
+  }
+  return g;
 }
 
-/** The eggs, cracked into a steel bowl (about ten): the whites clear, the yolks whole; foot at the origin. */
-export function createEggBowl(): Group {
+/** The eggs as they come: ten in a clear plastic pack (two by five), the lid on; its floor's middle at the origin. */
+export function createEggPack(): Group {
   const g = new Group();
-  g.name = 'EggBowl';
-  g.add(named(steelBowl(0.06, 0.045), 'Bowl'));
-  g.add(named(new Mesh(new CylinderGeometry(0.054, 0.04, 0.026, 28).translate(0, 0.016, 0), eggWhite), 'Whites'));
-  const rnd = seeded('yolks');
-  const yolks: Array<[BufferGeometry, Matrix4]> = [];
-  for (let k = 0; k < 10; k++) {
-    const a = (k / 10) * Math.PI * 2 + rnd() * 0.4;
-    const r = k < 3 ? 0.012 * k : 0.03 + rnd() * 0.01;
-    yolks.push([new SphereGeometry(1, 12, 8), new Matrix4().compose(new Vector3(Math.cos(a) * r, 0.028, Math.sin(a) * r), new Quaternion(), new Vector3(0.011, 0.007, 0.011))]);
-  }
-  g.add(named(new Mesh(weld(yolks), yolk), 'Yolks'));
+  g.name = 'EggPack';
+  g.add(box(EGG_PACK_W, 0.003, EGG_PACK_D, packPlastic, 'PackFloor'));
+  for (const [name, x, z, w, d] of [
+    ['PackFront', 0, -EGG_PACK_D / 2, EGG_PACK_W, 0.002],
+    ['PackBack', 0, EGG_PACK_D / 2, EGG_PACK_W, 0.002],
+    ['PackLeft', -EGG_PACK_W / 2, 0, 0.002, EGG_PACK_D],
+    ['PackRight', EGG_PACK_W / 2, 0, 0.002, EGG_PACK_D],
+  ] as const) g.add(box(w, 0.07, d, packPlastic, name, x, 0.035, z));
+  const eggs: Array<[BufferGeometry, Matrix4]> = [];
+  for (let i = 0; i < 5; i++) for (const j of [-1, 1]) eggs.push([new SphereGeometry(1, 12, 9), new Matrix4().compose(new Vector3(-0.058 + i * 0.029, 0.03, j * 0.016), new Quaternion(), new Vector3(0.0135, 0.0185, 0.0135))]);
+  g.add(named(new Mesh(weld(eggs), shell), 'Eggs'));
+  const lid = box(EGG_PACK_W + 0.004, 0.003, EGG_PACK_D + 0.004, packPlastic, 'PackLid', 0, 0.0715);
+  g.add(lid);
   return g;
 }
 
 /**
- * What the fish shop brings for the tamago, in the ice box: a block of
- * surimi in a small stainless tray under wrap, and the eggs. Let go over the
- * suribachi, the surimi goes in and the eggs are set down beside it.
+ * What the fish shop brings for the tamago, in the ice box: scallops (the
+ * adductor muscles) in a small stainless tray under wrap, and the pack of
+ * eggs. Let go over the suribachi, the scallops go in and the pack is set
+ * down beside it.
  */
 export function tamagoMakings(): PrepMaterialLook {
   const root = new Group();
@@ -211,10 +231,14 @@ export function tamagoMakings(): PrepMaterialLook {
     ['TrayLeft', -0.083, 0, 0.004, 0.13],
     ['TrayRight', 0.083, 0, 0.004, 0.13],
   ] as const) root.add(box(w, 0.02, d, bowlSteel, name, x, 0.01, z));
-  root.add(box(0.075, 0.03, 0.06, surimiMat, 'SurimiBlock', -0.035, T + 0.011, 0));
-  const eggs = createEggBowl();
-  eggs.scale.setScalar(0.85);
-  eggs.position.set(0.04, 0.004, 0);
+  const rnd = seeded('tray');
+  const discs: Array<[BufferGeometry, Matrix4]> = [];
+  for (let k = 0; k < 6; k++) discs.push([new CylinderGeometry(0.015, 0.0135, 0.014, 14), new Matrix4().compose(new Vector3(-0.058 + (k % 3) * 0.031, T + 0.007, (k < 3 ? -1 : 1) * 0.018), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), rnd()), new Vector3(1, 1, 1))]);
+  root.add(named(new Mesh(weld(discs), scallopMat), 'Scallops'));
+  const eggs = createEggPack();
+  eggs.scale.setScalar(0.5);
+  eggs.rotation.y = Math.PI / 2;
+  eggs.position.set(0.05, T, 0);
   root.add(eggs);
   root.add(box(0.172, 0.0008, 0.132, wrap, 'Wrap', 0, 0.062));
   root.userData.top = 0.064;

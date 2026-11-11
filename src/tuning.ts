@@ -93,7 +93,7 @@ export const TAMAGO_BROWN_RATE: readonly number[] = [0, 1, 2.2, 3.5];
 /** A face browned past this is scorched (1 is golden); seconds the batter takes to pour. */
 export const TAMAGO_SCORCHED = 1.8;
 export const TAMAGO_POUR_SECONDS = 1.2;
-/** The tamago's batter in the suribachi (the owner: the surimi ground, the eggs in, mixed till frothy): how far the hand goes round with the pestle (metres, about 6 and 5 rounds). */
+/** The tamago's batter in the suribachi (the owner: the scallops ground, the eggs in, mixed with chopsticks till frothy): how far the hand goes round with the pestle (metres, about 6 and 5 rounds). */
 export const TAMAGO_GRIND_TRAVEL = 1.8;
 export const TAMAGO_WHISK_TRAVEL = 1.4;
 
@@ -142,7 +142,7 @@ export const PRICE: Record<MenuId, number> = {
  * The fish shop's bill for each material it delivers (everything delivered
  * is paid for, sold or not). The owner's prices (2026-11-10): the tuna belly
  * is an eighth, about 12 kg at about ¥600 a kilo (a sixteenth is half); the
- * hamachi a half, eight kohada, one saba; the tamago is its eggs and surimi.
+ * hamachi a half, eight kohada, one saba; the tamago is its eggs and scallops.
  */
 export const FISH_SHOP_PRICE: Partial<Record<PrepId, number>> = {
   TunaBelly: 7200,

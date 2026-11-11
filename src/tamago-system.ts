@@ -5,11 +5,12 @@ import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { fractionOf, todaysMaterials } from './fish-order.js';
 import { chef, prep, range, tamago, type TamagoNext } from './game-state.js';
 import { hands } from './hands.js';
-import { BACK_ROW_Z, NET_HOOK_Y, NET_HOOK_Z, RANGE_HEIGHT, ROOM_END_X, SINK_TOP, WALL_THICKNESS, WORKTABLE_X } from './layout.js';
+import { BACK_ROW_DEPTH, BACK_ROW_Z, BACK_WALL_Z, NET_HOOK_Y, NET_HOOK_Z, RANGE_HEIGHT, ROOM_END_X, SINK_SHELF_Y, SINK_TOP, SINK_UNIT_X, SINK_UNIT_Z, SINK_WIDTH, WALL_THICKNESS, WORKTABLE_WIDTH, WORKTABLE_X } from './layout.js';
 import { NETA } from './menu.js';
 import { prepApi, tamagoApi } from './prep-api.js';
 import {
-  createEggBowl,
+  createChopsticks,
+  createEggPack,
   createPestle,
   createSuribachi,
   createTamagoPan,
@@ -22,6 +23,7 @@ import {
   PAN_GRIP,
   PAN_INNER,
   PESTLE_GRIP,
+  SAIBASHI_GRIP,
   SURIBACHI_FLOOR,
   SURIBACHI_RIM,
   SURIBACHI_TOP,
@@ -36,15 +38,22 @@ import { display } from './display-settings.js';
 
 type Side = 0 | 1;
 type Egg = 'none' | 'pouring' | 'first' | 'turning' | 'second' | 'done' | 'held' | 'cased';
-/** The batter in the suribachi: empty, the surimi in (grinding), ground, the eggs in (mixing), frothy, poured. */
-type Mix = 'none' | 'surimi' | 'ground' | 'eggs' | 'mixed' | 'poured';
+/** The batter in the suribachi: empty, the scallops in (grinding), ground, the eggs in (mixing), frothy, poured. */
+type Mix = 'none' | 'scallop' | 'ground' | 'eggs' | 'mixed' | 'poured';
 
 /** The suribachi's place: the work table's back corner on the sink's side, clear of the hangiri and the rice tub; the eggs beside it. */
 const BOWL_HOME = new Vector3(WORKTABLE_X + 0.205, SINK_TOP, BACK_ROW_Z + 0.42);
-const EGGS_HOME = new Vector3(WORKTABLE_X + 0.055, SINK_TOP, BACK_ROW_Z + 0.48);
+const EGGS_HOME = new Vector3(WORKTABLE_X + 0.05, SINK_TOP, BACK_ROW_Z + 0.48);
+/** The suribachi's place in the cupboard under the sink: its left half, on the shelf, toward the doors. */
+const CUPBOARD_HOME = new Vector3(SINK_UNIT_X - SINK_WIDTH / 4, SINK_SHELF_Y, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.16);
+/** The left door slides this far to the right to open the cupboard, in this time. */
+const DOOR_SLIDE = SINK_WIDTH / 2 - 0.02;
+const DOOR_SECONDS = 0.5;
+const HANDLE_PICK = 0.07;
+const STICKS_PICK = 0.08;
+const PACK_TAP = 0.08;
 /** A pinch this close takes the pestle (by its grip), the bowl of eggs, the suribachi (by its front rim). */
 const PESTLE_PICK = 0.08;
-const EGGS_PICK = 0.09;
 const RIM_PICK = 0.08;
 /** The pestle's tip goes round the floor at most this far from the middle. */
 const TIP_ROUND = 0.03;
@@ -65,15 +74,18 @@ const TURN_SECONDS = 0.7;
 const SIDES: readonly Side[] = [0, 1];
 
 /**
- * The full difficulty's tamago (厚焼き with surimi, the owner's shop). The
+ * The full difficulty's tamago (厚焼き with scallop, the owner's shop). The
  * batter is made in the shop in the suribachi on the work table (the
- * owner): when tamago was ordered (the surimi and the eggs come in the ice
+ * owner): when tamago was ordered (the scallops and the eggs come in the ice
  * box):
- *  a. the surimi and eggs from the ice box, let go over the suribachi: the
- *     surimi goes in, the bowl of eggs is set down beside it;
- *  b. the pestle by its grip, round and round till the surimi is smooth;
- *  c. the bowl of eggs, let go over the suribachi: the eggs in;
- *  d. the pestle round and round again till the batter is frothy.
+ *  a. the cupboard under the sink: a pinch on its left door's handle slides
+ *     it open; the suribachi (its pestle and chopsticks in it) by its rim,
+ *     let go over the work table: it stands in its place there;
+ *  b. the scallops and eggs from the ice box, let go over the suribachi: the
+ *     scallops go in, the pack of eggs is set down beside it;
+ *  c. the pestle by its grip, round and round till the scallops are a paste;
+ *  d. a tap on the pack of eggs: the eggs go in (the cracking is skipped);
+ *  e. the cooking chopsticks, round and round till the batter is frothy.
  * Then on the range; the square copper pan hangs on the end wall beside the
  * grill net:
  *  1. the pan by its handle, off its hook, onto a free burner;
@@ -114,13 +126,21 @@ export class TamagoSystem extends createSystem({
   private batter: Object3D | null = null;
   private suri!: SuribachiParts;
   private pestle!: Group;
-  private eggBowl!: Group;
+  private eggPack!: Group;
+  private sticks!: Group;
   private mix: Mix = 'none';
-  /** How far the surimi is ground, and the batter mixed (1: smooth, frothy). */
+  /** The suribachi is in the cupboard under the sink (not out on the work table). */
+  private stored = true;
+  /** The cupboard's left door (found in the sink unit once the prep starts), where it hangs shut, and how far open it is (0..1) and wants to be. */
+  private door: Object3D | null = null;
+  private readonly doorHome = new Vector3();
+  private doorOpen = 0;
+  private doorWant = 0;
+  /** How far the scallops are ground, and the batter mixed (1: a paste, frothy). */
   private ground = 0;
   private whisked = 0;
   private pestleHand: Side | null = null;
-  private eggsHand: Side | null = null;
+  private sticksHand: Side | null = null;
   private bowlHand: Side | null = null;
   private readonly bowlOffset = new Vector3();
   private readonly lastHand = new Vector3();
@@ -131,6 +151,7 @@ export class TamagoSystem extends createSystem({
   private eggHand: Side | null = null;
   private readonly tmp = new Vector3();
   private readonly tmp2 = new Vector3();
+  private readonly aimAt = new Vector3();
 
   init(): void {
     this.active = PREP_STAGE >= 3;
@@ -140,7 +161,7 @@ export class TamagoSystem extends createSystem({
       }),
     );
     for (const e of this.queries.items.entities) if (e.getValue(CaseItem, 'neta') === 'Tamago') this.caseItem = e.object3D ?? null;
-    tamagoApi.ready = () => this.active && this.wanted && this.mix === 'none';
+    tamagoApi.ready = () => this.active && this.wanted && this.mix === 'none' && !this.stored && this.bowlHand === null;
     tamagoApi.makingsIn = (root, at) => this.makingsIn(root, at);
     tamagoApi.bowlAt = (out) => {
       if (!this.active) return false;
@@ -160,8 +181,9 @@ export class TamagoSystem extends createSystem({
     this.hang();
     this.suri = createSuribachi();
     this.pestle = createPestle();
-    this.eggBowl = createEggBowl();
-    for (const o of [this.suri.bowl, this.pestle, this.eggBowl]) {
+    this.eggPack = createEggPack();
+    this.sticks = createChopsticks();
+    for (const o of [this.suri.bowl, this.pestle, this.eggPack, this.sticks]) {
       this.world.createTransformEntity(o);
       o.visible = false;
     }
@@ -188,6 +210,9 @@ export class TamagoSystem extends createSystem({
       if (prep.delivered) {
         this.built = true;
         this.wanted = todaysMaterials().includes('Tamago');
+        this.door = this.world.scene.getObjectByName('DoorL') ?? null;
+        if (this.door) this.doorHome.copy(this.door.position);
+        else console.warn('[Tamago] the sink unit has no DoorL: the cupboard cannot open');
         this.setOut(this.wanted);
       }
       this.publish();
@@ -195,8 +220,9 @@ export class TamagoSystem extends createSystem({
     }
     for (const side of SIDES) this.updateHand(side);
     this.updatePestle();
-    this.updateEggs();
+    this.updateSticks();
     this.updateBowl();
+    this.updateDoor(delta);
     this.updatePan();
     this.updateLift();
     this.updateEggHand();
@@ -230,26 +256,49 @@ export class TamagoSystem extends createSystem({
     const hand = hands.all[side];
     if (!hand?.tracked || !hand.pinchStart || !this.wanted) return;
     if (chef.hands[side].holding !== Held.None || prep.carrying[side] || this.panHand !== null || this.liftHand || this.eggHand !== null) return;
-    if (this.pestleHand !== null || this.eggsHand !== null || this.bowlHand !== null) return;
+    if (this.pestleHand !== null || this.sticksHand !== null || this.bowlHand !== null) return;
     const g = hand.grasp;
-    if ((this.mix === 'surimi' || this.mix === 'eggs') && g.distanceTo(this.pestleGrip(this.tmp)) < PESTLE_PICK) {
+    // Where the pinch was aimed (the grasp a moment before it closed), for the taps.
+    const aim = hand.pinchPoint(this.aimAt);
+    // The cupboard under the sink: the handle slides the door open; then the suribachi comes out by its rim.
+    if (this.mix === 'none' && this.stored) {
+      if (this.doorWant === 0 && this.door && aim.distanceTo(this.handle(this.tmp)) < HANDLE_PICK) {
+        this.doorWant = 1;
+        playPick();
+        console.log('[Tamago] the cupboard under the sink is open: the suribachi out, onto the work table');
+        return;
+      }
+      if (this.doorOpen > 0.8 && g.distanceTo(this.rim(this.tmp)) < RIM_PICK) {
+        this.bowlHand = side;
+        this.bowlOffset.copy(this.suri.bowl.position).sub(g);
+        chef.hands[side].holding = Held.Saku;
+        playPick();
+      }
+      return;
+    }
+    if (this.mix === 'scallop' && g.distanceTo(this.pestleGrip(this.tmp)) < PESTLE_PICK) {
       this.pestleHand = side;
       this.lastHand.copy(g);
       chef.hands[side].holding = Held.Saku;
       playPick();
       return;
     }
-    if (this.mix === 'ground' && g.distanceTo(this.tmp.copy(this.eggBowl.position).add(this.tmp2.set(0, 0.04, 0))) < EGGS_PICK) {
-      this.eggsHand = side;
+    if (this.mix === 'eggs' && g.distanceTo(this.sticksGrip(this.tmp)) < STICKS_PICK) {
+      this.sticksHand = side;
+      this.lastHand.copy(g);
       chef.hands[side].holding = Held.Saku;
       playPick();
+      return;
+    }
+    if (this.mix === 'ground' && aim.distanceTo(this.tmp.copy(this.eggPack.position).add(this.tmp2.set(0, 0.04, 0))) < PACK_TAP) {
+      this.eggsIn();
       return;
     }
     if (this.mix === 'mixed' && this.onBurner >= 0 && this.state === 'none' && g.distanceTo(this.rim(this.tmp)) < RIM_PICK) {
       this.bowlHand = side;
       this.bowlOffset.copy(this.suri.bowl.position).sub(g);
-      // The pestle is laid aside for the pour.
-      this.pestle.visible = false;
+      // The chopsticks are laid aside for the pour.
+      this.sticks.visible = false;
       chef.hands[side].holding = Held.Saku;
       playPick();
       return;
@@ -380,15 +429,74 @@ export class TamagoSystem extends createSystem({
 
   // ---- the batter: the suribachi --------------------------------------------------------
 
-  /** The suribachi and its pestle out on the work table (empty), or put away. */
+  /** The suribachi (empty, its pestle and chopsticks in it) in the cupboard under the sink, the door shut; or put away for good. */
   private setOut(out: boolean): void {
-    this.suri.bowl.position.copy(BOWL_HOME);
+    this.suri.bowl.position.copy(CUPBOARD_HOME);
     this.suri.bowl.rotation.set(0, 0, 0);
     this.suri.bowl.visible = out;
-    this.pestle.visible = out;
-    this.eggBowl.visible = false;
+    this.stored = true;
+    this.doorWant = 0;
+    this.eggPack.visible = false;
     for (const m of [this.suri.lumpy, this.suri.smooth, this.suri.batter, this.suri.froth]) m.visible = false;
+    this.restTools(out);
+  }
+
+  /** The suribachi stood in its place on the work table, its pestle leaning on the rim and the chopsticks laid beside it. */
+  private onTable(): void {
+    this.suri.bowl.position.copy(BOWL_HOME);
+    this.suri.bowl.rotation.set(0, 0, 0);
+    this.stored = false;
+    this.doorWant = 0;
+    this.restTools(true);
+    this.pestle.visible = true;
+    this.sticks.visible = true;
+    coach.done('suribachiOut');
+    console.log('[Tamago] the suribachi is on the work table: the scallops and eggs from the ice box');
+  }
+
+  /** The pestle and chopsticks at rest: standing in the bowl while it is in the cupboard or carried, laid by it on the table. */
+  private restTools(visible: boolean): void {
+    this.pestle.visible = this.sticks.visible = visible;
+    if (this.stored) {
+      const c = this.suri.bowl.position;
+      this.pestle.position.set(c.x + 0.02, c.y + SURIBACHI_FLOOR + 0.003, c.z);
+      this.pestle.quaternion.setFromUnitVectors(UP, this.dir.set(0.25, 1, 0.1).normalize());
+      this.sticks.position.set(c.x - 0.025, c.y + SURIBACHI_FLOOR + 0.003, c.z + 0.01);
+      this.sticks.quaternion.setFromUnitVectors(UP, this.dir.set(-0.2, 1, -0.15).normalize());
+      return;
+    }
     this.restPestle();
+    this.restSticks();
+  }
+
+  /** The chopsticks laid on the table beside the suribachi (the chef's right), their tips toward the back. */
+  private restSticks(): void {
+    const c = this.suri.bowl.position;
+    this.sticks.position.set(c.x + SURIBACHI_RIM + 0.03, c.y + 0.004, c.z - 0.1);
+    this.sticks.quaternion.setFromUnitVectors(UP, this.dir.set(0.12, 0.02, 1).normalize());
+  }
+
+  private sticksGrip(out: Vector3): Vector3 {
+    return out.set(0, SAIBASHI_GRIP, 0).applyQuaternion(this.sticks.quaternion).add(this.sticks.position);
+  }
+
+  /** The left door's handle (world). */
+  private handle(out: Vector3): Vector3 {
+    if (!this.door) return out.copy(CUPBOARD_HOME);
+    return this.door.getWorldPosition(out).add(this.tmp2.set(SINK_WIDTH / 4 - 0.08, 0, -0.02));
+  }
+
+  /** The door slides open or shut toward what it wants. */
+  private updateDoor(delta: number): void {
+    if (!this.door || this.doorOpen === this.doorWant) return;
+    const step = delta / DOOR_SECONDS;
+    this.doorOpen = this.doorOpen < this.doorWant ? Math.min(this.doorWant, this.doorOpen + step) : Math.max(this.doorWant, this.doorOpen - step);
+    this.door.position.copy(this.doorHome).setX(this.doorHome.x + DOOR_SLIDE * this.doorOpen);
+  }
+
+  /** Over the work table's top (where the suribachi is let go to stand there). */
+  private overTable(at: Vector3): boolean {
+    return Math.abs(at.x - WORKTABLE_X) < WORKTABLE_WIDTH / 2 + 0.06 && at.z > BACK_ROW_Z - 0.12 && at.z < BACK_WALL_Z && at.y > SINK_TOP - 0.1 && at.y < SINK_TOP + 0.5;
   }
 
   /** The pestle at rest: its tip on the floor, leaning on the rim toward the chef's right. */
@@ -414,32 +522,60 @@ export class TamagoSystem extends createSystem({
     return Math.hypot(at.x - c.x, at.z - c.z) < 0.15 && at.y > c.y && at.y < c.y + SURIBACHI_TOP + high;
   }
 
-  /** The surimi and eggs (from the ice box) let go over the suribachi: the surimi in, the eggs set down beside it. */
+  /** The scallops and eggs (from the ice box) let go over the suribachi on the work table: the scallops in, the pack of eggs set down beside it. */
   private makingsIn(root: Object3D, at: Vector3): boolean {
-    if (!this.active || !this.wanted || this.mix !== 'none' || !this.overBowl(at, 0.45)) return false;
+    if (!this.active || !this.wanted || this.mix !== 'none' || this.stored || !this.overBowl(at, 0.45)) return false;
     root.visible = false;
-    this.mix = 'surimi';
+    this.mix = 'scallop';
     this.ground = 0;
-    this.showSurimi();
-    this.eggBowl.position.copy(EGGS_HOME);
-    this.eggBowl.visible = true;
+    this.showScallops();
+    this.eggPack.position.copy(EGGS_HOME);
+    this.eggPack.rotation.set(0, 0, 0);
+    this.eggPack.visible = true;
     playPut();
     coach.done('potIn');
-    console.log('[Tamago] the surimi is in the suribachi, the eggs beside it: grind it smooth with the pestle');
+    console.log('[Tamago] the scallops are in the suribachi, the eggs beside it: grind them to a paste with the pestle');
     return true;
   }
 
-  /** The pestle in a hand: its tip on the floor under the hand, the stick up through it; going round grinds, then mixes. */
+  /** A tap on the pack of eggs (the scallops ground): the eggs go into the suribachi, the pack is done with; the pestle is laid aside for the chopsticks. */
+  private eggsIn(): void {
+    this.eggPack.visible = false;
+    this.pestle.visible = false;
+    this.suri.smooth.visible = this.suri.lumpy.visible = false;
+    this.suri.batter.visible = this.suri.froth.visible = true;
+    this.mix = 'eggs';
+    this.whisked = 0;
+    this.showBatter();
+    this.restSticks();
+    this.sticks.visible = true;
+    playPut();
+    coach.done('eggsTamago');
+    console.log('[Tamago] the eggs are in: mix with the chopsticks till frothy');
+  }
+
+  /** The pestle in a hand: its tip on the floor under the hand, the stick up through it; going round grinds the scallops. */
   private updatePestle(): void {
-    const side = this.pestleHand;
+    this.roundAndRound(this.pestleHand, this.pestle, 'scallop');
+  }
+
+  /** The chopsticks in a hand, the same way: going round mixes the eggs in. */
+  private updateSticks(): void {
+    this.roundAndRound(this.sticksHand, this.sticks, 'eggs');
+  }
+
+  /** A tool in a hand over the suribachi: its tip on the floor under the hand, held up through it; the hand's way round counts toward the work of that stage. */
+  private roundAndRound(side: Side | null, tool: Group, stage: 'scallop' | 'eggs'): void {
     if (side === null) return;
     const hand = hands.all[side];
     if (!hand?.tracked) return;
     const g = hand.grasp;
     if (hand.pinchEnd) {
-      this.pestleHand = null;
+      if (stage === 'scallop') this.pestleHand = null;
+      else this.sticksHand = null;
       chef.hands[side].holding = Held.None;
-      this.restPestle();
+      if (stage === 'scallop') this.restPestle();
+      else this.restSticks();
       playPut();
       return;
     }
@@ -452,33 +588,33 @@ export class TamagoSystem extends createSystem({
     this.dir.copy(g).sub(this.tip);
     if (this.dir.y < 0.05) this.dir.y = 0.05;
     this.dir.normalize();
-    this.pestle.position.copy(this.tip);
-    this.pestle.quaternion.setFromUnitVectors(UP, this.dir);
+    tool.position.copy(this.tip);
+    tool.quaternion.setFromUnitVectors(UP, this.dir);
     // Round and round over the bowl: the hand's way counts (not a jump, as when it is lost a moment).
     const step = Math.hypot(g.x - this.lastHand.x, g.z - this.lastHand.z);
     this.lastHand.copy(g);
-    if (step > ROUND_STEP || !this.overBowl(g, 0.3)) return;
-    if (this.mix === 'surimi') {
+    if (step > ROUND_STEP || !this.overBowl(g, 0.3) || this.mix !== stage) return;
+    if (stage === 'scallop') {
       this.ground = Math.min(1, this.ground + step / TAMAGO_GRIND_TRAVEL);
-      this.showSurimi();
+      this.showScallops();
       if (this.ground < 1) return;
       this.mix = 'ground';
       playDone();
       coach.done('grindTamago');
-      console.log('[Tamago] the surimi is ground smooth: the eggs in');
-    } else if (this.mix === 'eggs') {
+      console.log('[Tamago] the scallops are ground to a paste: tap the pack of eggs');
+    } else {
       this.whisked = Math.min(1, this.whisked + step / TAMAGO_WHISK_TRAVEL);
       this.showBatter();
       if (this.whisked < 1) return;
       this.mix = 'mixed';
       playDone();
-      coach.done('grindTamago');
+      coach.done('whiskTamago');
       console.log('[Tamago] the batter is frothy: the pan on a burner, then pour it in');
     }
   }
 
-  /** The surimi as it is ground: the lumps sink away, the smooth paste spreads over the floor. */
-  private showSurimi(): void {
+  /** The scallops as they are ground: the pieces sink away, the paste spreads over the floor. */
+  private showScallops(): void {
     const { lumpy, smooth } = this.suri;
     lumpy.visible = this.ground < 0.85;
     lumpy.scale.set(1, 1 - 0.7 * this.ground, 1);
@@ -493,51 +629,35 @@ export class TamagoSystem extends createSystem({
     this.suri.frothMat.opacity = 0.9 * this.whisked;
   }
 
-  /** The bowl of eggs in a hand: let go over the suribachi, the eggs go in; elsewhere it goes back beside it. */
-  private updateEggs(): void {
-    const side = this.eggsHand;
-    if (side === null) return;
-    const hand = hands.all[side];
-    if (!hand?.tracked) return;
-    this.eggBowl.position.copy(hand.grasp).add(this.tmp.set(0, -0.035, 0));
-    if (!hand.pinchEnd) return;
-    this.eggsHand = null;
-    chef.hands[side].holding = Held.None;
-    if (!this.overBowl(hand.grasp, 0.35)) {
-      this.eggBowl.position.copy(EGGS_HOME);
-      playPut();
-      return;
-    }
-    // The bowl is done with: put away.
-    this.eggBowl.visible = false;
-    this.suri.smooth.visible = this.suri.lumpy.visible = false;
-    this.suri.batter.visible = this.suri.froth.visible = true;
-    this.mix = 'eggs';
-    this.whisked = 0;
-    this.showBatter();
-    playPut();
-    coach.done('eggsTamago');
-    console.log('[Tamago] the eggs are in: mix with the pestle till frothy');
-  }
-
-  /** The suribachi in a hand, by its rim: let go over the pan on its burner, it tips and pours; elsewhere it goes back to its place. */
+  /**
+   * The suribachi in a hand, by its rim. From the cupboard: let go over the work table, it stands in its place there
+   * (elsewhere it goes back on the shelf). With the batter: let go over the pan on its burner, it tips and pours;
+   * elsewhere it goes back to its place.
+   */
   private updateBowl(): void {
     const side = this.bowlHand;
     if (side === null) return;
     const hand = hands.all[side];
     if (!hand?.tracked) return;
     this.suri.bowl.position.copy(hand.grasp).add(this.bowlOffset);
+    if (this.stored) this.restTools(true);
     if (!hand.pinchEnd) return;
     this.bowlHand = null;
     chef.hands[side].holding = Held.None;
+    if (this.stored) {
+      if (this.overTable(hand.grasp)) this.onTable();
+      else this.setOut(true);
+      playPut();
+      return;
+    }
     if (this.pourInto(hand.grasp)) return;
     this.suri.bowl.position.copy(BOWL_HOME);
-    this.pestle.visible = true;
-    this.restPestle();
+    this.sticks.visible = true;
+    this.restSticks();
     playPut();
   }
 
-  /** The suribachi let go over the pan on its burner: it tips and pours (then is put away with its pestle). */
+  /** The suribachi let go over the pan on its burner: it tips and pours (then is put away with its pestle and chopsticks). */
   private pourInto(at: Vector3): boolean {
     if (!this.wanted || this.onBurner < 0 || this.state !== 'none' || this.mix !== 'mixed') return false;
     const p = this.pan.position;
@@ -635,8 +755,8 @@ export class TamagoSystem extends createSystem({
     const pct = Math.round(Math.min(1, this.progress) * 100);
     const mixing = this.wanted && this.mix !== 'none' && this.mix !== 'poured';
     const text = mixing
-      ? this.mix === 'surimi' ? `Tamago: grind the surimi ${Math.round(this.ground * 100)}%`
-      : this.mix === 'ground' ? 'Tamago: the eggs in'
+      ? this.mix === 'scallop' ? `Tamago: grind the scallops ${Math.round(this.ground * 100)}%`
+      : this.mix === 'ground' ? 'Tamago: tap the eggs in'
       : this.mix === 'eggs' ? `Tamago: mix till frothy ${Math.round(this.whisked * 100)}%`
       : this.onBurner < 0 ? 'Tamago: frothy. The pan onto a burner'
       : 'Tamago: frothy. Pour it into the pan'
@@ -662,17 +782,17 @@ export class TamagoSystem extends createSystem({
     tamago.panHeld = this.panHand !== null;
     tamago.eggHeld = this.eggHand !== null;
     tamago.pestleHeld = this.pestleHand !== null;
-    tamago.eggBowlHeld = this.eggsHand !== null;
+    tamago.sticksHeld = this.sticksHand !== null;
     tamago.bowlHeld = this.bowlHand !== null;
     let next: TamagoNext | null = null;
     const free = this.freeBurner();
     if (this.active && this.wanted && this.state !== 'cased') {
       if (this.eggHand !== null) next = 'case';
       else if (this.panHand !== null) next = 'place';
-      else if (this.bowlHand !== null) next = 'pour';
-      else if (this.eggsHand !== null || this.mix === 'ground') next = 'eggs';
-      else if (this.mix === 'none') next = 'makings';
-      else if (this.mix === 'surimi') next = 'grind';
+      else if (this.bowlHand !== null) next = this.stored ? 'suribachi' : 'pour';
+      else if (this.mix === 'ground') next = 'eggs';
+      else if (this.mix === 'none') next = this.stored ? (this.doorOpen > 0.8 ? 'suribachi' : 'cupboard') : 'makings';
+      else if (this.mix === 'scallop') next = 'grind';
       else if (this.mix === 'eggs') next = 'whisk';
       else if (this.onBurner < 0) next = free >= 0 ? 'pan' : null;
       else if (this.state === 'none') next = 'pour';
@@ -686,7 +806,10 @@ export class TamagoSystem extends createSystem({
     this.suri.bowl.getWorldPosition(tamago.bowlAt).add(this.tmp.set(0, SURIBACHI_FLOOR + 0.03, 0));
     this.rim(tamago.rimAt);
     this.pestleGrip(tamago.pestleAt);
-    tamago.eggBowlAt.copy(this.eggBowl.position).add(this.tmp.set(0, 0.04, 0));
+    this.sticksGrip(tamago.sticksAt);
+    this.handle(tamago.doorAt);
+    tamago.tableAt.copy(BOWL_HOME).add(this.tmp.set(0, SURIBACHI_TOP, 0));
+    tamago.packAt.copy(this.eggPack.position).add(this.tmp.set(0, 0.04, 0));
     this.grip(tamago.gripAt);
     tamago.panAt.copy(this.pan.position).add(this.tmp.set(0, EGG_HEIGHT + 0.01, 0));
     if (free >= 0) tamago.burnerAt.copy(range.burners[free].at).setY(GRATE_Y + 0.03);
@@ -694,10 +817,12 @@ export class TamagoSystem extends createSystem({
     tamago.say =
       next === 'pan' ? 'The tamago pan: off its hook by the handle, onto a free burner'
       : next === 'place' ? 'Onto a free burner'
-      : next === 'makings' ? 'The surimi and eggs from the ice box: the surimi into the suribachi on the work table'
-      : next === 'grind' ? 'Grind the surimi smooth: the pestle round and round in the suribachi'
-      : next === 'eggs' ? 'The eggs into the suribachi'
-      : next === 'whisk' ? 'Mix the eggs in till frothy: the pestle round and round'
+      : next === 'cupboard' ? 'The suribachi is in the cupboard under the sink: slide the left door open by its handle'
+      : next === 'suribachi' ? (this.bowlHand !== null ? 'Onto the work table, at its back corner' : 'The suribachi out of the cupboard by its rim, onto the work table')
+      : next === 'makings' ? 'The scallops and eggs from the ice box: the scallops into the suribachi on the work table'
+      : next === 'grind' ? 'Grind the scallops to a paste: the pestle round and round in the suribachi'
+      : next === 'eggs' ? 'Tap the pack of eggs: they go into the suribachi'
+      : next === 'whisk' ? 'Mix the eggs in till frothy: the chopsticks round and round'
       : next === 'pour' ? (this.bowlHand !== null ? 'Over the pan: pour it in' : 'The batter is frothy: the suribachi by its front rim, poured into the pan')
       : next === 'turn' ? 'The first side is done: turn it over (lift the pan by its handle)'
       : next === 'out' ? 'The tamago is done: flame off, out of the pan, into the case'
@@ -709,9 +834,9 @@ export class TamagoSystem extends createSystem({
   /** The bar opens: the pan back on its hook, what was in it gone. */
   private clearAway(): void {
     this.cleared = true;
-    for (const side of [this.panHand, this.liftHand?.side ?? null, this.eggHand, this.pestleHand, this.eggsHand, this.bowlHand]) if (side !== null) chef.hands[side].holding = Held.None;
+    for (const side of [this.panHand, this.liftHand?.side ?? null, this.eggHand, this.pestleHand, this.sticksHand, this.bowlHand]) if (side !== null) chef.hands[side].holding = Held.None;
     this.panHand = this.eggHand = null;
-    this.pestleHand = this.eggsHand = this.bowlHand = null;
+    this.pestleHand = this.sticksHand = this.bowlHand = null;
     this.setOut(false);
     this.liftHand = null;
     this.egg.egg.visible = false;

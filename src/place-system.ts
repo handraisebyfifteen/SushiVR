@@ -2,7 +2,7 @@ import { createSystem, type Object3D, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_HINT, glowObject } from './feedback.js';
 import { type FarTarget, FarChooser } from './far-choice.js';
-import { chef, cure, type Place, prep } from './game-state.js';
+import { chef, cure, type Place, prep, tamago } from './game-state.js';
 import {
   BACK_ROW_Z,
   BACK_SPOT_Z,
@@ -99,8 +99,9 @@ export class PlaceSystem extends createSystem({}) {
     if (chef.facingBack) {
       if (chef.at !== 'table') out.push(this.all.table);
       if (chef.at !== 'range') out.push(this.all.range);
-      // The sink only while there is a fish to wash there (and not while the hands want washing in it).
-      if (chef.at !== 'sink' && prep.sinkWanted && !chef.hands.some((h) => h.needsWash)) out.push(this.all.sink);
+      // The sink only while there is a fish to wash there, or the tamago's suribachi to take from the cupboard under it (and not while the hands want washing in it).
+      const sink = prep.sinkWanted || tamago.next === 'cupboard' || (tamago.next === 'suribachi' && !tamago.bowlHeld);
+      if (chef.at !== 'sink' && sink && !chef.hands.some((h) => h.needsWash)) out.push(this.all.sink);
       // The drainboard while there is curing to do, a fish for its tray, or a fish to take from the box at its foot.
       const drain = cure.wanted || (prep.next === 'take' && prep.takeFrom === 'fish') || (prep.next === 'stock' && prep.stockTo === 'cure');
       if (chef.at !== 'drain' && drain && !chef.hands.some((h) => h.needsWash)) out.push(this.all.drain);

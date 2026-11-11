@@ -1,12 +1,13 @@
 import { Group, type Object3D, Quaternion, Vector3 } from '@iwsdk/core';
-import { createEggBowl, createPestle, createSuribachi, createTamagoPan, SURIBACHI_FLOOR, SURIBACHI_RIM, SURIBACHI_TOP, tamagoMakings } from './lib/tamago-look.js';
+import { createChopsticks, createEggPack, createPestle, createSuribachi, createTamagoPan, SURIBACHI_FLOOR, SURIBACHI_RIM, SURIBACHI_TOP, tamagoMakings } from './lib/tamago-look.js';
 
 /**
  * The full difficulty's tamago tools for inspection (asset preview only, not
- * placed in the scene), left to right: the surimi and eggs as they come in
- * the ice box; the suribachi with the surimi in lumps and its pestle at rest
- * against the rim; the surimi ground smooth; the batter frothy; the bowl of
- * eggs; the square copper pan with a baked tamago in it.
+ * placed in the scene), left to right: the scallops and eggs as they come in
+ * the ice box; the suribachi with the scallops in pieces and its pestle at
+ * rest against the rim; the scallops ground to a paste; the batter frothy with
+ * the chopsticks laid beside it; the pack of eggs; the square copper pan with
+ * a baked tamago in it.
  */
 export function createTamagoToolsPreview(): Group {
   const root = new Group();
@@ -41,7 +42,12 @@ export function createTamagoToolsPreview(): Group {
   pestle.position.copy(tip);
   pestle.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir));
   root.add(pestle);
-  place(createEggBowl(), 0.55, 'Eggs');
+  // The chopsticks laid beside the frothy one, as the system lays them.
+  const sticks = createChopsticks();
+  sticks.position.set(-0.07 + 2 * 0.22 + SURIBACHI_RIM + 0.03, 0.004, -0.1);
+  sticks.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), new Vector3(0.12, 0.02, 1).normalize());
+  root.add(sticks);
+  place(createEggPack(), 0.55, 'Eggs');
   const { pan, egg } = createTamagoPan();
   egg.egg.visible = true;
   place(pan, 0.82, 'Pan');

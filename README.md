@@ -188,13 +188,17 @@ and the pots go on first, the fish is cut while they cook.
      scorch.
    When one is done, put its flame out, take it out of the pot and let go
    over the case (step back to the board). Its pot is put away.
-   - Tamago (full difficulty only; the shop's way: 厚焼き with surimi, made
-     and baked in the shop): the batter is made in the suribachi (すり鉢) at
-     the work table's back corner by the sink. Take the surimi and eggs from
-     the ice box and let go over the suribachi: the surimi goes in and the
-     bowl of eggs is set beside it. Pinch the pestle (すりこぎ) and go round
-     and round till the surimi is smooth; let go of the bowl of eggs over
-     the suribachi; go round again till the batter is frothy. The square
+   - Tamago (full difficulty only; the shop's way: 厚焼き with scallop, made
+     and baked in the shop): the batter is made in the suribachi (すり鉢),
+     which lives in the cupboard under the sink. Pinch the handle of the
+     cupboard's left door to slide it open, take the suribachi by its rim
+     (its pestle and chopsticks ride in it) and let go over the work table:
+     it stands at the table's back corner by the sink. Take the scallops
+     and eggs from the ice box and let go over the suribachi: the scallops
+     go in and the pack of eggs is set beside it. Pinch the pestle (すりこぎ)
+     and go round and round till the scallops are a paste; tap the pack of
+     eggs and they go in (the cracking is skipped); pinch the cooking
+     chopsticks (菜箸) and go round till the batter is frothy. The square
      copper tamago pan hangs on the end wall beside the net. Take it by its
      handle and let go over a burner whose pot is put away; pinch the
      suribachi's front rim and let go over the pan to pour it (the suribachi
@@ -261,8 +265,8 @@ and the pots go on first, the fish is cut while they cook.
      time (a small bar's way of working): the scales off, then each fish in
      turn to the middle, its head cut off (each on its own, never a row at
      once) and onto the ice; once every head is off, each from the ice, its
-     dorsal fin cut off along the back, then its belly cut off (a kohada is
-     not slit: the guts go with the belly); all washed and back on the ice. On the
+     dorsal fin cut off along the back, its belly cut off, then the guts
+     out with the knife's tip (a kohada is not slit); all washed and back on the ice. On the
      board, every fish opened from the belly first, then every backbone
      shaved out, laid in a row, overlapping. Fish lie head left for the head
      to come off, then head right (belly still toward you) to be filleted
@@ -579,7 +583,7 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/place-system.ts` | Where the chef stands: the stool, or a step back at the work table or the range |
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
 | `src/range-system.ts` | The gas range: the pots, their knobs and heat, and the bonito belly on skewers |
-| `src/tamago-system.ts` | The full difficulty's tamago: the surimi ground in the suribachi, the eggs in, mixed till frothy; the square pan from its hook onto a burner, the batter poured, baked low, turned once, into the case |
+| `src/tamago-system.ts` | The full difficulty's tamago: the suribachi from the cupboard under the sink, the scallops ground in it, the eggs tapped in, mixed with chopsticks till frothy; the square pan from its hook onto a burner, the batter poured, baked low, turned once, into the case |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
 | `src/tuning.ts` | Every gameplay number: prices, wages, the fish shop's bill, timings, tolerances |
 | `src/ledger.ts` | The day's books: sales, the fish shop, wages and the pieces by grade (the shop's money across days is in `src/fish-order.ts`) |
