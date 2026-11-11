@@ -255,6 +255,8 @@ export const RICE_STEAM_SECONDS = 15;
 /** Seconds the awasezu pours while the bowl is held over the hangiri. */
 export const AWASEZU_SECONDS = 1.5;
 /** How far (m) the shamoji travels through the rice to cut the vinegar in. */
+/** One piece's shari, nigiri or gunkan (the owner: 19 g); the shari's form is sized to it in src/scene-assets/lib/nigiri-form.ts. */
+export const SHARI_GRAMS = 19;
 export const SHARI_CUT_DISTANCE = 1.4;
 /** Scoops of shari from the hangiri into the ohitsu. */
 export const SHARI_SCOOPS = 6;

@@ -28,7 +28,7 @@ import type { Assembly, PieceCore } from './types.js';
 /**
  * The rice inside the nori band: a low oval filling its lower part (about
  * 4.8 x 3.7 cm, 2.7 cm high), the shari shaped once (stage 3) and stretched
- * to the band (the stage-3 shari is the nigiri's 29 g one, so it is squeezed
+ * to the band (the stage-3 shari is the nigiri's 19 g one, so it is squeezed
  * along its length and widened to fit).
  */
 const RICE_GUNKAN = new Vector3(0.754, 1.083, 1.246);
