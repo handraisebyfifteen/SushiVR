@@ -172,7 +172,7 @@ export const NETA: Record<NetaId, NetaDef> = {
   HorseMackerel: def('Horse mackerel', 'piece', 4, look('fillets', '#A9B9C6', '#E8B9AE', 'plain', 0.85, 0.04)),
   CuredMackerel: def('Cured mackerel', 'saku', 8, look('saku', '#E8C7BD', '#5E7488', 'mackerel', 0.6, 0.04), { skinEdge: true }),
   Prawn: def('Prawn', 'piece', 4, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.045)),
-  SweetShrimp: def('Sweet shrimp', 'piece', 12, look('shrimps', '#F6A48C', '#F8D3C6', 'plain', 0.85, 0.04), { perPiece: 2 }),
+  SweetShrimp: def('Sweet shrimp', 'piece', 18, look('shrimps', '#F6A48C', '#F8D3C6', 'plain', 0.85, 0.04), { perPiece: 2 }),
   Scallop: def('Scallop', 'piece', 4, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.045)),
   ArkShell: def('Ark shell', 'piece', 4, look('tongues', '#E5583E', '#F6C9A8', 'rim', 0.75, 0.046)),
   Cockle: def('Egg cockle', 'piece', 4, look('tongues', '#F0E2CC', '#2C2230', 'tip', 0.6, 0.04)),

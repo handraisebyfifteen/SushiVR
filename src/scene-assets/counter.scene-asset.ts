@@ -51,6 +51,8 @@ const lightWood = new MeshStandardMaterial({ color: '#D9B98A', roughness: 0.7 })
 const paleWood = new MeshStandardMaterial({ color: '#EADBB8', roughness: 0.65 });
 const lacquer = new MeshStandardMaterial({ color: '#1E1A1A', roughness: 0.35 });
 const steel = new MeshStandardMaterial({ color: '#C9CDD2', roughness: 0.25, metalness: 0.8 });
+/** The yanagiba's ground bevel (切刃): polished brighter than the flat. */
+const bevelSteel = new MeshStandardMaterial({ color: '#EEF1F4', roughness: 0.12, metalness: 0.9 });
 const ledLight = new MeshStandardMaterial({ color: '#FFFFFF', emissive: '#FFF4E0', emissiveIntensity: 0.6, roughness: 0.4 });
 const glass = new MeshStandardMaterial({
   color: '#BFE3F2',
@@ -293,11 +295,23 @@ export function createNetaCase(): Group {
 }
 
 /** Yanagiba: a long single-edged slicing knife. Blade runs along +X. */
+/**
+ * The yanagiba, lying on its flat: blade along +X from the handle, edge on
+ * +Z. A single-bevel knife: its ground bevel (切刃), a bright band along
+ * the edge, is on the top face, the shinogi line its inner border. Its
+ * mirror image is a left-handed yanagiba (src/handedness.ts mirrors it),
+ * the band then on the other face for the same edge.
+ */
 export function createKnife(): Group {
   const root = new Group();
   root.name = 'Knife';
   const blade = box(0.27, 0.004, 0.032, steel, 'Blade');
   blade.position.set(0.075, 0.016, 0);
+  const bevel = box(0.262, 0.0006, 0.009, bevelSteel, 'Bevel');
+  bevel.position.set(0.079, 0.0183, 0.0115);
+  const shinogi = box(0.262, 0.0007, 0.0012, lacquer, 'Shinogi');
+  shinogi.position.set(0.079, 0.0183, 0.0066);
+  root.add(bevel, shinogi);
   const handle = new Mesh(new CylinderGeometry(0.011, 0.013, 0.13, 10, 1), lightWood);
   handle.name = 'Handle';
   handle.rotation.z = Math.PI / 2;
@@ -307,6 +321,50 @@ export function createKnife(): Group {
   bolster.rotation.z = Math.PI / 2;
   bolster.position.set(-0.062, 0.014, 0);
   root.add(blade, handle, bolster);
+  return root;
+}
+
+/** The knife holder's height; the knife's blade root stands this far over the counter (src/layout.ts KNIFE_STAND). */
+export const KNIFE_HOLDER_HEIGHT = 0.27;
+
+/**
+ * The knife holder (包丁桶): a slim hinoki box on a low plinth, bound with
+ * two copper hoops, standing on the work counter beside the board. The
+ * yanagiba stands in it blade down during service, its edge toward the
+ * customers, only its handle and the root of the blade showing; the slot
+ * in the top runs along Z, the blade's width. Origin: counter contact,
+ * under the slot's centre. Symmetric in X, so it crosses over unchanged
+ * for a left-handed chef (src/handedness.ts).
+ */
+export function createKnifeHolder(): Group {
+  const root = new Group();
+  root.name = 'KnifeHolder';
+  const H = KNIFE_HOLDER_HEIGHT;
+  const base = box(0.058, 0.012, 0.088, lightWood, 'Base');
+  base.position.y = 0.006;
+  const body = box(0.046, H - 0.012, 0.075, paleWood, 'Body');
+  body.position.y = 0.012 + (H - 0.012) / 2;
+  const slot = box(0.008, 0.002, 0.046, lacquer, 'Slot');
+  slot.position.y = H + 0.001;
+  root.add(base, body, slot);
+  for (const [i, y] of [0.075, 0.205].entries()) {
+    const hoop = box(0.052, 0.012, 0.081, copper, `Hoop${i + 1}`);
+    hoop.position.y = y;
+    root.add(hoop);
+  }
+  return root;
+}
+
+/** The holder with the knife standing in it, for the isolated preview (src/assets.ts knife-holder-preview). */
+export function createKnifeHolderPreview(): Group {
+  const root = new Group();
+  root.name = 'KnifeHolderPreview';
+  const knife = createKnife();
+  // Standing, the blade's thickness offset (1.6 cm) runs across: the knife stands that far over to centre the blade in the slot.
+  knife.position.set(0.016, 0.23, 0);
+  // Blade (local +X) down, edge (local +Z) toward -Z: Euler XYZ (0, 180°, -90°), as the scene node has it.
+  knife.rotation.set(0, Math.PI, -Math.PI / 2);
+  root.add(createKnifeHolder(), knife);
   return root;
 }
 

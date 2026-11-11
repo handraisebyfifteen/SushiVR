@@ -12,6 +12,8 @@ export const StationKind = {
   NetaCase: 'NetaCase',
   Geta: 'Geta',
   Knife: 'Knife',
+  /** The hinoki holder (包丁桶) the knife stands in beside the board. */
+  KnifeHolder: 'KnifeHolder',
   WetCloth: 'WetCloth',
   Tezu: 'Tezu',
   Wasabi: 'Wasabi',

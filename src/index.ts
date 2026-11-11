@@ -10,9 +10,11 @@ import { HandsSystem } from './hands.js';
 import { HygieneSystem } from './hygiene-system.js';
 import { MasterSystem } from './master-system.js';
 import { MenuBoardSystem } from './menu-board-system.js';
+import { NameTagSystem } from './name-tag-system.js';
 import { NetaCaseSystem } from './neta-case-system.js';
 import { OfficeSystem } from './office-system.js';
 import { OpeningSystem } from './opening-system.js';
+import { PhoneBookSystem } from './phone-book-system.js';
 import { PhoneSystem } from './phone-system.js';
 import { PieceSystem } from './piece-system.js';
 import { PrepCutSystem } from './prep-cut-system.js';
@@ -44,6 +46,7 @@ World.create(
   world.registerSystem(PhoneSystem);
   world.registerSystem(FishOrderSystem);
   world.registerSystem(OfficeSystem);
+  world.registerSystem(PhoneBookSystem);
   world.registerSystem(StaffSystem);
   world.registerSystem(TeaSystem);
   world.registerSystem(PrepCutSystem);
@@ -56,6 +59,7 @@ World.create(
   world.registerSystem(PieceSystem);
   world.registerSystem(MasterSystem);
   world.registerSystem(MenuBoardSystem);
+  world.registerSystem(NameTagSystem);
   world.registerSystem(FeedbackSystem);
   world.registerSystem(DebugHudSystem);
   // Keyboard practice mode for the desktop emulator (P key). Dev builds only:

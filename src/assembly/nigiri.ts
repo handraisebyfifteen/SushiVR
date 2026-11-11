@@ -3,6 +3,7 @@ import { coach } from '../coach.js';
 import { feedback } from '../feedback.js';
 import { chef, service } from '../game-state.js';
 import type { HandReader } from '../hand-reader.js';
+import { handedness } from '../handedness.js';
 import { hands } from '../hands.js';
 import { menuFor, NETA, type NetaId, orderAccepts } from '../menu.js';
 import type { PieceResult } from '../scoring.js';
@@ -49,7 +50,7 @@ const FLIP_SAMPLES = 72;
 
 /**
  * The nigiri, from the slice to the finished piece (rice hand = right, neta
- * hand = left, swapped by CHEF_LEFT_HANDED):
+ * hand = left, swapped for a left-handed chef, src/handedness.ts):
  *  1 the neta hand pinches the slice on the board (a ready-cut piece comes
  *    straight onto the fingers)       2-4 the rice (PieceSystem)
  *  5 index finger: wasabi dish, then the neta   6 palms together: rice on neta
@@ -262,7 +263,7 @@ export class NigiriAssembly implements Assembly {
     }
   }
 
-  /** Half turn: keep pinching and turn the rice hand clockwise by ROTATE_DEG. */
+  /** Half turn: keep pinching and turn the rice hand outward by ROTATE_DEG (clockwise; a left-handed chef's anticlockwise). */
   private updateRotate(riceHand: HandReader): void {
     if (!riceHand.tracked || !riceHand.pinch || riceHand.grasp.distanceTo(this.core.focus) > TOUCH_DISTANCE * 1.5) {
       this.rotateStartYaw = null;
@@ -272,9 +273,10 @@ export class NigiriAssembly implements Assembly {
       this.rotateStartYaw = riceHand.yawDeg;
       return;
     }
-    // Clockwise seen from above = heading decreases.
-    if (normYaw(riceHand.yawDeg - this.rotateStartYaw) <= -ROTATE_DEG) {
-      this.core.pieceYaw += 180;
+    // Clockwise seen from above = heading decreases; outward for the left hand is the other way.
+    const turned = normYaw(riceHand.yawDeg - this.rotateStartYaw) * (handedness.left ? 1 : -1);
+    if (turned >= ROTATE_DEG) {
+      this.core.pieceYaw += handedness.left ? -180 : 180;
       this.rotateStartYaw = null;
       this.core.setStage(NigiriStage.Rotated);
       coach.done('rotate');

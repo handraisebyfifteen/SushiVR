@@ -33,12 +33,21 @@ const PINCH_OFF = 0.6;
  */
 export const LOST_GRACE_MS = 400;
 
+/** Frames of grasp history kept (a few hundred ms at 72-90 fps). */
+const GRASP_RING = 24;
+/** The fingers move the grasp point as they close: a pinch is judged where it was this long before. */
+export const PINCH_LOOKBACK_MS = 150;
+
 export class HandReader {
   readonly palm = new Vector3();
   readonly grasp = new Vector3();
   /** Index fingertip: used to dab wasabi. */
   readonly indexTip = new Vector3();
   readonly wrist = new Vector3();
+  /** The grasp point over the last frames (a ring), for pinchPoint. */
+  private readonly graspRing = new Float32Array(GRASP_RING * 3);
+  private readonly graspTime = new Float64Array(GRASP_RING);
+  private graspHead = 0;
   /** Unit vector from the wrist toward the knuckles, projected flat. */
   readonly fingerDir = new Vector3(0, 0, -1);
   /** Heading of fingerDir in degrees: 0 = forward (-Z), +90 = left. */
@@ -65,6 +74,22 @@ export class HandReader {
     readonly handedness: Handedness,
     private readonly xr: XRInputManager,
   ) {}
+
+  /**
+   * Where the pinch was aimed: the grasp point PINCH_LOOKBACK_MS before (or
+   * the oldest kept), since closing the fingers moves it by some centimetres.
+   */
+  pinchPoint(out: Vector3, lookbackMs = PINCH_LOOKBACK_MS): Vector3 {
+    const want = performance.now() - lookbackMs;
+    let best = this.graspHead;
+    for (let k = 0; k < GRASP_RING; k++) {
+      const i = (this.graspHead - k + GRASP_RING) % GRASP_RING;
+      if (this.graspTime[i] === 0) break;
+      best = i;
+      if (this.graspTime[i] <= want) break;
+    }
+    return out.set(this.graspRing[best * 3], this.graspRing[best * 3 + 1], this.graspRing[best * 3 + 2]);
+  }
 
   update(): void {
     const adapter = this.xr.visualAdapters.hand[this.handedness];
@@ -106,6 +131,11 @@ export class HandReader {
     this.jointWorld('thumb-tip', joints, grip.matrixWorld, this.a);
     this.jointWorld('index-finger-tip', joints, grip.matrixWorld, this.b);
     this.grasp.addVectors(this.a, this.b).multiplyScalar(0.5);
+    this.graspHead = (this.graspHead + 1) % GRASP_RING;
+    this.graspRing[this.graspHead * 3] = this.grasp.x;
+    this.graspRing[this.graspHead * 3 + 1] = this.grasp.y;
+    this.graspRing[this.graspHead * 3 + 2] = this.grasp.z;
+    this.graspTime[this.graspHead] = performance.now();
     this.indexTip.copy(this.b);
 
     this.jointWorld('wrist', joints, grip.matrixWorld, this.wrist);

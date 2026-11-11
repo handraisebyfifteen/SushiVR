@@ -1,8 +1,8 @@
-import { Box3, createSystem, Euler, Group, type Mesh, type Object3D, Quaternion, type Sprite, Vector3 } from '@iwsdk/core';
+import { Box3, Color, createSystem, Euler, Group, type Mesh, type MeshStandardMaterial, type Object3D, Quaternion, type Sprite, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { debugLines } from './debug.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { fishOrder, fractionOf, kohadaSaltMinutes, kohadaScale, todaysMaterials } from './fish-order.js';
+import { fractionOf, kohadaScale, todaysMaterials } from './fish-order.js';
 import { chef, cure, type CureNext, prep } from './game-state.js';
 import { hands } from './hands.js';
 import {
@@ -45,19 +45,24 @@ import {
   TIMER_FACE,
 } from './scene-assets/lib/cure-look.js';
 import { createWaterStream } from './scene-assets/lib/fillet-look.js';
-import { playDone, playPick, playPut, playWarn } from './sfx.js';
+import { playDone, playPick, playPress, playPut, playWarn } from './sfx.js';
 import { overStation } from './station-system.js';
 import { CaseItem, Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import {
   CURE_MINUTE_SECONDS,
   CURE_RINSE_SECONDS,
-  KOHADA_VINEGAR_MINUTES,
+  KOHADA_SALT_MINUTES,
   SABA_SALT_MINUTES,
-  SABA_VINEGAR_MINUTES,
   SALT_COVER,
   SALT_PER_PINCH,
   SALT_RADIUS,
+  SKIP_LEAD_SECONDS,
+  SKIP_LONG_MINUTES,
+  TIME_EXCELLENT,
+  TIME_GOOD,
+  TIME_POOR,
+  VINEGAR_MINUTES,
 } from './tuning.js';
 
 type FishId = 'Kohada' | 'Saba';
@@ -97,10 +102,36 @@ interface Batch {
   coming: boolean;
   timer: Group;
   timerText: Sprite;
-  timerShown: string;
-  beeped: boolean;
+  /** What the timer shows now (a number standing for its text), so the text is redrawn only when it changes. */
+  timerKey: number;
+  /** The timer's body, coloured by where the time stands (ZONE_COLORS), and that zone. */
+  face: MeshStandardMaterial;
+  zone: number;
+  /** Minutes in the vinegar when the fish were taken up out of it (graded when they reach the case). */
+  taken: number;
+  /** The last time's grade, shown on the timer for a moment. */
+  note: string;
+  noteTime: number;
 }
 
+/** What a timer shows when it is not a count of seconds: a grade, the blink at zero, no time running, nothing. */
+const NOTE_KEY = 1e9;
+const BLINK_KEY = 1e9 + 1;
+const IDLE_KEY = 1e9 + 2;
+const OFF_KEY = 1e9 + 3;
+/**
+ * The timer's body by where the time stands, read without the digits: too
+ * early (white), its Good before the time (yellow), its Excellent (green: a
+ * chime as it begins), past it (red: a buzz).
+ */
+const ZONE_COLORS = [new Color('#F2F2EE'), new Color('#F2C230'), new Color('#4FD06A'), new Color('#E5533D')];
+const ZONE_GLOW = [0, 0.35, 0.45, 0.45];
+/** Seconds a time's grade stays on the timer. */
+const NOTE_SECONDS = 5;
+/** A pinch this close to a kitchen timer skips the shop's time ahead. */
+const TIMER_REACH = 0.09;
+/** The skip lands this far (a share of the target) inside the Good, so it is a Good to the last digit. */
+const SKIP_INSIDE = 0.002;
 /** Minutes before a fish's time when the master calls the chef over to be ready. */
 const CURE_READY_MINUTES = 6;
 /** A pinch this close takes salt, the salter's rim (generous: the pinch point moves as the fingers close). */
@@ -138,10 +169,15 @@ const KOHADA_OPEN = 0.086;
  *  - One enamel container of vinegar (kept for vinegar), the kohada first,
  *    then the saba. Out of it (a pinch over it) and let go over the case.
  * Salt: a pinch from the bowl, the fingers opened over the bare part; till
- * fairly white. Shop minutes run at one a second, shown on two kitchen timers
- * on the dish cabinet's side; the times are the owner's guide and the master
- * calls them; how long is the chef's call (shops differ), so no time costs
- * pieces.
+ * fairly white. The shop's time runs as it does in a shop, shown on two
+ * kitchen timers on the dish cabinet's side (the time left, then the time
+ * over; the body yellow in the Good before the time, green in the
+ * Excellent, red past it); a pinch on a timer skips ahead: to 20 seconds
+ * before the Excellent of a long time (the salt), to where the Good begins
+ * of a short one. Each time is graded as the fish come out, by how far off its
+ * target it was (the design memo of 2026-11-10: early is under-cured, late
+ * is salty or firm); the grade shows on the timer and is kept for the
+ * result. No time costs pieces.
  */
 export class CureSystem extends createSystem({
   items: { required: [CaseItem] },
@@ -218,9 +254,11 @@ export class CureSystem extends createSystem({
         id, neta: id === 'Kohada' ? 'Kohada' : 'CuredMackerel', salter, home: salter.position.clone(), W, D,
         bed: (salter.getObjectByName('SaltBed') as Mesh | undefined) ?? null, top: salter.getObjectByName('Salt') as Mesh,
         parts: [], saved: { salt: [], water: [], pot: [] }, state: 'empty', minutes: 0, rinse: 0, clean: false, saltAt: salter.position.clone(),
-        coming: today.includes(id), timer, timerText, timerShown: '', beeped: false,
+        coming: today.includes(id), timer, timerText, timerKey: NaN, taken: 0, note: '', noteTime: 0,
+        face: (timer.getObjectByName('TimerBody') as Mesh).material as MeshStandardMaterial, zone: 0,
       };
     };
+    cure.grades.length = 0;
     this.batches = [
       make('Kohada', createZaru(KOHADA_ZARU_D), KOHADA_ZARU_X, KOHADA_ZARU_Z, KOHADA_ZARU_D, KOHADA_ZARU_D, TIMER_Y[0]),
       make('Saba', createTray(SABA_TRAY_W, SABA_TRAY_D), SABA_TRAY_X, SABA_TRAY_Z, SABA_TRAY_W, SABA_TRAY_D, TIMER_Y[1]),
@@ -365,6 +403,11 @@ export class CureSystem extends createSystem({
     const minutes = delta / CURE_MINUTE_SECONDS;
     for (const b of this.batches) {
       if (b.state === 'salted' || b.state === 'vinegar') b.minutes += minutes;
+      b.noteTime = Math.max(0, b.noteTime - delta);
+    }
+    if (cure.skip) {
+      this.skip(cure.skip);
+      cure.skip = null;
     }
     // The bowl of water stands in the sink from the kohada's salting till they come out of it.
     const kohada = this.batches.find((b) => b.id === 'Kohada');
@@ -397,6 +440,12 @@ export class CureSystem extends createSystem({
       return;
     }
     if (!hand.pinchStart || chef.hands[side].holding !== Held.None || !chef.facingBack) return;
+    for (const b of this.batches) {
+      if (!b.timer.visible || at.distanceTo(b.timer.position) >= TIMER_REACH) continue;
+      if (this.skip('good')) playPress();
+      else playWarn();
+      return;
+    }
     if (this.bowl && this.batches.some((b) => this.sheetWanted(b)) && at.distanceTo(this.tmp.copy(this.bowl.position).add(this.tmp2.set(0, 0.03, 0))) < TAKE) {
       this.saltIn[side] = true;
       playPick();
@@ -506,7 +555,6 @@ export class CureSystem extends createSystem({
     }
     b.state = 'salted';
     b.minutes = 0;
-    b.beeped = false;
     console.log(`[Cure] the ${b.id.toLowerCase()} are salted (${this.saltWords(b)})`);
   }
 
@@ -566,7 +614,7 @@ export class CureSystem extends createSystem({
       console.log('[Cure] the basket is rinsed clean');
       return;
     }
-    console.log(`[Cure] the saba rinsed after ${Math.round(b.minutes)} min in the salt (guide: ${this.saltWords(b)})`);
+    this.judge(b, 'salt', b.minutes, this.saltAim(b));
     b.state = 'rinsed';
     b.minutes = 0;
   }
@@ -574,8 +622,7 @@ export class CureSystem extends createSystem({
   /** The fish come up in the hand, all together. */
   private takeUp(side: Side, b: Batch, from: From): void {
     const hand = hands.all[side];
-    if (from === 'pot') console.log(`[Cure] the ${b.id.toLowerCase()} out after ${Math.round(b.minutes)} min in the vinegar (guide: ${this.vinegarMinutes(b)} min)`);
-    if (from === 'salt' && b.state === 'salted') console.log(`[Cure] the kohada out of the salt after ${Math.round(b.minutes)} min (guide: ${this.saltWords(b)})`);
+    if (from === 'pot') b.taken = b.minutes;
     this.holder.position.copy(hand.grasp);
     this.holder.updateMatrixWorld(true);
     for (const p of b.parts) this.holder.attach(p);
@@ -600,6 +647,7 @@ export class CureSystem extends createSystem({
     const g = hand.grasp;
     if (h.from === 'salt' && b.state === 'salted' && this.water && this.near(this.waterHome, 2 * WATER_BOWL_R, 2 * WATER_BOWL_R, g, 0.06, 0.35)) {
       b.saved.water = this.pile(this.water, b.parts);
+      this.judge(b, 'salt', b.minutes, this.saltAim(b));
       b.state = 'soaked';
       b.minutes = 0;
       playPut();
@@ -615,7 +663,6 @@ export class CureSystem extends createSystem({
         b.saved.salt = this.rows(b.salter, b.parts, [0], -0.06, 0.017, 0.0035);
         b.state = 'draining';
         b.minutes = 0;
-        b.beeped = false;
         if (this.water) this.water.visible = false;
         playPut();
         coach.done('vinegarCure');
@@ -652,21 +699,19 @@ export class CureSystem extends createSystem({
     b.saved.pot = b.id === 'Kohada' ? this.rows(pot, b.parts, [-0.06, 0.06], -0.04, 0.025, 0.0018) : this.settle(pot, b.parts, VINEGAR_POT_W, VINEGAR_POT_D);
     b.state = 'vinegar';
     b.minutes = 0;
-    b.beeped = false;
     this.potBy = b.id;
     // The basket or tray is done with: put away.
     b.salter.visible = false;
     playPut();
     coach.done('vinegarCure');
-    console.log(`[Cure] the ${b.id.toLowerCase()} are in the vinegar (about ${this.vinegarMinutes(b)} min)`);
+    console.log(`[Cure] the ${b.id.toLowerCase()} are in the vinegar (${VINEGAR_MINUTES} min)`);
   }
 
   private stock(b: Batch): void {
     for (const p of b.parts) p.visible = false;
+    this.judge(b, 'vinegar', b.taken, VINEGAR_MINUTES);
     b.state = 'done';
     this.potBy = null;
-    b.timer.visible = false;
-    b.timerText.visible = false;
     const stock = Math.round(NETA[b.neta].stock * fractionOf(b.id));
     prepApi.stock(b.neta, stock);
     feedback.flash(StationKind.NetaCase, COLOR_DONE);
@@ -678,51 +723,98 @@ export class CureSystem extends createSystem({
 
   // ---- times ---------------------------------------------------------------------------
 
-  /** The salt's guide: the kohada's day time, the saba's 2-3 hours (its middle, for the master). */
   private saltAim(b: Batch): number {
-    return b.id === 'Kohada' ? kohadaSaltMinutes() : (SABA_SALT_MINUTES[0] + SABA_SALT_MINUTES[1]) / 2;
+    return b.id === 'Kohada' ? KOHADA_SALT_MINUTES : SABA_SALT_MINUTES;
   }
 
-  private vinegarMinutes(b: Batch): number {
-    return b.id === 'Kohada' ? KOHADA_VINEGAR_MINUTES : SABA_VINEGAR_MINUTES;
-  }
-
-  /** The present stage's guide time (0: no timer running). */
+  /** The present stage's target time (0: no timer running). */
   private aim(b: Batch): number {
     switch (b.state) {
       case 'salted':
         return this.saltAim(b);
       case 'vinegar':
-        return this.vinegarMinutes(b);
+        return VINEGAR_MINUTES;
       default:
         return 0;
     }
   }
 
   private saltWords(b: Batch): string {
-    if (b.id === 'Saba') return 'saba: 2-3 hours';
-    const size = fishOrder.kohadaSize < 0 ? 'small' : fishOrder.kohadaSize > 0 ? 'large' : 'middling';
-    return `kohada, ${size}: about ${kohadaSaltMinutes()} min`;
+    return `${b.id.toLowerCase()}: ${this.saltAim(b)} min`;
   }
 
-  /** Each fish's kitchen timer: the minutes left of the stage's guide, a beep and a blink at zero. */
+  /**
+   * A time's grade as the fish come out: how far off the target, as a share
+   * of it. Early, they are under-cured; late, salty (the salt) or firm (the
+   * vinegar). Shown on the fish's timer for a moment and kept for the result.
+   */
+  private judge(b: Batch, stage: 'salt' | 'vinegar', minutes: number, aim: number): void {
+    const off = (minutes - aim) / aim;
+    const far = Math.abs(off);
+    const grade = far <= TIME_EXCELLENT ? 'Excellent' : far <= TIME_GOOD ? 'Good' : far <= TIME_POOR ? 'Poor' : 'Bad';
+    const fault = off < 0 ? 'under-cured' : stage === 'salt' ? 'too salty' : 'too firm';
+    b.note = grade === 'Excellent' ? 'Excellent' : `${grade}: ${fault}`;
+    b.noteTime = NOTE_SECONDS;
+    b.timerKey = NaN;
+    cure.grades.push({ fish: b.id, stage, grade, minutes, aim });
+    feedback.flash(StationKind.Sink, grade === 'Excellent' || grade === 'Good' ? COLOR_DONE : COLOR_WARN);
+    if (grade === 'Poor' || grade === 'Bad') playWarn();
+    console.log(`[Cure] the ${b.id.toLowerCase()} out of the ${stage} at ${minutes.toFixed(1)} min of ${aim}: ${b.note}`);
+  }
+
+  /**
+   * The shop's time skipped ahead for every running timer alike: to where
+   * the nearest time's Good begins ('good', the timer's pinch: an Excellent
+   * is a short wait from there), or to the time itself ('aim', practice
+   * mode). Nothing to skip when a fish is at that point already.
+   */
+  private skip(to: 'good' | 'aim'): boolean {
+    let ahead = Infinity;
+    for (const b of this.batches) {
+      const aim = this.aim(b);
+      if (aim <= 0) continue;
+      const point =
+        to === 'aim' ? aim
+        : aim >= SKIP_LONG_MINUTES ? aim * (1 - TIME_EXCELLENT) - SKIP_LEAD_SECONDS / CURE_MINUTE_SECONDS
+        : aim * (1 - TIME_GOOD + SKIP_INSIDE);
+      ahead = Math.min(ahead, point - b.minutes);
+    }
+    if (ahead === Infinity || ahead <= 0) return false;
+    for (const b of this.batches) if (this.aim(b) > 0) b.minutes += ahead;
+    console.log(`[Cure] the time skipped ahead ${ahead.toFixed(1)} min`);
+    return true;
+  }
+
+  /** Each fish's kitchen timer: the time left of the stage's target, a beep at zero, then the time over; a grade for a moment after it. */
   private updateTimer(b: Batch): void {
     const aim = this.aim(b);
+    const off = aim > 0 ? (b.minutes - aim) / aim : -1;
+    const zone = off < -TIME_GOOD ? 0 : off < -TIME_EXCELLENT ? 1 : off <= TIME_EXCELLENT ? 2 : 3;
+    if (zone !== b.zone) {
+      b.zone = zone;
+      b.face.color.copy(ZONE_COLORS[zone]);
+      b.face.emissive.copy(ZONE_COLORS[zone]);
+      b.face.emissiveIntensity = ZONE_GLOW[zone];
+      if (zone === 2) playDone();
+      else if (zone === 3) playWarn();
+    }
+    let key: number;
+    if (b.noteTime > 0) key = NOTE_KEY;
+    else if (aim > 0) {
+      const left = Math.ceil((aim - b.minutes) * 60);
+      key = left <= 0 && Math.floor(performance.now() / 400) % 2 === 0 ? BLINK_KEY : left;
+    } else key = b.coming && b.state !== 'done' ? IDLE_KEY : OFF_KEY;
+    if (b.state === 'done' && b.noteTime <= 0) b.timer.visible = false;
+    if (key === b.timerKey) return;
+    b.timerKey = key;
+    b.timerText.visible = key !== OFF_KEY;
+    if (key === OFF_KEY) return;
     const name = b.id === 'Kohada' ? 'Kohada' : 'Saba';
-    let text = '';
-    if (aim > 0) {
-      const left = Math.max(0, Math.ceil(aim - b.minutes));
-      if (left === 0 && !b.beeped) {
-        b.beeped = true;
-        playWarn();
-      }
-      const blink = left === 0 && Math.floor(performance.now() / 400) % 2 === 0;
-      text = `${name} ${blink ? '  :  ' : `${String(left).padStart(2, '0')}:00`}`;
-    } else if (b.coming && b.state !== 'done') text = `${name} --:--`;
-    if (text === b.timerShown) return;
-    b.timerShown = text;
-    b.timerText.visible = !!text;
-    if (text) setSpriteText(b.timerText, text);
+    const clock = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    setSpriteText(
+      b.timerText,
+      key === NOTE_KEY ? b.note : key === BLINK_KEY ? `${name}   :  ` : key === IDLE_KEY ? `${name} --:--` : key > 0 ? `${name} ${clock(key)}` : `${name} +${clock(-key)}`,
+    );
   }
 
   // ---- what the others see ---------------------------------------------------------------
@@ -793,7 +885,7 @@ export class CureSystem extends createSystem({
       : next === 'out' ? `The ${name} are done: out of the vinegar, into the case`
       : next === 'case' ? 'Into the case'
       : next === 'soon' ? `Get ready: the ${name} come off the ${stage} in about ${cure.left} min`
-      : `The ${name}: about ${cure.left} min more`;
+      : `The ${name}: about ${cure.left} min more (pinch a timer to skip ahead)`;
   }
 
   /** What one fish wants of the chef now. */
@@ -813,7 +905,7 @@ export class CureSystem extends createSystem({
       case 'rinsed':
         return this.potBy ? 'wait' : 'move';
       case 'vinegar':
-        return this.timed(b.minutes, this.vinegarMinutes(b), 'out');
+        return this.timed(b.minutes, VINEGAR_MINUTES, 'out');
       default:
         return null;
     }

@@ -1,7 +1,6 @@
 import {
   CanvasTexture,
   createSystem,
-  type Material,
   Mesh,
   MeshStandardMaterial,
   type Object3D,
@@ -12,11 +11,10 @@ import {
 } from '@iwsdk/core';
 import { debugLines } from './debug.js';
 import { canAfford, fishOrder, fundsNow, fundsTracked, spoiledYen } from './fish-order.js';
-import { fishOrderApi } from './fish-order-system.js';
 import { COLOR_HINT, glowObject } from './feedback.js';
 import { chef, day, prep, type Side, staff, tea } from './game-state.js';
 import { hands } from './hands.js';
-import { CUSTOMER_SEAT_Z, END_WALL_X, STAFF_BUTTONS_Y, STAFF_BUTTONS_Z, TSUKEDAI_CHEF_Z } from './layout.js';
+import { CUSTOMER_SEAT_Z, TSUKEDAI_CHEF_Z } from './layout.js';
 import { ledger, wageYen, type Worker, yen } from './ledger.js';
 import { phoneApi } from './phone-system.js';
 import { GAZE_CONE_DEG, gazeOff, GazePinch } from './gaze.js';
@@ -34,10 +32,18 @@ const SHEET_H = Math.round((SHEET_W * BOOKS_SHEET_HEIGHT) / BOOKS_SHEET_WIDTH);
 const NOTICE_SECONDS = 10;
 const WORD_SECONDS = 2.5;
 
-type Target = 'phone' | 'cook' | 'partTimer' | 'urn' | 'mode';
-const TARGETS: readonly Target[] = ['phone', 'cook', 'partTimer', 'urn', 'mode'];
+type Target = 'phone' | 'urn';
+const TARGETS: readonly Target[] = ['phone', 'urn'];
 /** Each target's rough radius, for looking at it (eye tracking). */
-const TARGET_RADIUS: Record<Target, number> = { phone: 0.1, cook: 0.04, partTimer: 0.04, urn: 0.08, mode: 0.1 };
+const TARGET_RADIUS: Record<Target, number> = { phone: 0.1, urn: 0.08 };
+/** A staff member's answer shows this far over the phone (they answer on it). */
+const WORD_OVER_PHONE = 0.32;
+
+/** The staff, called in or let off from the phone book (src/phone-book-system.ts). */
+export const officeApi = {
+  canAsk: (_who: Worker): boolean => false,
+  ask: (_who: Worker): void => undefined,
+};
 
 /** The grades a served piece gets (src/scoring.ts), in the order the books list them. */
 const GRADES = ['Excellent', 'Good', 'Poor', 'Bad'] as const;
@@ -51,14 +57,15 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
 
 /**
  * The office corner (帳場) on the aisle's right end wall, out of the
- * customers' way: the black telephone on its shelf, the staff call buttons
- * and the day's books. All are out of reach from the seat: point at one
- * with the index finger and pinch.
- *  - The phone (during the prep, before the order): the handset comes up and
- *    the fish shop is called (src/phone-system.ts).
- *  - A staff button: the cook (during the prep) or the part-timer (the prep
- *    and the service) is called in, or let off; its lamp stays lit while
- *    they are on. Nobody works unless called: the hardest way is to call
+ * customers' way: the black telephone on its shelf and the day's books.
+ * Both are out of reach from the seat: point at one with the index finger
+ * and pinch.
+ *  - The phone (any time): the handset comes up with the phone book
+ *    (src/phone-system.ts, src/phone-book-system.ts): the fish shop, the
+ *    staff and the settings are all called from it.
+ *  - The staff, on the phone: the cook (during the prep) or the part-timer
+ *    (the prep and the service) is called in, or let off; they answer on
+ *    the phone. Nobody works unless called: the hardest way is to call
  *    nobody and pay no wages.
  *  - The hot-water urn under the phone (during service, when a customer asks
  *    for tea and the part-timer is not on): a cup is poured, out of the
@@ -66,9 +73,8 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
  *  - The books on the wall over the phone keep the day's takings, the fish
  *    shop's bill and the wages up to date; when the last customer has left
  *    they are the day's final books, and a word over the counter says so.
- *    They show the difficulty (easy or full, src/fish-order.ts).
- *  - The difficulty sign (the morning, before the call): pointed at, easy
- *    and full change places (src/fish-order-system.ts).
+ *    They show the difficulty (easy or full, src/fish-order.ts), chosen in
+ *    the phone's settings.
  */
 export class OfficeSystem extends createSystem({}) {
   private time = 0;
@@ -76,9 +82,7 @@ export class OfficeSystem extends createSystem({}) {
   private readonly pointedAt: [Target | null, Target | null] = [null, null];
   private glowing: Target | null = null;
   private readonly gazePinch = new GazePinch<Target>();
-  private buttons: Record<'cook' | 'partTimer', { button: Object3D; lamp: Mesh; off: Material } | null> = { cook: null, partTimer: null };
   private urn: Object3D | null = null;
-  private readonly lampOn = new MeshStandardMaterial({ color: '#FFC46B', emissive: '#FF9A2E', emissiveIntensity: 1.6, roughness: 0.3 });
   private word!: Sprite;
   private wordTime = 0;
   private sheet: { canvas: HTMLCanvasElement; texture: CanvasTexture } | null = null;
@@ -96,8 +100,11 @@ export class OfficeSystem extends createSystem({}) {
     this.word = makeTextSprite(' ', { width: 0.4 });
     this.word.name = 'StaffWord';
     this.word.visible = false;
-    this.word.position.set(END_WALL_X - 0.2, STAFF_BUTTONS_Y + 0.2, STAFF_BUTTONS_Z);
     this.world.createTransformEntity(this.word);
+    officeApi.canAsk = (who) => !day.closed && (who === 'cook' ? prep.active : prep.active || chef.open);
+    officeApi.ask = (who) => {
+      if (officeApi.canAsk(who)) this.ask(who);
+    };
     debugLines.push(() => {
       const state = day.closed ? 'closed' : day.closing ? 'last orders' : chef.open ? 'open' : 'prep';
       const crew = [staff.cook ? 'cook' : '', staff.partTimer ? 'part-timer' : ''].filter(Boolean).join('+') || 'nobody';
@@ -109,7 +116,7 @@ export class OfficeSystem extends createSystem({}) {
   update(delta: number): void {
     this.time += delta;
     if (!this.sheet) this.find();
-    if (!this.buttons.cook) this.findButtons();
+    if (!this.urn) this.urn = this.world.scene.getObjectByName('TeaUrn') ?? null;
     if (this.noticeTime > 0) {
       this.noticeTime -= delta;
       if (this.noticeTime <= 0) this.notice.visible = false;
@@ -121,23 +128,17 @@ export class OfficeSystem extends createSystem({}) {
     this.updateBooks();
     this.checkWages();
     this.updatePointing();
-    this.updateLamps();
   }
 
   private enabled(t: Target): boolean {
     // The office corner is worked from the stool (from the back row a point at the board could line up with it).
     if (chef.at !== 'seat') return false;
     if (t === 'phone') return phoneApi.ready();
-    if (t === 'urn') return chef.open && !!this.urn && tea.wanted && tea.cup === 'none' && !staff.partTimer;
-    if (t === 'mode') return fishOrderApi.canSwitch();
-    if (!this.buttons[t] || day.closed) return false;
-    return t === 'cook' ? prep.active : prep.active || chef.open;
+    return chef.open && !!this.urn && tea.wanted && tea.cup === 'none' && !staff.partTimer;
   }
 
   private where(t: Target): Vector3 {
-    if (t === 'urn') return tea.urnAt;
-    if (t === 'mode') return fishOrder.signAt;
-    return t === 'phone' ? staff.phoneAt : t === 'cook' ? staff.cookButtonAt : staff.partTimerButtonAt;
+    return t === 'urn' ? tea.urnAt : staff.phoneAt;
   }
 
   /** Point at the phone or a staff button and pinch: the nearest one pointed at, within the latch, is pressed. */
@@ -199,9 +200,7 @@ export class OfficeSystem extends createSystem({}) {
   private press(t: Target): void {
     playPress();
     if (t === 'phone') phoneApi.call();
-    else if (t === 'urn') teaApi.pour();
-    else if (t === 'mode') fishOrderApi.toggle();
-    else this.ask(t);
+    else teaApi.pour();
   }
 
   /** The target the eyes are on, if any (the nearest to the gaze). */
@@ -220,12 +219,7 @@ export class OfficeSystem extends createSystem({}) {
   }
 
   private glowTarget(t: Target, on: boolean): void {
-    if (t === 'mode') {
-      // A sign of text: it redraws itself lit (src/fish-order-system.ts).
-      fishOrder.signHover = on;
-      return;
-    }
-    const object = t === 'phone' ? stations.get(StationKind.Phone)?.entity.object3D : t === 'urn' ? this.urn : this.buttons[t]?.button;
+    const object = t === 'phone' ? stations.get(StationKind.Phone)?.entity.object3D : this.urn;
     if (object) glowObject(object, on ? COLOR_HINT : null);
   }
 
@@ -246,13 +240,16 @@ export class OfficeSystem extends createSystem({}) {
     staff.unpaid = '';
   }
 
+  /** A staff member's answer, over the phone (they answer on it). */
   private tell(words: string): void {
     setSpriteText(this.word, words);
+    this.word.position.copy(staff.phoneAt);
+    this.word.position.y += WORD_OVER_PHONE;
     this.word.visible = true;
     this.wordTime = WORD_SECONDS;
   }
 
-  /** A staff button pressed: called in for the jobs of the day, or let off. */
+  /** A staff line chosen on the phone: called in for the jobs of the day, or let off. */
   private ask(who: Worker): void {
     const on = !staff[who];
     if (on && !canAfford(wageYen(who, 60))) {
@@ -267,33 +264,6 @@ export class OfficeSystem extends createSystem({}) {
     const wage = cook ? WAGE_COOK : WAGE_PART_TIMER;
     const work = cook ? 'takes the fish left in the ice box' : chef.open ? 'shows customers in and brings tea' : 'cleans up after the prep';
     console.log(`[Staff] ${cook ? 'the cook' : 'the part-timer'} ${on ? `is called in (${yen(wage)}/h): ${work}` : 'is let off'}`);
-  }
-
-  /** Each lamp is lit while that one is on. */
-  private updateLamps(): void {
-    for (const who of ['cook', 'partTimer'] as const) {
-      const b = this.buttons[who];
-      if (!b) continue;
-      const want = staff[who] ? this.lampOn : b.off;
-      if (b.lamp.material !== want) b.lamp.material = want;
-    }
-  }
-
-  /** The call board comes with the scene: find its buttons and lamps, and where the buttons are. */
-  private findButtons(): void {
-    const scene = this.world.scene;
-    this.urn = scene.getObjectByName('TeaUrn') ?? null;
-    const cook = scene.getObjectByName('CookButton');
-    const partTimer = scene.getObjectByName('PartTimerButton');
-    const cookLamp = scene.getObjectByName('CookLamp') as Mesh | undefined;
-    const partTimerLamp = scene.getObjectByName('PartTimerLamp') as Mesh | undefined;
-    if (!cook || !partTimer || !cookLamp || !partTimerLamp) return;
-    cook.updateWorldMatrix(true, false);
-    partTimer.updateWorldMatrix(true, false);
-    cook.getWorldPosition(staff.cookButtonAt);
-    partTimer.getWorldPosition(staff.partTimerButtonAt);
-    this.buttons.cook = { button: cook, lamp: cookLamp, off: cookLamp.material as Material };
-    this.buttons.partTimer = { button: partTimer, lamp: partTimerLamp, off: partTimerLamp.material as Material };
   }
 
   /** The books board comes with the scene: give its sheet a page once it is there. */

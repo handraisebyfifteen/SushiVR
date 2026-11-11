@@ -7,9 +7,6 @@ import type { Grade } from './coach.js';
 import type { MenuId, NetaId, PieceKind } from './menu.js';
 import type { PrepId } from './prep.js';
 
-/** Swap the rice hand and the neta hand for a left-handed chef. */
-export const CHEF_LEFT_HANDED = false;
-
 // --- menu ---
 /** Kinds of piece the customers order. */
 export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri', 'gunkan', 'inari', 'maki'];
@@ -49,15 +46,33 @@ export const PIN_GRIP = 0.025;
 export const PIN_PULL = 0.02;
 
 // --- the full difficulty's curing (締め) on the drainboard (src/cure-system.ts) ---
-/** Real seconds for one shop minute of curing (time runs faster than in a shop). */
-export const CURE_MINUTE_SECONDS = 1;
-/** Kohada (the owner): salt about 40 min, 5 more or less with their size; then vinegar 20 min. */
+/**
+ * Real seconds for one shop minute of curing: the shop's real time (the
+ * design memo of 2026-11-10). The chef skips ahead by pinching a kitchen
+ * timer: to where the next time's Good begins.
+ */
+export const CURE_MINUTE_SECONDS = 60;
+/** Kohada (the owner): salt 40 min. The day's size no longer moves it (one target, so the time can be graded). */
 export const KOHADA_SALT_MINUTES = 40;
-export const KOHADA_SIZE_MINUTES = 5;
-export const KOHADA_VINEGAR_MINUTES = 20;
-/** Saba (the owner): salt 2-3 hours, then vinegar about 30 min. */
-export const SABA_SALT_MINUTES: readonly [number, number] = [120, 180];
-export const SABA_VINEGAR_MINUTES = 30;
+export const KOHADA_SIZE_MINUTES = 0;
+/** Saba (the owner: 2-3 hours): salt 2 hours. */
+export const SABA_SALT_MINUTES = 120;
+/** The vinegar (the owner, 2026-11-10): 20 min for every fish. */
+export const VINEGAR_MINUTES = 20;
+/**
+ * A time's grade: how far off its target the fish came out, as a share of
+ * the target (provisional). Early is under-cured, late is salty or firm.
+ */
+export const TIME_EXCELLENT = 0.05;
+export const TIME_GOOD = 0.1;
+export const TIME_POOR = 0.2;
+/**
+ * The timer's skip on a long time (this many minutes or more: the kohada's
+ * and the saba's salt) lands this many real seconds before its Excellent
+ * begins; on a short one (the aji's salt, the vinegar) where its Good begins.
+ */
+export const SKIP_LONG_MINUTES = 30;
+export const SKIP_LEAD_SECONDS = 20;
 /**
  * Salting (the owner: till it is fairly white): each pinch whitens the salt
  * within this radius of where the fingers open (most at the middle); the tray
@@ -113,8 +128,8 @@ export const PRICE: Record<MenuId, number> = {
   CockleNigiri: 450,
   SeaEelNigiri: 450,
   TamagoNigiri: 150,
-  UniGunkan: 900,
-  IkuraGunkan: 600,
+  UniGunkan: 1500,
+  IkuraGunkan: 1200,
   Inari: 150,
   KanpyoRoll: 500,
   TunaRoll: 900,
@@ -150,7 +165,7 @@ export const FISH_SHOP_PRICE: Partial<Record<PrepId, number>> = {
  * full case of it (a half is half). The owner (2026-11-10): a full case is
  * what this price buys, four servings ("全部4人前用でこの値段"): four prawns,
  * four of each shell; the inari pouches a set of twelve; sweet shrimp one
- * sheet. The menu's case stocks follow (src/menu.ts).
+ * sheet, eighteen (six by three), nine pieces of two. The menu's case stocks follow (src/menu.ts).
  */
 export const READY_PRICE: Partial<Record<NetaId, number>> = {
   Tamago: 500,
@@ -199,7 +214,9 @@ export const LOW_FUNDS = 40_000;
 /**
  * The garnish vegetables and pickles (ツマもの) come straight from the
  * greengrocer (the owner), not with the fish shop's order: on the full
- * difficulty the greengrocer tops them up each morning, with the fish.
+ * difficulty the greengrocer is called on its own line of the phone book
+ * and ordered from like the fish shop (the owner, 2026-11-10); on easy they
+ * come as usual each morning.
  */
 export const GREENGROCER: readonly NetaId[] = ['Cucumber', 'Shiso', 'Takuan', 'UmePaste'];
 /** Hourly wages: the cook (prep) and the part-timer (cleaning). */

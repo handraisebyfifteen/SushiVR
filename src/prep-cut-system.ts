@@ -16,6 +16,7 @@ import { knifeApi } from './cutting-system.js';
 import { debugLines } from './debug.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { chef, prep, type Side, staff } from './game-state.js';
+import { handedness, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { ledger, wageYen, yen } from './ledger.js';
 import { cureApi, prepApi, rangeApi, tamagoApi } from './prep-api.js';
@@ -221,7 +222,6 @@ export class PrepCutSystem extends createSystem({
   private readonly materials: Material[] = [];
   private readonly loose: Loose[] = [];
   private readonly caseItems = new Map<NetaId, Entity>();
-  private readonly caseHomes = new Map<NetaId, Vector3>();
   private readonly carried: [Carried | null, Carried | null] = [null, null];
   private readonly grabOffset = [new Vector3(), new Vector3()];
   private cutStart: number | null = null;
@@ -317,7 +317,6 @@ export class PrepCutSystem extends createSystem({
   private seeCaseItem(entity: Entity): void {
     const neta = entity.getValue(CaseItem, 'neta') as NetaId;
     this.caseItems.set(neta, entity);
-    if (entity.object3D) this.caseHomes.set(neta, entity.object3D.position.clone());
   }
 
   /** The delivered fish, laid in the ice box (each in its wrapping), and stage 4's whole fish in their box at the sink. */
@@ -396,8 +395,9 @@ export class PrepCutSystem extends createSystem({
     const debaHome = new Vector3(DEBA_X, SINK_TOP + 0.001, DEBA_Z);
     this.addTool('Deba', createDeba(), debaHome, -Math.PI / 2, debaHome.clone().add(new Vector3(0, 0.01, -0.07)));
     if (board) {
-      const home = new Vector3(board.pos.x + TWEEZERS_X + 0.055, board.pos.y + 0.001, board.pos.z - 0.1);
-      this.addTool('Tweezers', createTweezers(), home, 0, home.clone().add(new Vector3(-0.05, 0.004, 0)));
+      // Gripped on the knife hand's side (src/handedness.ts).
+      const home = new Vector3(board.pos.x + sideX(TWEEZERS_X + 0.055), board.pos.y + 0.001, board.pos.z - 0.1);
+      this.addTool('Tweezers', createTweezers(), home, handedness.left ? Math.PI : 0, home.clone().add(new Vector3(sideX(-0.05), 0.004, 0)));
     }
     console.log('[Prep] the whole fish are in their box by the sink');
   }
@@ -506,6 +506,11 @@ export class PrepCutSystem extends createSystem({
    */
   private headRight(m: Material): boolean {
     return !!m.look.alongX && m.look.steps.some((s) => !!s.sink);
+  }
+
+  /** Laid on the board mirrored: a fish filleted head right, and for a left-handed chef the other way round (all of the board's work is mirrored). */
+  private boardFlip(m: Material): boolean {
+    return this.headRight(m) !== handedness.left;
   }
 
   /** A point over the material's footprint (plus a margin), between its bottom and a little over its top. */
@@ -813,7 +818,7 @@ export class PrepCutSystem extends createSystem({
       console.log(`[Prep] the ${PREP[m.id].name.toLowerCase()} is washed at the sink first`);
     } else if (!washing && board && overStation(at, StationKind.CuttingBoard) && !this.boardMaterial() && !prep.boardBusy) {
       const [bx, bz] = m.look.boardAt ?? [0, 0];
-      const flip = this.headRight(m);
+      const flip = this.boardFlip(m);
       m.root.position.set(board.pos.x + (flip ? -bx : bx), board.pos.y, board.pos.z + bz);
       m.root.rotation.y = 0;
       m.root.scale.x = flip ? -1 : 1;
@@ -855,7 +860,7 @@ export class PrepCutSystem extends createSystem({
     }
     // A used sheet left lying: one more scrap on the board.
     const board = stations.get(StationKind.CuttingBoard);
-    if (board) c.mesh.position.set(board.pos.x + SCRAP_X, board.pos.y + 0.002, board.pos.z - 0.06);
+    if (board) c.mesh.position.set(board.pos.x + sideX(SCRAP_X), board.pos.y + 0.002, board.pos.z - 0.06);
     this.loose.push({ kind: 'scrap', m: null, parts: [c.mesh], home: [c.mesh.position.clone()], centre: new Vector3(), length: 0.1, product: null, done: false });
   }
 
@@ -1331,7 +1336,7 @@ export class PrepCutSystem extends createSystem({
     if (pile && board && m.look.pileAt) {
       const n = this.pileCount++;
       const c = box.getCenter(new Vector3());
-      p.position.x += board.pos.x + m.look.pileAt[0] - c.x;
+      p.position.x += board.pos.x + sideX(m.look.pileAt[0]) - c.x;
       p.position.y += board.pos.y + 0.002 + (n % 4) * 0.004 - box.min.y;
       p.position.z += board.pos.z + m.look.pileAt[1] - (n % 4) * 0.035 - c.z;
       p.updateMatrixWorld(true);
@@ -1471,8 +1476,8 @@ export class PrepCutSystem extends createSystem({
         if (p.product!.dest === 'ice') prep.slotAt.copy(m.slot).add(this.tmp.set(0, 0.02, 0));
         else if (p.product!.dest === 'cure') cureApi.trayAt(m.id, prep.slotAt);
         else {
-          const home = this.caseHomes.get(p.product!.neta);
-          if (home) prep.slotAt.copy(home);
+          // Its place in the case (where the chef's hand has it, src/handedness.ts).
+          this.caseItems.get(p.product!.neta)?.object3D?.getWorldPosition(prep.slotAt);
         }
         return;
       }

@@ -3,6 +3,7 @@ import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { progress } from './game-state.js';
 import { chef, prep, prepCleaned, type Side } from './game-state.js';
+import { onHandsChanged } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { overStation, stations } from './station-system.js';
 import { Bar, Chef, Held, StationKind } from './sushi-components.js';
@@ -52,6 +53,8 @@ export class HygieneSystem extends createSystem({}) {
   rubProgress = 0;
 
   init(): void {
+    // The cloth crosses over with the chef's hands (src/handedness.ts): its home is taken again.
+    this.cleanupFuncs.push(onHandsChanged(() => (this.clothHomeSet = false)));
     this.chefEntity = this.world.createTransformEntity();
     this.chefEntity.object3D!.name = 'Chef';
     this.chefEntity.addComponent(Chef, {});

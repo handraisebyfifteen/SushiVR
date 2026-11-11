@@ -22,6 +22,7 @@ import { customerApi } from './customer-system.js';
 import { COLOR_DONE, feedback } from './feedback.js';
 import { chef, type JudgeKind, prep, progress, service, shari } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
+import { sideSign } from './handedness.js';
 import { hands } from './hands.js';
 import { addPieceDirt } from './hygiene-system.js';
 import type { NetaId, PieceKind } from './menu.js';
@@ -46,7 +47,7 @@ import {
 const WASABI_DAB_DISTANCE = 0.05;
 const WASABI_TOUCH_HEIGHT = 0.035;
 const JUDGE_TEXT_SECONDS = 0.8;
-/** The rice hand counts as "gone to the tub" when it drops below the counter on the chef's right, beside the body. */
+/** The rice hand counts as "gone to the tub" when it drops below the counter on its own side (the right; a left-handed chef's left), beside the body. */
 const TUB_MAX_Y = 0.65;
 const TUB_MIN_X = 0.25;
 const TUB_MIN_Z = -0.15;
@@ -262,8 +263,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
         console.log('[Piece] tezu (beat 1)');
       }
     }
-    // Reaching down to the rice tub on the right: by zone, or by leaving the camera's view there.
-    const lowRight = hand.tracked && hand.palm.y < TUB_MAX_Y && hand.palm.x > TUB_MIN_X && hand.palm.z > TUB_MIN_Z;
+    // Reaching down to the rice tub on the rice hand's side: by zone, or by leaving the camera's view there.
+    const lowRight = hand.tracked && hand.palm.y < TUB_MAX_Y && hand.palm.x * sideSign() > TUB_MIN_X && hand.palm.z > TUB_MIN_Z;
     const inZone = hand.tracked && overStation(hand.palm, StationKind.RiceTub);
     const riceIn = shari.inTub || !prep.active;
     if (riceIn && free && !this.hasRice && !this.inTub && (inZone || lowRight || (!hand.tracked && this.lastLowRight))) {

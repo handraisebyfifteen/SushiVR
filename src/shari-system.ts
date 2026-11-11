@@ -4,6 +4,7 @@ import { debugLines } from './debug.js';
 import { type FarTarget, FarChooser } from './far-choice.js';
 import { COLOR_DONE, COLOR_HINT, feedback, glowObject } from './feedback.js';
 import { chef, prep, shari, type Side } from './game-state.js';
+import { onHandsChanged } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { AWASEZU_X, AWASEZU_Z, BACK_ROW_Z, HANGIRI_X, HANGIRI_Z, SINK_TOP, SINK_UNIT_Z, TUB_ON_TABLE_X, TUB_ON_TABLE_Z, WORKTABLE_X } from './layout.js';
 import { prepApi } from './prep-api.js';
@@ -23,6 +24,7 @@ import { stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import { AWASEZU_SECONDS, RICE_COOK_SECONDS, RICE_STEAM_SECONDS, SHARI_CUT_DISTANCE, SHARI_SCOOPS } from './tuning.js';
+import { display } from './display-settings.js';
 
 /** The rice surface sits this far above the ohitsu's floor (its tub reaches 12 cm below the rim's rice line). */
 const TUB_DEPTH = 0.12;
@@ -86,6 +88,8 @@ export class ShariSystem extends createSystem({}) {
   private readonly tmp = new Vector3();
 
   init(): void {
+    // The ohitsu's stand crosses over with the chef's hands (src/handedness.ts).
+    this.cleanupFuncs.push(onHandsChanged(() => this.tubRoot?.getWorldPosition(shari.tubHomeAt)));
     this.hangiri = createHangiri();
     this.hangiri.position.set(HANGIRI_X, SINK_TOP, HANGIRI_Z);
     this.rice = this.hangiri.getObjectByName('Rice') as Mesh;
@@ -237,9 +241,10 @@ export class ShariSystem extends createSystem({}) {
   }
 
   private say(text: string): void {
+    // Shown only if the player wants the figures on the work.
+    this.label.visible = text !== '' && display.status;
     if (text === this.labelText) return;
     this.labelText = text;
-    this.label.visible = text !== '';
     if (text) setSpriteText(this.label, text);
   }
 

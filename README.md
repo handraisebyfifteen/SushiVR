@@ -143,7 +143,8 @@ change it (it is remembered):
   the part-timer goes home, and the cook stops before a fish, when the
   money no longer covers the next job. A ready-made item's full case is
   what its price buys: four servings (four prawns, four of each shell),
-  the inari pouches a set of twelve.
+  the inari pouches a set of twelve, the sweet shrimp a sheet of eighteen
+  (six by three, nine pieces of two).
 
 Time runs faster than in a shop, and the work runs side by side: the rice
 and the pots go on first, the fish is cut while they cook.
@@ -526,7 +527,7 @@ scrap into the trash, 0 pulls off the wrapping, the legs or the skin, X
 (knife in hand) cuts along the line, - pats the squid dry with paper, [ does
 the next step with the board (lift, wash, stand, lift, put back; T turns
 around between), ] points at the noren and pinches (to open, and again to
-close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+9 sets its money to ¥10,000 at once (to try the limits); O skips the prep and opens the bar. At the back row, A does the
+close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+9 sets its money to ¥10,000 at once (to try the limits), Shift+K changes hands (left- or right-handed; the morning, before the call); O skips the prep and opens the bar. At the back row, A does the
 next step of the shari and Enter the next thing at the range (a knob, an
 ingredient into its pot or out to the case, the net, the bonito belly),
 each stepping there and turning as needed; / steps to where you look (the

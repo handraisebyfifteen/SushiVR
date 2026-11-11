@@ -19,6 +19,7 @@ import { debugLines } from './debug.js';
 import { fishOrder } from './fish-order.js';
 import { chef, cure, holdingAnything, orderKind, orderNeta, type Place, prep, progress, range, service, shari, staff, tamago, tea } from './game-state.js';
 import { BACK_ROW_Z, RANGE_HEIGHT, SINK_BASIN_X, SINK_TOP, STOVE_X, WORKTABLE_X, DRAIN_SPOT_X } from './layout.js';
+import { handedness, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
 import { MENU, NETA } from './menu.js';
 import { playClack } from './sfx.js';
@@ -35,6 +36,7 @@ import {
   MASTER_WORD_SECONDS,
   TEMPO_MS,
 } from './tuning.js';
+import { display } from './display-settings.js';
 
 /** Fixed words for each step; takeSaku and place depend on the order. */
 const STEP_WORDS: Record<StepKey, string> = {
@@ -375,10 +377,12 @@ export class MasterSystem extends createSystem({
       if (this.wordFollowsStep) this.hideWord();
     }
 
-    const quiet = !step || this.learned(step);
+    // Off in the phone's settings, he shows no next step (no word, no pointing, no see-through hands).
+    const quiet = !step || this.learned(step) || !display.masterSteps;
     if (quiet) {
       this.idle = 0;
       this.demo = false;
+      if (!display.masterSteps && this.wordFollowsStep && this.shownWord) this.hideWord();
     } else {
       this.idle += delta;
       const wait = this.totalSuccesses === 0 ? MASTER_FIRST_HINT_SECONDS : MASTER_HINT_IDLE_SECONDS;
@@ -417,8 +421,11 @@ export class MasterSystem extends createSystem({
     coach.doneSteps.length = 0;
 
     for (const m of coach.mistakes) {
-      this.anchorAtStation(m.at);
-      this.say(MISTAKE_WORDS[m.key], false);
+      // His word only if the player wants it (src/display-settings.ts); the head shake stays.
+      if (display.masterWords) {
+        this.anchorAtStation(m.at);
+        this.say(MISTAKE_WORDS[m.key], false);
+      }
       this.startGesture('shake');
     }
     coach.mistakes.length = 0;
@@ -435,12 +442,12 @@ export class MasterSystem extends createSystem({
     else this.inFrontOfChef(this.wordAt, 0.55, -0.1);
     if (grade === 'Excellent') {
       this.startGesture('nod');
-      this.say('Good.', false);
+      if (display.masterWords) this.say('Good.', false);
     } else if (grade === 'Good') {
       this.startGesture('nod');
     } else if (grade === 'Bad') {
       this.startGesture('shake');
-      this.say('Again.', false);
+      if (display.masterWords) this.say('Again.', false);
     }
   }
 
@@ -628,6 +635,8 @@ export class MasterSystem extends createSystem({
 
   /** The ice box is in reach from the stool and from the range, facing the bar. */
   private atIceBox(back: boolean, step: StepKey): StepKey {
+    // A left-handed chef's ice box is at the counter's right end, out of reach from the back row: from the stool.
+    if (handedness.left && chef.at !== 'seat') return back ? 'turnFront' : 'stepSeat';
     if (chef.at === 'table') return back ? 'stepRange' : 'turnBack';
     if (chef.at === 'sink' || chef.at === 'drain') return back ? 'turnFront' : 'stepSeat';
     return back ? 'turnFront' : step;
@@ -1117,7 +1126,7 @@ export class MasterSystem extends createSystem({
       case 'rice': {
         const tezu = stations.get(StationKind.Tezu);
         if (tezu) {
-          out.copy(tezu.pos).add(this.tmp.set(-0.05, 0.2, 0.08));
+          out.copy(tezu.pos).add(this.tmp.set(sideX(-0.05), 0.2, 0.08));
           return;
         }
         break;
@@ -1287,8 +1296,8 @@ export class MasterSystem extends createSystem({
   /** Where the neta hand holds the slice, in front of the chef. */
   private netaHold(out: Vector3): Vector3 {
     const board = this.stationPos(StationKind.CuttingBoard);
-    if (board) out.copy(board).add(this.off.set(-0.1, 0.19, 0.07));
-    else out.set(-0.1, 0.96, -0.2);
+    if (board) out.copy(board).add(this.off.set(sideX(-0.1), 0.19, 0.07));
+    else out.set(sideX(-0.1), 0.96, -0.2);
     return out;
   }
 
@@ -1304,6 +1313,8 @@ export class MasterSystem extends createSystem({
     const back = chef.facingBack;
     const yaw = back ? Math.PI : 0;
     const side = back ? -1 : 1; // the chef's right, in world x
+    // The rice (knife) hand's side across: the right, a left-handed chef's left (src/handedness.ts).
+    const hs = sideSign();
     const { a, b, c, off } = this;
 
     switch (step) {
@@ -1321,8 +1332,8 @@ export class MasterSystem extends createSystem({
         if (!sink) return false;
         const s = Math.sin(this.phase(1.2) * Math.PI * 2) * 0.05;
         // At the rim, just into the basin, where the hands wash.
-        rice.pose(a.copy(sink).add(off.set(0.06 * side, 0.01, s)), yaw, 0, 0);
-        neta.pose(b.copy(sink).add(off.set(-0.06 * side, 0.01, -s)), yaw, 0, 0);
+        rice.pose(a.copy(sink).add(off.set(0.06 * side * hs, 0.01, s)), yaw, 0, 0);
+        neta.pose(b.copy(sink).add(off.set(-0.06 * side * hs, 0.01, -s)), yaw, 0, 0);
         return true;
       }
       case 'towel': {
@@ -1331,8 +1342,8 @@ export class MasterSystem extends createSystem({
         if (!towel) return false;
         const curl = 0.5 + 0.5 * Math.sin(this.phase(1.2) * Math.PI * 2);
         const toward = back ? -0.035 : 0.035; // from the towel toward the chef
-        rice.pose(a.copy(towel).add(off.set(0.06 * side, 0.11, toward)), yaw, curl, 0);
-        neta.pose(b.copy(towel).add(off.set(-0.06 * side, 0.11, toward)), yaw, curl, 0);
+        rice.pose(a.copy(towel).add(off.set(0.06 * side * hs, 0.11, toward)), yaw, curl, 0);
+        neta.pose(b.copy(towel).add(off.set(-0.06 * side * hs, 0.11, toward)), yaw, curl, 0);
         return true;
       }
       case 'rinseCloth': {
@@ -1373,7 +1384,7 @@ export class MasterSystem extends createSystem({
         // From the case to the board; returning runs from the board to the case.
         if (step === 'takeSaku') {
           if (!this.orderedSakuAt(a)) return false;
-          b.copy(board).add(off.set(-0.12, 0, 0));
+          b.copy(board).add(off.set(-0.12 * hs, 0, 0));
         } else {
           a.copy(progress.sakuAt);
           b.copy(progress.sakuHome);
@@ -1409,8 +1420,8 @@ export class MasterSystem extends createSystem({
         const saku = progress.sakuAt;
         neta.pose(a.copy(saku).add(off.set(0, 0.06, 0)), yaw, 0.1, 0);
         // The blade reaches 15 cm ahead of the fist: draw the fist back along the guide.
-        b.copy(saku).add(off.set(0.075, 0.06, 0.09));
-        c.copy(saku).add(off.set(0.075, 0.06, 0.22));
+        b.copy(saku).add(off.set(0.075 * hs, 0.06, 0.09));
+        c.copy(saku).add(off.set(0.075 * hs, 0.06, 0.22));
         rice.pose(this.go(this.phase(2) * 1.4, b, c), yaw, 1, 0);
         return true;
       }
@@ -1441,7 +1452,7 @@ export class MasterSystem extends createSystem({
         const tub = this.stationPos(StationKind.RiceTub);
         if (!tub) return false;
         const k = this.phase(1.8);
-        a.set(0.3, 0.92, -0.2);
+        a.set(0.3 * hs, 0.92, -0.2);
         rice.pose(this.there(k, a, b.copy(tub)), yaw, k > 0.4 && k < 0.6 ? 0.6 : 0.1, 0);
         return true;
       }
@@ -1449,8 +1460,8 @@ export class MasterSystem extends createSystem({
         const dish = this.stationPos(StationKind.Wasabi);
         if (!dish) return false;
         // The index tip sits about 11 cm ahead of the palm center.
-        a.copy(dish).add(off.set(0.027, 0.03, 0.11));
-        b.copy(progress.pieceAt).add(off.set(0.027, 0.03, 0.11));
+        a.copy(dish).add(off.set(0.027 * hs, 0.03, 0.11));
+        b.copy(progress.pieceAt).add(off.set(0.027 * hs, 0.03, 0.11));
         rice.pose(this.there(this.phase(2), a, b), yaw, 1, 0, true);
         neta.pose(this.netaHold(c), yaw, 0, 0);
         return true;
@@ -1537,14 +1548,14 @@ export class MasterSystem extends createSystem({
         if (!mat) return false;
         const k = smooth(this.phase(1.6));
         const z = 0.08 - k * 0.12;
-        neta.pose(a.copy(mat).add(off.set(-0.06, 0.04, z)), yaw, 0.2 + 0.4 * k, 0);
-        rice.pose(b.copy(mat).add(off.set(0.06, 0.04, z)), yaw, 0.2 + 0.4 * k, 0);
+        neta.pose(a.copy(mat).add(off.set(-0.06 * hs, 0.04, z)), yaw, 0.2 + 0.4 * k, 0);
+        rice.pose(b.copy(mat).add(off.set(0.06 * hs, 0.04, z)), yaw, 0.2 + 0.4 * k, 0);
         return true;
       }
       case 'squeezeRoll': {
         const at = progress.pieceAt;
-        neta.pose(a.copy(at).add(off.set(-0.05, 0.04, 0.02)), yaw, this.beatCurl(), 0);
-        rice.pose(b.copy(at).add(off.set(0.05, 0.04, 0.02)), yaw, this.beatCurl(), 0);
+        neta.pose(a.copy(at).add(off.set(-0.05 * hs, 0.04, 0.02)), yaw, this.beatCurl(), 0);
+        rice.pose(b.copy(at).add(off.set(0.05 * hs, 0.04, 0.02)), yaw, this.beatCurl(), 0);
         return true;
       }
       case 'takeMaterial':
@@ -1577,7 +1588,7 @@ export class MasterSystem extends createSystem({
         const g = prep.guideAt;
         // Toward the chef: +Z at the manaita, -Z at the sink.
         const dz = prep.where === 'sink' ? -1 : 1;
-        neta.pose(a.copy(prep.materialAt).add(off.set(-0.06 * dz, 0.04, 0)), yaw, 0.1, 0);
+        neta.pose(a.copy(prep.materialAt).add(off.set(-0.06 * dz * hs, 0.04, 0)), yaw, 0.1, 0);
         // The blade reaches 15 cm ahead of the fist: draw the fist back along the line.
         b.copy(g).add(off.set(0, 0.05, 0.09 * dz));
         c.copy(g).add(off.set(0, 0.05, 0.22 * dz));
@@ -1589,13 +1600,13 @@ export class MasterSystem extends createSystem({
         neta.pose(a.copy(prep.pullNeta), yaw, 0, 1);
         const k = this.phase(2);
         b.copy(prep.pullRice);
-        c.copy(prep.pullRice).add(off.set(0.03, 0.03, 0.12));
+        c.copy(prep.pullRice).add(off.set(0.03 * hs, 0.03, 0.12));
         rice.pose(k < 0.25 ? b : this.go(Math.min(1, (k - 0.25) / 0.5), b, c), yaw, 0, k > 0.15 && k < 0.8 ? 1 : 0);
         return true;
       }
       case 'cutRoll': {
         const g = progress.guideAt;
-        neta.pose(a.copy(progress.pieceAt).add(off.set(-0.06, 0.05, 0)), yaw, 0.1, 0);
+        neta.pose(a.copy(progress.pieceAt).add(off.set(-0.06 * hs, 0.05, 0)), yaw, 0.1, 0);
         // The blade reaches 15 cm ahead of the fist: draw the fist back across the guide.
         b.copy(g).add(off.set(0, 0.05, 0.09));
         c.copy(g).add(off.set(0, 0.05, 0.22));
@@ -1607,15 +1618,15 @@ export class MasterSystem extends createSystem({
       case 'join': {
         this.netaHold(a);
         neta.pose(a, yaw, 0, 0);
-        b.copy(a).add(off.set(0.25, 0.06, 0));
-        c.copy(a).add(off.set(0.07, 0.03, 0));
+        b.copy(a).add(off.set(0.25 * hs, 0.06, 0));
+        c.copy(a).add(off.set(0.07 * hs, 0.03, 0));
         rice.pose(this.there(this.phase(1.6), b, c), yaw, 0, 0);
         return true;
       }
       case 'touch1': {
         this.netaHold(a);
         neta.pose(a, yaw, 0.2, 0);
-        rice.pose(b.copy(a).add(off.set(0.05, 0.05, 0)), yaw, this.beatCurl(), 0);
+        rice.pose(b.copy(a).add(off.set(0.05 * hs, 0.05, 0)), yaw, this.beatCurl(), 0);
         return true;
       }
       case 'flip': {
@@ -1627,11 +1638,11 @@ export class MasterSystem extends createSystem({
       }
       case 'touch2':
       case 'touch3':
-        rice.pose(a.copy(progress.pieceAt).add(off.set(0.03, 0.04, 0.03)), yaw, 0, this.beatCurl());
+        rice.pose(a.copy(progress.pieceAt).add(off.set(0.03 * hs, 0.04, 0.03)), yaw, 0, this.beatCurl());
         return true;
       case 'rotate': {
         const turn = (Math.PI / 2) * smooth(this.phase(1.6) * 1.3);
-        rice.pose(a.copy(progress.pieceAt).add(off.set(0.02, 0.04, 0.02)), yaw - turn, 0, 1);
+        rice.pose(a.copy(progress.pieceAt).add(off.set(0.02 * hs, 0.04, 0.02)), yaw - turn * hs, 0, 1);
         return true;
       }
       case 'place': {

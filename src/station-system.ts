@@ -1,5 +1,6 @@
 import { createSystem, type Entity, Vector3 } from '@iwsdk/core';
 import { debug } from './debug.js';
+import { onHandsChanged, placeHome, rememberAuthored, SIDE_PROPS, sideX } from './handedness.js';
 import { chef } from './game-state.js';
 import { MANAITA_TOP } from './layout.js';
 import { hands } from './hands.js';
@@ -61,6 +62,7 @@ export class StationSystem extends createSystem({
     );
     // Scene entities may already exist when this system starts.
     for (const entity of this.queries.stations.entities) this.restore(entity);
+    this.cleanupFuncs.push(onHandsChanged(() => this.replaceAll()));
   }
 
   update(): void {
@@ -157,18 +159,35 @@ export class StationSystem extends createSystem({
     return STORAGE_PREFIX + entity.getValue(Station, 'kind');
   }
 
+  /**
+   * A station as the scene placed it: a prop on the chef's counter goes to
+   * its side for this chef (src/handedness.ts), and a movable dish to where
+   * it was last put. Saved spots are kept as for a right-handed chef, so
+   * they follow a change of hands.
+   */
   private restore(entity: Entity): void {
-    const key = this.key(entity);
     const object = entity.object3D;
-    if (!key || !object) return;
+    if (!object) return;
+    const how = SIDE_PROPS[entity.getValue(Station, 'kind') as string];
+    if (how) {
+      rememberAuthored(object, how);
+      placeHome(object);
+    }
+    const key = this.key(entity);
+    if (!key) return;
     try {
       const saved = localStorage.getItem(key);
       if (!saved) return;
       const [x, y, z] = JSON.parse(saved) as number[];
-      if ([x, y, z].every(Number.isFinite)) object.position.set(x, y, z);
+      if ([x, y, z].every(Number.isFinite)) object.position.set(sideX(x), y, z);
     } catch {
       /* storage unavailable: keep the authored position */
     }
+  }
+
+  /** The chef changed hands: every counter prop to its new side. */
+  replaceAll(): void {
+    for (const entity of this.queries.stations.entities) this.restore(entity);
   }
 
   private remember(entity: Entity): void {
@@ -186,7 +205,7 @@ export class StationSystem extends createSystem({
     }
     object.rotation.set(0, 0, 0);
     try {
-      localStorage.setItem(key, JSON.stringify([p.x, p.y, p.z]));
+      localStorage.setItem(key, JSON.stringify([sideX(p.x), p.y, p.z]));
     } catch {
       /* storage unavailable: nothing to remember */
     }

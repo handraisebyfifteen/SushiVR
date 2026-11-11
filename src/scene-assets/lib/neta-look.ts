@@ -494,7 +494,7 @@ export function caseLook(id: NetaId): CaseLook {
       look = pieces(filletPiece(id), shingle(n, 0.072, 0.0085), def.look.pattern === 'spots' ? NetaPattern.Kohada : NetaPattern.Aji, [0.072, 0.006, 0.028]);
       break;
     case 'prawns': look = pieces(prawnPiece(id), shingle(n, 0.074, 0.011), NetaPattern.Prawn, [0.062, 0.005, 0.034]); break;
-    case 'shrimps': look = pieces(shrimpPiece(), shingle(n, 0.06, 0.012, 2, 0.017), NetaPattern.SweetShrimp, [0.054, 0.006, 0.012]); break;
+    case 'shrimps': look = pieces(shrimpPiece(), shingle(n, 0.06, 0.012, 3, 0.0135), NetaPattern.SweetShrimp, [0.054, 0.006, 0.012]); break;
     case 'halves': look = pieces(scallopPiece(), shingle(n, 0.03, 0.0125), NetaPattern.Scallop, [0.03, 0.009, 0.034]); break;
     case 'tongues':
       look = pieces(tonguePiece(), shingle(n, 0.058, 0.0125), def.look.pattern === 'tip' ? NetaPattern.Cockle : NetaPattern.ArkShell, [0.058, 0.005, 0.03]);

@@ -27,6 +27,7 @@ const STATION_LABELS: Record<Kind, string> = {
   NetaCase: 'Neta case',
   Geta: 'Geta',
   Knife: 'Knife',
+  KnifeHolder: 'Knife holder',
   WetCloth: 'Wet cloth',
   Tezu: 'Tezu',
   Wasabi: 'Wasabi',

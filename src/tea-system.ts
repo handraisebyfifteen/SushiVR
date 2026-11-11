@@ -1,6 +1,7 @@
 import { createSystem, type Group, Vector3 } from '@iwsdk/core';
 import { COLOR_HINT, glowObject } from './feedback.js';
 import { chef, type Side, tea } from './game-state.js';
+import { onHandsChanged, sideX } from './handedness.js';
 import { hands } from './hands.js';
 import {
   CUSTOMER_COUNTER_FAR_Z,
@@ -56,7 +57,8 @@ export class TeaSystem extends createSystem({}) {
   private side: Side | null = null;
   private glowLeft = 0;
   private readonly offset = new Vector3();
-  private readonly handSpot = new Vector3(TEA_CUP_X, WORK_COUNTER_TOP, TEA_CUP_Z);
+  /** Past the cloth, on the knife hand's side (src/handedness.ts). */
+  private readonly handSpot = new Vector3(sideX(TEA_CUP_X), WORK_COUNTER_TOP, TEA_CUP_Z);
   private readonly counterSpot = new Vector3(TEA_SERVE_X, -STEP_HEIGHT + CUSTOMER_COUNTER_HEIGHT, CUSTOMER_COUNTER_FAR_Z + 0.12);
   private readonly mid = new Vector3();
   private urnFound = false;
@@ -68,6 +70,12 @@ export class TeaSystem extends createSystem({}) {
     this.world.createTransformEntity(this.cup);
     tea.cupAt.copy(this.handSpot);
     tea.serveAt.set(TEA_SERVE_X, TSUKEDAI_TOP, GETA_Z);
+    this.cleanupFuncs.push(
+      onHandsChanged(() => {
+        this.handSpot.x = sideX(TEA_CUP_X);
+        if (tea.cup === 'none') tea.cupAt.copy(this.handSpot);
+      }),
+    );
     teaApi.pour = () => {
       if (tea.cup !== 'none') return;
       tea.cup = 'pouring';

@@ -8,9 +8,11 @@ import {
   createSystem,
   Vector3,
 } from '@iwsdk/core';
+import { display } from './display-settings.js';
 import { COLOR_READY, COLOR_WARN, glowObject } from './feedback.js';
 import { caseLabel, fishOrder } from './fish-order.js';
 import { caseStock, chef, type HeldKind, service } from './game-state.js';
+import { onHandsChanged, placeHome, rememberAuthored } from './handedness.js';
 import { hands } from './hands.js';
 import { heldOut } from './pointing.js';
 import {
@@ -223,6 +225,19 @@ export class NetaCaseSystem extends createSystem({
   private readonly historyHead = [0, 0];
 
   init(): void {
+    // A left-handed chef's case holds the same items in the reverse order (src/handedness.ts).
+    const place = (e: Entity) => {
+      if (!e.object3D) return;
+      rememberAuthored(e.object3D, 'move');
+      placeHome(e.object3D);
+    };
+    this.cleanupFuncs.push(
+      this.queries.items.subscribe('qualify', place),
+      onHandsChanged(() => {
+        for (const e of this.queries.items.entities) place(e);
+      }),
+    );
+    for (const e of this.queries.items.entities) place(e);
     caseApi.chosen = (side) => this.chosen(side);
     caseApi.restockAll = () => {
       for (const e of this.queries.items.entities) e.setValue(CaseItem, 'remaining', NETA[caseApi.neta(e)].stock);
@@ -449,7 +464,8 @@ export class NetaCaseSystem extends createSystem({
       this.glowed[side] = item;
       this.tagVersion[side] = version;
     }
-    tag.visible = !!item;
+    // The name only if the player wants it; while ordering, the tag carries the stock and the order.
+    tag.visible = !!item && (display.netaNames || ordering);
     if (item) {
       tag.position.copy(this.itemPos);
       tag.position.y += 0.075 + side * 0.03;
@@ -471,7 +487,7 @@ export class NetaCaseSystem extends createSystem({
       this.zoomVersion = version;
       this.zoomHover = null;
     }
-    this.zoom.visible = door >= 0;
+    this.zoom.visible = door >= 0 && display.netaZoom;
     if (door < 0) return;
     const hovered = caseApi.hovered[chef.netaSide] ?? caseApi.hovered[chef.riceSide];
     if (hovered !== this.zoomHover) {

@@ -32,6 +32,7 @@ import { overStation } from './station-system.js';
 import { CaseItem, Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import { PREP_STAGE, TAMAGO_BAKE_RATE, TAMAGO_BROWN_RATE, TAMAGO_GRIND_TRAVEL, TAMAGO_POUR_SECONDS, TAMAGO_SCORCHED, TAMAGO_SIDE_SECONDS, TAMAGO_WHISK_TRAVEL } from './tuning.js';
+import { display } from './display-settings.js';
 
 type Side = 0 | 1;
 type Egg = 'none' | 'pouring' | 'first' | 'turning' | 'second' | 'done' | 'held' | 'cased';
@@ -648,9 +649,10 @@ export class TamagoSystem extends createSystem({
       : '';
     if (text !== this.labelText) {
       this.labelText = text;
-      this.label.visible = !!text;
       if (text) setSpriteText(this.label, text);
     }
+    // Shown only if the player wants the figures on the work.
+    this.label.visible = !!text && display.status;
     if (!this.label.visible) return;
     if (mixing) this.label.position.copy(this.suri.bowl.position).add(this.tmp2.set(0, 0.3, -0.04));
     else this.label.position.copy(this.pan.position).add(this.tmp2.set(0, 0.2, 0.06));

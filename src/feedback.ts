@@ -14,6 +14,7 @@ import { hands } from './hands.js';
 import { playDone, playPick, playPut, playWarn } from './sfx.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
+import { display } from './display-settings.js';
 
 export const COLOR_HINT = new Color('#8fd3ff');
 export const COLOR_READY = new Color('#ffffff');
@@ -139,7 +140,8 @@ export class FeedbackSystem extends createSystem({}) {
         mark.material.opacity = 0.3 + 0.7 * (feedback.flashTime / FLASH_SECONDS);
         continue;
       }
-      if (!feedback.hints.has(kind)) {
+      // The ring on the next place, unless the player has turned the hint rings off (results still flash).
+      if (!feedback.hints.has(kind) || !display.hintRings) {
         mark.group.visible = false;
         continue;
       }

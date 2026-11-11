@@ -321,22 +321,47 @@
       },
       "transform": {
         "position": [
-          0.57,
-          0.75,
+          0.586,
+          0.98,
           -0.29
         ],
         "rotationDeg": [
           0,
-          90,
-          0
+          180,
+          -90
         ]
       },
       "components": {
         "Station": {
           "kind": "Knife",
-          "width": 0.08,
-          "depth": 0.36,
-          "height": 0.02
+          "radius": 0.09,
+          "height": 0.125,
+          "below": 0.12,
+          "above": 0.14
+        }
+      }
+    },
+    {
+      "id": "knife-holder",
+      "name": "Knife Holder",
+      "content": {
+        "type": "asset",
+        "asset": "knife-holder",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0.57,
+          0.75,
+          -0.29
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "KnifeHolder",
+          "radius": 0.05,
+          "height": 0.27
         }
       }
     },
@@ -909,7 +934,7 @@
       "components": {
         "CaseItem": {
           "neta": "SweetShrimp",
-          "remaining": 12
+          "remaining": 18
         }
       }
     },
@@ -1430,28 +1455,6 @@
           1.47,
           1.5,
           0.5
-        ],
-        "rotationDeg": [
-          0,
-          90,
-          0
-        ]
-      }
-    },
-    {
-      "id": "staff-buttons",
-      "name": "Staff Call Buttons (cook, part-timer)",
-      "content": {
-        "type": "asset",
-        "asset": "staff-buttons",
-        "receiveShadow": true,
-        "castShadow": false
-      },
-      "transform": {
-        "position": [
-          1.47,
-          1.78,
-          -0.27
         ],
         "rotationDeg": [
           0,

@@ -1,7 +1,7 @@
 import { Vector3 } from '@iwsdk/core';
 import { MENU, type MenuId, NETA, type NetaId, type PieceKind } from './menu.js';
 import { Held, Judge } from './sushi-components.js';
-import { CHEF_LEFT_HANDED } from './tuning.js';
+import { handedness, onHandsChanged } from './handedness.js';
 
 export type HeldKind = (typeof Held)[keyof typeof Held];
 export type JudgeKind = (typeof Judge)[keyof typeof Judge];
@@ -36,10 +36,15 @@ export const chef = {
   facingBack: false,
   /** Where the chef is: on the stool at the bar, or a step back at the work table or the range (the morning prep). */
   at: 'seat' as Place,
-  /** Side index of the rice hand and the neta hand. */
-  riceSide: (CHEF_LEFT_HANDED ? 0 : 1) as Side,
-  netaSide: (CHEF_LEFT_HANDED ? 1 : 0) as Side,
+  /** Side index of the rice hand and the neta hand (swapped for a left-handed chef, src/handedness.ts). */
+  riceSide: (handedness.left ? 0 : 1) as Side,
+  netaSide: (handedness.left ? 1 : 0) as Side,
 };
+
+onHandsChanged(() => {
+  chef.riceSide = handedness.left ? 0 : 1;
+  chef.netaSide = handedness.left ? 1 : 0;
+});
 
 /** True while a hand carries food, the knife or the finished piece (the wet cloth and the board may travel to the sink). */
 export function holdingAnything(): boolean {
@@ -320,6 +325,10 @@ export const cure = {
   saltHeld: false,
   trayHeld: false,
   fishHeld: false,
+  /** Asked for: skip the shop's time ahead to where the next time's Good begins (the timer's pinch), or to the time itself (practice mode). */
+  skip: null as 'good' | 'aim' | null,
+  /** Each time's grade this morning, as the fish came out of the salt or the vinegar (for the result). */
+  grades: [] as Array<{ fish: string; stage: 'salt' | 'vinegar'; grade: 'Excellent' | 'Good' | 'Poor' | 'Bad'; minutes: number; aim: number }>,
 };
 
 /** The range in the morning prep: four pots, then the net for the bonito belly. */

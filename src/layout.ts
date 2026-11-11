@@ -322,6 +322,19 @@ export const TRASH_BIN_TOP = 0.42;
 export const RICE_TUB_X = 0.48;
 export const RICE_TUB_Z = 0.12;
 export const RICE_TUB_TOP = 0.6;
+/**
+ * The knife stands blade down in its hinoki holder (包丁桶) beside the board,
+ * on the knife hand's side (the user: bare on the counter looks odd; the
+ * holder is used in service). The knife node's origin (its blade root) is
+ * KNIFE_STAND over the counter; the handle's middle KNIFE_GRIP over that.
+ */
+export const KNIFE_X = 0.57;
+export const KNIFE_Z = MANAITA_Z + 0.03;
+export const KNIFE_STAND = 0.23;
+export const KNIFE_GRIP = 0.125;
+export const KNIFE_HOLDER_HEIGHT = 0.27;
+/** Lying flat, the blade's centre is this far over the knife's origin; standing, that far across, so the knife node stands this far from the holder's centre to put the blade in the slot. */
+export const KNIFE_BLADE_LIFT = 0.016;
 /** The kitchen paper box on the board's back edge, between the nori box and the work. */
 export const PAPER_BOX_X = -0.2;
 /**
@@ -338,20 +351,6 @@ export const FOOD_SHELF_Z = AISLE_CENTER_Z - 0.1;
 export const OFFICE_BACK_Z = AISLE_CENTER_Z + 0.5;
 export const PHONE_SHELF_Y = 1.0;
 export const BOOKS_BOARD_Y = 1.5;
-/**
- * The difficulty sign (easy or full), shown in the morning before the call:
- * on the end wall between the phone and the call board, well apart from
- * both as seen from the stool (pointing reads only left and right).
- */
-export const MODE_SIGN_Y = 1.4;
-export const MODE_SIGN_Z = AISLE_CENTER_Z + 0.13;
-/**
- * The staff call board: two buttons (the cook, the part-timer) on the wall
- * over the food shelf. Pointed at from the seat like the phone, so the
- * buttons stand well apart across the wall (see src/pointing.ts).
- */
-export const STAFF_BUTTONS_Y = 1.78;
-export const STAFF_BUTTONS_Z = FOOD_SHELF_Z - 0.17;
 /**
  * The tea things (お茶), made out of the customers' sight: a low cabinet
  * under the phone, hidden from the seats behind the food shelf, with the
@@ -396,7 +395,6 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
   phone: { position: [END_WALL_X - 0.11, PHONE_SHELF_Y, OFFICE_BACK_Z], station: { radius: 0.12, height: 0.12 } },
   'phone-shelf': { position: [END_WALL_X, PHONE_SHELF_Y, OFFICE_BACK_Z] },
   'books-board': { position: [END_WALL_X, BOOKS_BOARD_Y, OFFICE_BACK_Z] },
-  'staff-buttons': { position: [END_WALL_X, STAFF_BUTTONS_Y, STAFF_BUTTONS_Z] },
   'tea-station': { position: [END_WALL_X, 0, TEA_STATION_Z] },
   'menu-board': { position: [MENU_BOARD_X, MENU_BOARD_Y, BACK_WALL_Z] },
   'food-shelf': { position: [FOOD_SHELF_X, 0, FOOD_SHELF_Z] },
@@ -405,7 +403,9 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
     position: [ICE_BOX_X, WORK_COUNTER_TOP, ICE_BOX_Z],
     station: { width: ICE_BOX_WIDTH - 2 * ICE_BOX_WALL, depth: ICE_BOX_DEPTH - 2 * ICE_BOX_WALL, height: ICE_BOX_ICE_TOP },
   },
-  knife: { position: [0.57, WORK_COUNTER_TOP, MANAITA_Z + 0.03] },
+  // Standing in its holder: the zone is a fist's reach round the handle.
+  knife: { position: [KNIFE_X + KNIFE_BLADE_LIFT, WORK_COUNTER_TOP + KNIFE_STAND, KNIFE_Z], station: { radius: 0.09, height: KNIFE_GRIP, below: 0.12, above: 0.14 } },
+  'knife-holder': { position: [KNIFE_X, WORK_COUNTER_TOP, KNIFE_Z], station: { radius: 0.05, height: KNIFE_HOLDER_HEIGHT } },
   'wet-cloth': { position: [0.66, WORK_COUNTER_TOP, MANAITA_NEAR_Z - 0.06] },
   ledge: { position: [0, 0, TSUKEDAI_CHEF_Z - TSUKEDAI_DEPTH / 2] },
   'neta-case': {

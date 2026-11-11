@@ -8,8 +8,9 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { type BurnerView, chef, cure, orderKind, orderNeta, type Place, prep, progress, range, service, shari, staff, tamago, tea } from './game-state.js';
+import { type BurnerView, chef, cure, holdingAnything, orderKind, orderNeta, type Place, prep, progress, range, service, shari, staff, tamago, tea } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
+import { handedness, setLeftHanded, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
 import { SEATED_EYE_HEIGHT, SINK_TOP } from './layout.js';
 import { masterApi } from './master-system.js';
@@ -17,12 +18,15 @@ import { placeApi } from './place-system.js';
 import { KNOB_HOLD, KNOB_STEP } from './range-system.js';
 import { CASE_ORDER, MENU, type MenuId, menuFor, NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
-import { fishOrder, fromGreengrocer, orderOf, orderRoom, priceOf, resetShop, sizesOf } from './fish-order.js';
+import { fishOrder, orderOf, orderRoom, priceOf, resetShop, sizesOf, supplierOf } from './fish-order.js';
+import { fishOrderApi } from './fish-order-system.js';
 import { type Kind, stations } from './station-system.js';
 import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
 import { ledger, yen } from './ledger.js';
 import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, SHARI_SCOOPS } from './tuning.js';
+import { phoneBookApi, type PhoneRowId } from './phone-book-system.js';
+import { phoneApi } from './phone-system.js';
 
 /**
  * Practice mode (development only): play the bar from the keyboard in the
@@ -112,6 +116,8 @@ interface Step {
 type MoveOptions = Pick<Step, 'yaw' | 'yawBy' | 'curl'>;
 
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
+/** A right-handed waypoint (chef's frame or world) for the chef there is: mirrored across x = 0 for a left-handed chef. */
+const sideV = (p: Vector3) => (handedness.left ? v(-p.x, p.y, p.z) : p);
 const ZERO = v(0, 0, 0);
 const move = (at: Vector3, offset: Vector3, anchor: Anchor, seconds: number, options: MoveOptions = {}): Step => ({
   kind: 'move', at, offset, anchor, seconds, ...options,
@@ -347,6 +353,8 @@ export class PracticeSystem extends createSystem({
     device.quaternion.set(this.q.x, this.q.y, this.q.z, this.q.w);
 
     this.clock += delta;
+    // The curing runs in the shop's real time: the driver skips each wait to its time.
+    if (cure.next === 'wait' || cure.next === 'soon') cure.skip = 'aim';
     this.updateShake(delta, device);
     for (const d of this.driver) this.updateHand(d, delta, d.side === 0 ? device.hands.left : device.hands.right);
     this.trackHeading();
@@ -420,12 +428,12 @@ export class PracticeSystem extends createSystem({
         this.prepCarry();
       },
       Digit0: () => this.pullPrep(),
-      Minus: () => this.paperWipe(),
-      Equal: () => (e.shiftKey ? this.pointAt(fishOrder.signAt, 'Pointing at the sign (easy or full)') : this.callFishShop()),
+      Minus: () => (e.shiftKey ? this.phoneLine(['greengrocer'], 'Phone: the greengrocer') : this.paperWipe()),
+      Equal: () => (e.shiftKey ? this.phoneLine(['settings', 'playMode'], 'Phone: settings, play mode') : this.callFishShop()),
       BracketLeft: () => this.boardStep(),
       BracketRight: () => this.hangNoren(),
-      Semicolon: () => this.askStaff('cook'),
-      Quote: () => this.askStaff('partTimer'),
+      Semicolon: () => (e.shiftKey ? this.phoneLine(['settings', 'hands'], 'Phone: settings, hands') : this.askStaff('cook')),
+      Quote: () => (e.shiftKey ? this.phoneLine(['settings', 'display', 'frontNames'], 'Phone: tool names, counter') : this.askStaff('partTimer')),
       Backslash: () => this.check(),
       Comma: () => (e.shiftKey ? this.askTea() : this.pourTea()),
       Period: () => this.serveTea(),
@@ -448,7 +456,7 @@ export class PracticeSystem extends createSystem({
       KeyV: () => this.wipeBoard(),
       KeyB: () => this.rinseCloth(),
       KeyR: () => this.returnSaku(),
-      KeyK: () => this.knife(),
+      KeyK: () => (e.shiftKey ? this.changeHands() : this.knife()),
       KeyX: () => this.cut(),
       KeyW: () => this.wipeBlade(),
       KeyN: () => this.takeNeta(),
@@ -734,7 +742,7 @@ export class PracticeSystem extends createSystem({
     if (this.driver[0].busy || this.driver[1].busy) return this.say('Hands are busy');
     const mat = progress.pieceAt.clone();
     for (const side of [chef.netaSide, chef.riceSide] as const) {
-      const x = side === chef.netaSide ? -0.06 : 0.06;
+      const x = (side === chef.netaSide ? -0.06 : 0.06) * sideSign();
       this.run(side, 'Rolling: both fists on the beat (Space)', [
         move(mat, v(x, 0.06, 0.08), 'palm', 0.3),
         move(mat, v(x, 0.035, 0.08), 'palm', 0.15),
@@ -808,8 +816,8 @@ export class PracticeSystem extends createSystem({
       pinch(1),
       wait(0.12),
       move(at, v(0, 0.14, 0), 'grasp', 0.2),
-      move(board, v(-0.12, 0.12, 0), 'grasp', 0.35),
-      move(board, v(-0.12, 0.05, 0), 'grasp', 0.15),
+      move(board, v(sideX(-0.12), 0.12, 0), 'grasp', 0.35),
+      move(board, v(sideX(-0.12), 0.05, 0), 'grasp', 0.15),
       pinch(0),
       wait(0.1),
       this.rest(side),
@@ -858,7 +866,7 @@ export class PracticeSystem extends createSystem({
       move(at, v(0, 0.04, 0.02), 'palm', 0.15),
       pose('fist'),
       wait(0.12),
-      moveLocal(KNIFE_READY, 'palm', 0.3),
+      moveLocal(sideV(KNIFE_READY), 'palm', 0.3),
     ]);
   }
 
@@ -876,7 +884,7 @@ export class PracticeSystem extends createSystem({
     if (this.driver[rice].busy || !this.ready(neta, Held.None)) return;
     const saku = progress.sakuAt.clone();
     // The blade runs 0.15 m ahead of the palm; draw it from just beyond the saku to past its near edge.
-    const guide = v(saku.x + 0.075, saku.y, saku.z);
+    const guide = v(saku.x + sideX(0.075), saku.y, saku.z);
     this.run(neta, 'Hand on the saku', [
       move(saku, v(0, 0.06, 0), 'palm', 0.3),
       wait(1.25),
@@ -888,7 +896,7 @@ export class PracticeSystem extends createSystem({
       move(guide, v(0, 0.06, 0.09), 'palm', 0.15),
       move(guide, v(0, 0.06, 0.23), 'palm', 0.5),
       move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
-      moveLocal(KNIFE_READY, 'palm', 0.3),
+      moveLocal(sideV(KNIFE_READY), 'palm', 0.3),
     ]);
   }
 
@@ -1048,7 +1056,7 @@ export class PracticeSystem extends createSystem({
       wait(0.35),
       pinch(1),
       wait(0.15),
-      move(grip, v(0.03, 0.04, 0.18), 'grasp', 0.6),
+      move(grip, v(sideX(0.03), 0.04, 0.18), 'grasp', 0.6),
       wait(0.1),
       pinch(0),
       wait(0.1),
@@ -1064,7 +1072,7 @@ export class PracticeSystem extends createSystem({
     if (this.driver[rice].busy || this.driver[neta].busy) return this.say('Hands are busy');
     const material = prep.materialAt.clone();
     const g = prep.guideAt.clone();
-    this.run(neta, 'Hand on the fish', [move(material, v(-0.07, 0.04, -0.03), 'palm', 0.3), wait(1.35), this.rest(neta)]);
+    this.run(neta, 'Hand on the fish', [move(material, v(sideX(-0.07), 0.04, -0.03), 'palm', 0.3), wait(1.35), this.rest(neta)]);
     if (prep.guideAcross) {
       // Fingers to the left, the blade 15 cm ahead of the palm. A cut: the blade on its edge, drawn from the right down
       // to the lower left (the owner: the stroke of a sword or a bat). A shave (skin, backbone): flat along the board, right to left.
@@ -1072,11 +1080,11 @@ export class PracticeSystem extends createSystem({
       const [y0, y1] = low ? [0.004, 0.004] : [0.095, 0.045];
       this.run(rice, prep.say || 'Cutting across', [
         wait(0.3),
-        move(g, v(0.25, 0.2, 0), 'palm', 0.3, { yaw: 90 }),
-        move(g, v(0.24, y0, 0), 'palm', 0.15),
-        move(g, v(0.06, y1, 0), 'palm', 0.5),
-        move(g, v(0.06, 0.18, 0), 'palm', 0.15),
-        moveLocal(KNIFE_READY, 'palm', 0.3, { yaw: 0 }),
+        move(g, v(sideX(0.25), 0.2, 0), 'palm', 0.3, { yaw: 90 * sideSign() }),
+        move(g, v(sideX(0.24), y0, 0), 'palm', 0.15),
+        move(g, v(sideX(0.06), y1, 0), 'palm', 0.5),
+        move(g, v(sideX(0.06), 0.18, 0), 'palm', 0.15),
+        moveLocal(sideV(KNIFE_READY), 'palm', 0.3, { yaw: 0 }),
       ]);
       return;
     }
@@ -1088,7 +1096,7 @@ export class PracticeSystem extends createSystem({
       move(g, v(0, y0, 0.09), 'palm', 0.15),
       move(g, v(0, y1, 0.23), 'palm', 0.5),
       move(g, v(0, 0.18, 0.23), 'palm', 0.15),
-      moveLocal(KNIFE_READY, 'palm', 0.3),
+      moveLocal(sideV(KNIFE_READY), 'palm', 0.3),
     ]);
   }
 
@@ -1168,7 +1176,7 @@ export class PracticeSystem extends createSystem({
       move(at, v(0, 0.02, 0), 'palm', 0.15),
       pose('fist'),
       wait(0.12),
-      moveLocal(KNIFE_READY, 'palm', 0.3),
+      moveLocal(sideV(KNIFE_READY), 'palm', 0.3),
     ]);
   }
 
@@ -1387,8 +1395,18 @@ export class PracticeSystem extends createSystem({
 
   /** The ice box is in reach from the stool or the range, facing the bar. */
   private reachIceBox(hand?: 0 | 1): boolean {
+    // A left-handed chef's ice box is at the counter's right end, out of reach from the back row: from the stool.
+    if (handedness.left) return this.reachPlace('seat', 'front', hand);
     if (chef.at === 'table') return this.reachPlace('range', 'front', hand);
     return this.reachPlace(chef.at, 'front', hand);
+  }
+
+  /** Shift+K: change hands (the morning, before the call, nothing held), as the handedness setting does. */
+  private changeHands(): void {
+    if (!fishOrderApi.canSwitch() || holdingAnything()) return this.say('Hands change in the morning, before the call, with nothing held');
+    setLeftHanded(!handedness.left);
+    this.say(`${handedness.left ? 'Left' : 'Right'}-handed`);
+    console.log(`[Practice] ${handedness.left ? 'left' : 'right'}-handed`);
   }
 
   /** Take something and keep it in the hand, lifted. */
@@ -1484,7 +1502,7 @@ export class PracticeSystem extends createSystem({
           // Fetch the ohitsu from its stand by the stool (its near rim).
           if (!this.reachPlace('seat', 'front')) return;
           const home = shari.tubHomeAt;
-          const rim = v(home.x - 0.14, home.y + 0.04, home.z - 0.04);
+          const rim = v(home.x - sideX(0.14), home.y + 0.04, home.z - 0.04);
           return this.pickHold(side, rim, 'Taking the ohitsu (its lid stays)');
         }
         if (!this.reachPlace('table', 'back') || !this.ready(side, Held.None)) return;
@@ -1551,7 +1569,7 @@ export class PracticeSystem extends createSystem({
         }
         if (!this.reachPlace('seat', 'front', other)) return;
         const board = stations.get(StationKind.CuttingBoard);
-        return board ? this.dropAt(held, board.pos.clone().add(v(-0.2, 0.02, 0)), 'Onto the board') : undefined;
+        return board ? this.dropAt(held, board.pos.clone().add(v(sideX(-0.2), 0.02, 0)), 'Onto the board') : undefined;
       }
     }
     if (held !== null || net !== null) return this.say('Hands are full');
@@ -1741,8 +1759,34 @@ export class PracticeSystem extends createSystem({
   }
 
   /** = : point at the telephone in the office corner (the aisle's right end) and pinch: the fish shop is called. */
+  /** = : point at the phone (the phone book comes up), then = again pinches its fish shop line. */
   private callFishShop(): void {
-    this.pointAt(staff.phoneAt, 'Pointing at the phone');
+    this.phoneLine(['fish'], 'Phone: the fish shop');
+  }
+
+  /**
+   * A line of the phone book (src/phone-book-system.ts), one key press a
+   * step: with the book shut, point at the phone; then pinch the deepest
+   * line of the path the card shows now (or Back, to get there).
+   */
+  private phoneLine(path: PhoneRowId[], label: string): void {
+    if (!phoneApi.book) return this.pointAt(staff.phoneAt, 'Pointing at the phone');
+    const at = new Vector3();
+    for (let i = path.length - 1; i >= 0; i--) {
+      if (phoneBookApi.rowAt(path[i], at)) return this.pinchCard(at, `${label} (${path[i]})`);
+    }
+    if (phoneBookApi.rowAt('back', at)) this.pinchCard(at, 'Phone: back');
+  }
+
+  /**
+   * Pinch a point on the phone book's card, from just in front of it, with
+   * the nearer empty hand. The card reads where the pinch was aimed
+   * (HandReader.pinchPoint), so the hand rests on the line a moment first.
+   */
+  private pinchCard(at: Vector3, label: string): void {
+    const side: 0 | 1 = this.player.worldToLocal(at.clone()).x > 0 ? 1 : 0;
+    if (!this.ready(side, Held.None)) return;
+    this.run(side, label, [move(at, v(0, 0, 0.01), 'grasp', 0.4), wait(0.25), pinch(1), wait(0.15), pinch(0), wait(0.1), this.rest(side)]);
   }
 
   /**
@@ -1781,8 +1825,9 @@ export class PracticeSystem extends createSystem({
   private orderWanted(): NetaId | null {
     for (const entity of this.queries.items.entities) {
       const neta = entity.getValue(CaseItem, 'neta') as NetaId;
-      if ((entity.getValue(CaseItem, 'remaining') ?? 0) * 2 >= NETA[neta].stock || fromGreengrocer(neta)) continue;
       const id = orderOf(neta);
+      // Only the shop on the line's own things.
+      if ((entity.getValue(CaseItem, 'remaining') ?? 0) * 2 >= NETA[neta].stock || supplierOf(id) !== fishOrder.calling) continue;
       const sizes = sizesOf(id);
       const at = fishOrder.lines.get(id);
       if (at === sizes.length - 1) continue;
@@ -1843,9 +1888,9 @@ export class PracticeSystem extends createSystem({
     this.pointAt(prep.norenAt, 'Pointing at the noren');
   }
 
-  /** ; and ': point at the cook's or the part-timer's button (office wall, over the food shelf) and pinch to call them in, or let them off. */
+  /** ; and ': the cook's or the part-timer's line on the phone book, to call them in or let them off (a press a step). */
   private askStaff(who: 'cook' | 'partTimer'): void {
-    this.pointAt(who === 'cook' ? staff.cookButtonAt : staff.partTimerButtonAt, `Pointing at the ${who === 'cook' ? 'cook' : 'part-timer'}'s button`);
+    this.phoneLine([who], `Phone: the ${who === 'cook' ? 'cook' : 'part-timer'}`);
   }
 
   /** Backslash: the customer says "Check, please": point at them and pinch. */
@@ -1921,14 +1966,14 @@ export class PracticeSystem extends createSystem({
     if (this.driver[rice].busy || this.driver[neta].busy) return this.say('Hands are busy');
     const roll = progress.pieceAt.clone();
     const guide = progress.guideAt.clone();
-    this.run(neta, 'Hand on the roll', [move(roll, v(-0.07, 0.04, 0), 'palm', 0.3), wait(1.25), this.rest(neta)]);
+    this.run(neta, 'Hand on the roll', [move(roll, v(sideX(-0.07), 0.04, 0), 'palm', 0.3), wait(1.25), this.rest(neta)]);
     this.run(rice, `Cut ${progress.cutsDone + 1} of ${progress.cutsNeeded}`, [
       wait(0.3),
       move(guide, v(0, 0.18, 0.09), 'palm', 0.3, { yaw: 0 }),
       move(guide, v(0, 0.05, 0.09), 'palm', 0.15),
       move(guide, v(0, 0.05, 0.23), 'palm', 0.5),
       move(guide, v(0, 0.18, 0.23), 'palm', 0.15),
-      moveLocal(KNIFE_READY, 'palm', 0.3),
+      moveLocal(sideV(KNIFE_READY), 'palm', 0.3),
     ]);
   }
 
@@ -1944,7 +1989,7 @@ export class PracticeSystem extends createSystem({
       move(at, v(0, 0.08, 0.1), 'palm', 0.15),
       rub(at, v(0, 0.08, 0.1), 'palm', 0.8, 0.04, 2, () => !chef.knifeDirty),
       move(at, v(0, 0.16, 0.1), 'palm', 0.15),
-      moveLocal(KNIFE_READY, 'palm', 0.3),
+      moveLocal(sideV(KNIFE_READY), 'palm', 0.3),
     ]);
   }
 
@@ -1962,7 +2007,7 @@ export class PracticeSystem extends createSystem({
       pinch(1),
       wait(0.12),
       pinch(0),
-      moveLocal(WORK, 'palm', 0.35),
+      moveLocal(sideV(WORK), 'palm', 0.35),
     ]);
   }
 
@@ -1993,8 +2038,8 @@ export class PracticeSystem extends createSystem({
     if (chef.facingBack) return this.say('Turn back to the bar first (T)');
     if (!this.ready(side, Held.None)) return;
     this.run(side, 'In the rice tub: let go of L on the beat', [
-      move(TUB_WAY, ZERO, 'palm', 0.2),
-      move(TUB_DOWN, ZERO, 'palm', 0.2),
+      move(sideV(TUB_WAY), ZERO, 'palm', 0.2),
+      move(sideV(TUB_DOWN), ZERO, 'palm', 0.2),
       hold(),
     ]);
   }
@@ -2004,7 +2049,7 @@ export class PracticeSystem extends createSystem({
     const side = chef.riceSide;
     const d = this.driver[side];
     if (!d.busy || !d.steps.some((s) => s.kind === 'hold')) return;
-    this.run(side, 'Rice', [move(TUB_UP, ZERO, 'palm', 0.05), this.rest(side)]);
+    this.run(side, 'Rice', [move(sideV(TUB_UP), ZERO, 'palm', 0.05), this.rest(side)]);
   }
 
   /** Y: the rice hand's index finger takes wasabi from the dish and dabs it on the neta. */
@@ -2063,7 +2108,7 @@ export class PracticeSystem extends createSystem({
         pose('fist'),
         wait(0.2),
         pose('default'),
-        move(at, v(0.02, 0.045, 0), 'grasp', 0.25),
+        move(at, v(sideX(0.02), 0.045, 0), 'grasp', 0.25),
       ]);
     } else if (stage === NigiriStage.Flipped || stage === NigiriStage.Rotated) {
       if (d.busy) return this.say('Rice hand is busy');
@@ -2097,8 +2142,8 @@ export class PracticeSystem extends createSystem({
     this.run(side, 'Flip: touch on the beat (Space)', [
       pose('open'),
       wait(0.08),
-      moveLocal(v(WORK.x, WORK.y, WORK.z - 0.06), 'palm', 0.25, { curl: 0.55 }),
-      moveLocal(WORK, 'palm', 0.3, { curl: 0 }),
+      moveLocal(v(sideX(WORK.x), WORK.y, WORK.z - 0.06), 'palm', 0.25, { curl: 0.55 }),
+      moveLocal(sideV(WORK), 'palm', 0.3, { curl: 0 }),
       pose('default'),
     ]);
   }
@@ -2110,13 +2155,13 @@ export class PracticeSystem extends createSystem({
     if (this.driver[side].busy) return this.say('Rice hand is busy');
     const at = progress.pieceAt.clone();
     this.run(side, 'Half turn: touch on the beat (Space)', [
-      move(at, v(0.02, 0.045, 0), 'grasp', 0.1),
+      move(at, v(sideX(0.02), 0.045, 0), 'grasp', 0.1),
       pinch(1),
       wait(0.08),
-      move(at, v(0.02, 0.045, 0), 'grasp', 0.45, { yawBy: -80 }),
+      move(at, v(sideX(0.02), 0.045, 0), 'grasp', 0.45, { yawBy: -80 * sideSign() }),
       pinch(0),
       wait(0.1),
-      move(at, v(0.02, 0.045, 0), 'grasp', 0.25, { yaw: null }),
+      move(at, v(sideX(0.02), 0.045, 0), 'grasp', 0.25, { yaw: null }),
     ]);
   }
 
@@ -2477,10 +2522,10 @@ export class PracticeSystem extends createSystem({
   private buildPanel(): void {
     this.canvas = document.createElement('canvas');
     this.canvas.width = 720;
-    this.canvas.height = 716;
+    this.canvas.height = 760;
     this.texture = new CanvasTexture(this.canvas);
     this.panel = new Mesh(
-      new PlaneGeometry(0.27, 0.252),
+      new PlaneGeometry(0.27, 0.2675),
       new MeshBasicMaterial({ map: this.texture, transparent: true, depthTest: false, depthWrite: false }),
     );
     this.panel.name = 'PracticePanel';
@@ -2517,7 +2562,8 @@ export class PracticeSystem extends createSystem({
       'Space touch on the beat   F flip   G half turn',
       'M carry / let go   Q E turn 45   S serve',
       'Prep: 9 carry  0 pull off  X cut  - paper  [ board  ] noren',
-      "= phone  ; cook  ' part-timer (office buttons)  ] noren in: close",
+      "Phone (a press a step): = fish shop  Shift+- greengrocer  ; cook  ' part-timer",
+      "  Shift+= play mode  Shift+; hands  Shift+' tool names  ] noren in: close",
       '\\ the check   , tea urn (Shift: ask for tea)   . tea to the tsukedai',
       "Back row: A shari  Enter range  / step  Tab: the master's step",
       `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}${shaky}`,

@@ -50,6 +50,7 @@ import {
   SEAR_SKIN_SECONDS,
   SKEWER_DISTANCE,
 } from './tuning.js';
+import { display } from './display-settings.js';
 
 /** On the range (range-local x, z): the eel's wide pan back right and the gourd strips front right (seen facing it), the abalone back left, the octopus front left. */
 const LAYOUT: Record<PotId, { bx: number; bz: number; knob: number }> = {
@@ -151,6 +152,7 @@ export class RangeSystem extends createSystem({
   private readonly iceSpot = new Vector3();
   private readonly tmp = new Vector3();
   private readonly tmp2 = new Vector3();
+  private readonly pinchAt = new Vector3();
 
   init(): void {
     this.cleanupFuncs.push(this.queries.items.subscribe('qualify', (e) => this.caseItems.set(e.getValue(CaseItem, 'neta') as NetaId, e)));
@@ -365,9 +367,10 @@ export class RangeSystem extends createSystem({
         text = b.over > SCORCH_SECONDS ? 'Scorched' : b.state === 'done' ? (b.level > 0 ? 'Liquid gone: off!' : 'Done') : `Liquid ${Math.round(100 * b.liquid)}%`;
       }
     }
+    // Shown only if the player wants the figures on the work.
+    b.label.visible = text !== '' && display.status;
     if (text === b.labelText) return;
     b.labelText = text;
-    b.label.visible = text !== '';
     if (text) setSpriteText(b.label, text);
   }
 
@@ -377,11 +380,12 @@ export class RangeSystem extends createSystem({
     const hand = hands.all[side];
     if (!hand?.tracked || !hand.pinchStart || this.carried[side] || this.knobGrab?.side === side || chef.hands[side].holding !== Held.None || prep.carrying[side]) return;
     const g = hand.grasp;
-    // A knob (the nearest within reach of the pinch): one click along.
+    // A knob (the nearest within reach of the pinch, judged where the fingers were before they closed; the knobs are 13 cm apart): one click along.
+    const aimed = hand.pinchPoint(this.pinchAt);
     let near: Burner | null = null;
     let nearest = KNOB_PICK;
     for (const b of this.burners) {
-      const d = g.distanceTo(b.knob);
+      const d = aimed.distanceTo(b.knob);
       if (d < nearest) {
         nearest = d;
         near = b;
@@ -389,6 +393,7 @@ export class RangeSystem extends createSystem({
     }
     if (near) {
       this.knobGrab = { side, b: near, held: 0, steps: 0 };
+      console.log(`[Range] ${side === 0 ? 'left' : 'right'} hand on the ${this.name(near)}'s knob`);
       return;
     }
     if (this.belly && this.pickBelly(side, g)) return;

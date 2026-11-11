@@ -2,6 +2,7 @@ import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quater
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
 import { chef, orderKind, orderTakes, prep, progress, service } from './game-state.js';
+import { homePose, type Pose, sideSign, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
@@ -52,8 +53,9 @@ export class CuttingSystem extends createSystem({
   private held: Entity | null = null;
   private onBoard: Entity | null = null;
   private knife: Entity | null = null;
-  private knifeHome = new Vector3();
-  private knifeHomeRotY = 0;
+  /** Where the knife is put down: beside the board on the knife hand's side (src/handedness.ts). */
+  private readonly knifeRest: Pose = { position: new Vector3(), quaternion: new Quaternion(), scale: new Vector3() };
+  private readonly sakuRest: Pose = { position: new Vector3(), quaternion: new Quaternion(), scale: new Vector3() };
   private knifeHeld = false;
   private guide!: Mesh<BoxGeometry, MeshBasicMaterial>;
   private cutStartZ: number | null = null;
@@ -87,11 +89,7 @@ export class CuttingSystem extends createSystem({
       }
     }
     const knifeInfo = stations.get(StationKind.Knife);
-    if (knifeInfo && !this.knife) {
-      this.knife = knifeInfo.entity;
-      this.knife.object3D!.getWorldPosition(this.knifeHome);
-      this.knifeHomeRotY = this.knife.object3D!.rotation.y;
-    }
+    if (knifeInfo && !this.knife) this.knife = knifeInfo.entity;
     if (this.onBoard) this.measureSaku(this.onBoard);
     this.updateTake();
     this.updateKnife();
@@ -106,17 +104,24 @@ export class CuttingSystem extends createSystem({
     progress.sakuWrong = this.onBoard !== null && !orderTakes(caseApi.neta(this.onBoard));
     if (this.onBoard) {
       progress.sakuAt.copy(this.sakuMid);
-      const home = this.homes.get(this.onBoard);
-      if (home) progress.sakuHome.copy(home.position);
+      if (homePose(this.onBoard.object3D!, this.sakuRest)) progress.sakuHome.copy(this.sakuRest.position);
+      else {
+        const home = this.homes.get(this.onBoard);
+        if (home) progress.sakuHome.copy(home.position);
+      }
     }
   }
 
-  /** The saku's ends on the board: it lies along +X from its uncut end, as long as the slices it has left. */
+  /**
+   * The saku's ends on the board: it lies along +X from its uncut end (-X
+   * for a left-handed chef, who cuts at its left end), as long as the
+   * slices it has left.
+   */
   private measureSaku(saku: Entity): void {
     const object = saku.object3D!;
     object.getWorldPosition(this.sakuPos);
     const body = object.getObjectByName('Body');
-    const length = blockLength(caseApi.neta(saku)) * (body ? body.scale.x : 1);
+    const length = blockLength(caseApi.neta(saku)) * (body ? body.scale.x : 1) * sideSign();
     this.sakuEndX = this.sakuPos.x + length;
     this.sakuMid.set(this.sakuPos.x + length / 2, this.sakuPos.y, this.sakuPos.z);
   }
@@ -179,9 +184,10 @@ export class CuttingSystem extends createSystem({
     } else {
       if (this.onBoard && this.onBoard !== this.held) this.returnHome(this.onBoard);
       const board = stations.get(StationKind.CuttingBoard)!;
-      // Lengthwise on the board, cut end to the right.
-      object.position.set(board.pos.x + SAKU_BOARD_LEFT, board.pos.y, board.pos.z);
+      // Lengthwise on the board, cut end toward the knife hand (to the right; a left-handed chef's lies mirrored).
+      object.position.set(board.pos.x + sideX(SAKU_BOARD_LEFT), board.pos.y, board.pos.z);
       object.quaternion.copy(this.flat);
+      object.scale.x = Math.abs(object.scale.x) * sideSign();
       this.onBoard = this.held;
       this.measureSaku(this.held);
       if (!orderTakes(neta)) {
@@ -237,9 +243,16 @@ export class CuttingSystem extends createSystem({
 
   private returnHome(saku: Entity): void {
     const home = this.homes.get(saku);
-    if (home) {
-      saku.object3D!.position.copy(home.position);
-      saku.object3D!.quaternion.copy(home.quaternion);
+    const object = saku.object3D!;
+    // Its place in the case, for the chef's hand (src/handedness.ts); as first seen, failing that.
+    if (homePose(object, this.sakuRest)) {
+      object.position.copy(this.sakuRest.position);
+      object.quaternion.copy(this.sakuRest.quaternion);
+      object.scale.copy(this.sakuRest.scale);
+    } else if (home) {
+      object.position.copy(home.position);
+      object.quaternion.copy(home.quaternion);
+      object.scale.x = Math.abs(object.scale.x);
     }
     glowObject(saku.object3D!, null);
     if (this.onBoard === saku) this.onBoard = null;
@@ -286,7 +299,8 @@ export class CuttingSystem extends createSystem({
     // Cutting: neta hand on the saku, blade drawn toward the chef across its cut end.
     const saku = this.onBoard;
     if (saku && !pieceApi.hasNeta()) {
-      const guideX = Math.max(this.sakuMid.x, this.sakuEndX - SLICE_THICKNESS);
+      const s = sideSign();
+      const guideX = s * Math.max(s * this.sakuMid.x, s * (this.sakuEndX - s * SLICE_THICKNESS));
       this.guide.visible = true;
       this.guide.position.set(guideX, this.sakuPos.y + 0.04, this.sakuPos.z);
       const other = hands.all[chef.netaSide];
@@ -295,7 +309,7 @@ export class CuttingSystem extends createSystem({
         Math.hypot(other.palm.x - this.sakuMid.x, other.palm.z - this.sakuMid.z) < 0.13 &&
         other.palm.y < this.sakuPos.y + 0.15;
       const overSaku =
-        this.blade.x > this.sakuPos.x - 0.01 && this.blade.x < this.sakuEndX + 0.03 &&
+        (this.blade.x - this.sakuPos.x) * s > -0.01 && (this.blade.x - this.sakuEndX) * s < 0.03 &&
         Math.abs(this.blade.z - this.sakuPos.z) < SAKU_HALF_DEPTH + CUT_STROKE + 0.04 &&
         this.blade.y < this.sakuPos.y + 0.1;
       if (holdingDown && overSaku) {
@@ -310,8 +324,11 @@ export class CuttingSystem extends createSystem({
 
     if (hand.fistEnd || !hand.tracked) {
       // Put down: back to its place beside the board.
-      knifeObject.position.copy(this.knifeHome);
-      knifeObject.rotation.set(0, this.knifeHomeRotY, 0);
+      if (homePose(knifeObject, this.knifeRest)) {
+        knifeObject.position.copy(this.knifeRest.position);
+        knifeObject.quaternion.copy(this.knifeRest.quaternion);
+        knifeObject.scale.copy(this.knifeRest.scale);
+      }
       this.knifeHeld = false;
       state.holding = Held.None;
       this.guide.visible = false;
@@ -345,9 +362,9 @@ export class CuttingSystem extends createSystem({
 
   private cut(saku: Entity): void {
     const neta = caseApi.neta(saku);
-    // Cutting at the right end (the guide) leaves the skin edge on the customer's right.
-    const skinRight = hands.all[chef.riceSide].palm.x > this.sakuMid.x;
-    this.tmp.set(this.sakuEndX + SLICE_GAP, this.sakuPos.y, this.sakuPos.z);
+    // Cutting at the knife hand's end (the guide) leaves the skin edge on the customer's right.
+    const skinRight = (hands.all[chef.riceSide].palm.x - this.sakuMid.x) * sideSign() > 0;
+    this.tmp.set(this.sakuEndX + sideSign() * SLICE_GAP, this.sakuPos.y, this.sakuPos.z);
     pieceApi.cut(neta, skinRight, this.tmp);
     caseApi.consume(saku, 1);
     this.returnHome(saku);

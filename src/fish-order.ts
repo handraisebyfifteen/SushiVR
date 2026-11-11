@@ -1,4 +1,3 @@
-import { Vector3 } from '@iwsdk/core';
 import { NETA, type NetaId } from './menu.js';
 import { FISH_BOX_ORDER, ICE_BOX_ORDER, PREP, type PrepId, type PrepTask } from './prep.js';
 import { prep } from './game-state.js';
@@ -20,15 +19,24 @@ import { FISH_SHOP_PRICE, GREENGROCER, KEEP_DAYS, KEPT_OVERNIGHT, KOHADA_SALT_MI
  * a point at the phone again ends the call. Only what was ordered comes, and
  * all of it is billed. Only tuna and cooked things keep overnight (opened uni
  * and ikura two days); the rest of yesterday's is out in the morning. The
- * greengrocer tops up the garnishes and pickles with the delivery, billed
- * apart. The shop's money carries over too, from START_FUNDS: there is no
- * borrowing, so the order stops at what the shop can pay (greengrocer
- * included) and staff are not called in when their wages cannot be paid.
+ * garnishes and pickles (ツマ) are the greengrocer's: a call of their own
+ * on the phone book (the owner, 2026-11-10), ordered the same way and
+ * delivered and billed apart. The shop's money carries over too, from
+ * START_FUNDS: there is no borrowing, so an order stops at what the shop
+ * can pay (with what is ordered and not yet delivered set aside) and staff
+ * are not called in when their wages cannot be paid.
+ *
+ * The order is kept in plain functions (startOrder, setLine, cycleOrder,
+ * orderTotal) so that something other than the chef's pinches (an order
+ * placed for the chef) can fill it too.
  */
 
 export type Difficulty = 'easy' | 'full';
-/** What the fish shop sells: a prep material, or a case item ready as it comes. */
+/** What is ordered: a prep material, or a case item ready as it comes. */
 export type OrderId = PrepId | NetaId;
+/** Who sells it: the fish shop, or the greengrocer (the garnishes and pickles). */
+export type Supplier = 'fish' | 'greengrocer';
+export const SUPPLIER_NAME: Record<Supplier, string> = { fish: 'Fish shop', greengrocer: 'Greengrocer' };
 
 export interface OrderSize {
   /** As said on the phone and on the slip: "Tuna belly 1/8", "Sea urchin x8". */
@@ -70,9 +78,14 @@ export function keepDays(neta: NetaId): number {
   return KEEP_DAYS[neta] ?? (KEPT_OVERNIGHT.includes(neta) ? Infinity : 1);
 }
 
-/** The greengrocer's, not the fish shop's (not ordered on the phone). */
+/** The greengrocer's, not the fish shop's (its own call on the phone). */
 export function fromGreengrocer(neta: NetaId): boolean {
   return GREENGROCER.includes(neta);
+}
+
+/** Who sells this. */
+export function supplierOf(id: OrderId): Supplier {
+  return GREENGROCER.includes(id as NetaId) ? 'greengrocer' : 'fish';
 }
 
 export function isMaterial(id: OrderId): id is PrepId {
@@ -133,9 +146,10 @@ export const fishOrder = {
   difficulty: (read(DIFFICULTY_KEY) === 'full' || read(DIFFICULTY_KEY) === 'easy' ? read(DIFFICULTY_KEY) : START_DIFFICULTY) as Difficulty,
   /** The full difficulty's day (1 for a new shop). */
   day: 1,
-  /** The fish shop is on the line, taking the order (full). */
+  /** A shop is on the line, taking the order (full): `calling` says which. */
   ordering: false,
-  /** The order: each thing and its amount (an index into its sizes). */
+  calling: 'fish' as Supplier,
+  /** The order, both shops': each thing and its amount (an index into its sizes). */
   lines: new Map<OrderId, number>(),
   /** Bumped on every change to the order (the case's labels redraw). */
   version: 0,
@@ -149,11 +163,9 @@ export const fishOrder = {
   kohadaSize: 0,
   /** The shop's money this morning (full). */
   morningFunds: START_FUNDS,
-  /** Kept for the greengrocer's top-up when the call began; 0: none today, the shop could not pay it (full). */
-  greens: 0,
-  /** The difficulty sign in the office corner, pointed at to change it; a hand points at it. */
-  signAt: new Vector3(),
-  signHover: false,
+  /** The greengrocer has been called today, and has delivered (full). */
+  greensOrdered: false,
+  greensDelivered: false,
 };
 
 export function setDifficulty(d: Difficulty): void {
@@ -161,18 +173,20 @@ export function setDifficulty(d: Difficulty): void {
   write(DIFFICULTY_KEY, d);
 }
 
+/** Sets this thing's order to an amount (an index into its sizes), or to none (null). */
+export function setLine(id: OrderId, at: number | null): void {
+  if (at === null || at < 0 || at >= sizesOf(id).length) fishOrder.lines.delete(id);
+  else fishOrder.lines.set(id, at);
+  fishOrder.version++;
+}
+
 /** Steps this thing's order to its next amount, or back to none; returns the new amount (null: none). */
 export function cycleOrder(id: OrderId): OrderSize | null {
   const sizes = sizesOf(id);
   const at = fishOrder.lines.get(id);
   const next = at === undefined ? 0 : at + 1;
-  fishOrder.version++;
-  if (next >= sizes.length) {
-    fishOrder.lines.delete(id);
-    return null;
-  }
-  fishOrder.lines.set(id, next);
-  return sizes[next];
+  setLine(id, next < sizes.length ? next : null);
+  return next < sizes.length ? sizes[next] : null;
 }
 
 export function orderedSize(id: OrderId): OrderSize | null {
@@ -180,10 +194,18 @@ export function orderedSize(id: OrderId): OrderSize | null {
   return at === undefined ? null : (sizesOf(id)[at] ?? null);
 }
 
-export function orderTotal(): number {
+/** The order's price: one shop's lines, or both. */
+export function orderTotal(supplier?: Supplier): number {
   let sum = 0;
-  for (const [id, at] of fishOrder.lines) sum += priceOf(id, sizesOf(id)[at]);
+  for (const [id, at] of fishOrder.lines) if (!supplier || supplierOf(id) === supplier) sum += priceOf(id, sizesOf(id)[at]);
   return sum;
+}
+
+/** One shop's lines, as said on the phone and on the slip. */
+export function orderNames(supplier: Supplier): string[] {
+  const names: string[] = [];
+  for (const [id, at] of fishOrder.lines) if (supplierOf(id) === supplier) names.push(sizesOf(id)[at].name);
+  return names;
 }
 
 /** Today's prep materials: all of them on easy, what was ordered on full. */
@@ -312,9 +334,10 @@ export function fundsNow(): number {
   return fishOrder.morningFunds + ledger.profit();
 }
 
-/** Spoken for: the order on the phone or on its way, billed when it is delivered (and the greengrocer's with it). */
+/** Spoken for: what is ordered (on the phone or on its way) and not yet delivered, billed when it comes. */
 export function owed(): number {
-  return fundsTracked() && !prep.delivered ? orderTotal() + fishOrder.greens : 0;
+  if (!fundsTracked()) return 0;
+  return (prep.delivered ? 0 : orderTotal('fish')) + (fishOrder.greensDelivered ? 0 : orderTotal('greengrocer'));
 }
 
 /** Whether the shop can pay this out now, the order not yet billed set aside (always on easy). */
@@ -322,24 +345,16 @@ export function canAfford(yen: number): boolean {
   return !fundsTracked() || fundsNow() - owed() >= yen;
 }
 
-/** The greengrocer's bill for topping one item up from `left` (the same sum the delivery bills). */
-export function greensYen(neta: NetaId, left: number): number {
-  const full = NETA[neta].stock;
-  return left >= full ? 0 : Math.round(((READY_PRICE[neta] ?? 0) * (full - left)) / full / 10) * 10;
-}
-
-/** The call begins (full): the order is empty, and the greengrocer's top-up is kept aside if the shop can pay it. */
-export function startOrder(): void {
-  fishOrder.lines.clear();
+/** A shop's call begins (full): that shop is on the line, its part of the order empty. */
+export function startOrder(supplier: Supplier): void {
+  for (const id of [...fishOrder.lines.keys()]) if (supplierOf(id) === supplier) fishOrder.lines.delete(id);
+  fishOrder.calling = supplier;
   fishOrder.version++;
-  let greens = 0;
-  for (const neta of GREENGROCER) greens += greensYen(neta, morningStock(neta));
-  fishOrder.greens = greens <= fundsNow() ? greens : 0;
 }
 
-/** What the order may still spend: the money, less the greengrocer's and what is ordered so far. */
+/** What an order may still spend: the money, less all that is ordered and not yet delivered. */
 export function orderRoom(): number {
-  return fundsNow() - fishOrder.greens - orderTotal();
+  return fundsNow() - owed();
 }
 
 /** What one case item cost the shop, piece by piece: its share of the material it came in, or of a ready batch. */
@@ -369,7 +384,9 @@ export function resetShop(): void {
  */
 export function caseLabel(neta: NetaId, left: number, long: boolean): string {
   const stock = `${NETA[neta].name} ${left}/${NETA[neta].stock}`;
-  if (fromGreengrocer(neta)) return long ? `${stock}: the greengrocer's` : stock;
+  // The other shop's item: said so, while this one is on the line.
+  const theirs = supplierOf(orderOf(neta));
+  if (theirs !== fishOrder.calling) return long ? `${stock}: the ${theirs === 'fish' ? 'fish shop' : 'greengrocer'}'s` : stock;
   const size = orderedSize(orderOf(neta));
   if (!size) return stock;
   return long ? `${stock}: ${size.name}` : `${stock} ✓`;

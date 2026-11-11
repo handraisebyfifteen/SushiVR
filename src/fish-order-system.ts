@@ -3,9 +3,7 @@ import { debugLines } from './debug.js';
 import {
   closeDay,
   fishOrder,
-  fromGreengrocer,
   fundsNow,
-  greensYen,
   isMaterial,
   morningStock,
   noteAdded,
@@ -18,10 +16,13 @@ import {
   sizesOf,
   startDay,
   cycleOrder,
+  type Supplier,
+  SUPPLIER_NAME,
+  supplierOf,
 } from './fish-order.js';
 import { day, prep } from './game-state.js';
 import { hands } from './hands.js';
-import { END_WALL_X, MODE_SIGN_Y, MODE_SIGN_Z, NETA_CASE_HEIGHT, NETA_CASE_WIDTH, NETA_HOUSING_WIDTH } from './layout.js';
+import { NETA_CASE_HEIGHT, NETA_CASE_WIDTH, NETA_HOUSING_WIDTH } from './layout.js';
 import { ledger, yen } from './ledger.js';
 import { NETA, type NetaId } from './menu.js';
 import { caseApi, caseDoors } from './neta-case-system.js';
@@ -38,14 +39,12 @@ const SLIP_Y = NETA_CASE_HEIGHT + 0.2;
 const SLIP_WIDTH = 0.22;
 const NOTICE_SECONDS = 8;
 
-/** How the office corner and the practice keys change the difficulty. */
+/** How the phone's settings (src/phone-book-system.ts) and the practice keys change the difficulty. */
 export const fishOrderApi = {
   /** The difficulty may change now: the morning, before the call. */
-  canSwitch: (): boolean => prep.active && !prep.ordered && !fishOrder.ordering,
+  canSwitch: (): boolean => prep.active && !prep.ordered && !fishOrder.greensOrdered && !fishOrder.ordering,
   toggle: (): void => undefined,
 };
-
-const SIGN_WOOD = '#6B4A2B';
 
 /**
  * The difficulty and the order (src/fish-order.ts) in the shop:
@@ -70,10 +69,9 @@ export class FishOrderSystem extends createSystem({
   private drawn = -1;
   private notice!: Sprite;
   private noticeTime = 0;
-  private sign!: Sprite;
-  private signDrawn = '';
   private wasOrdered = false;
   private wasDelivered = false;
+  private wasGreensDelivered = false;
   private saved = false;
 
   init(): void {
@@ -92,12 +90,6 @@ export class FishOrderSystem extends createSystem({
     this.slip.name = 'OrderSlip';
     this.slip.visible = false;
     this.world.createTransformEntity(this.slip);
-
-    this.sign = makeTextSprite(' ', { width: 0.3, background: SIGN_WOOD });
-    this.sign.name = 'ModeSign';
-    this.sign.position.set(END_WALL_X - 0.05, MODE_SIGN_Y, MODE_SIGN_Z);
-    fishOrder.signAt.copy(this.sign.position);
-    this.world.createTransformEntity(this.sign);
 
     this.notice = makeTextSprite(' ', { width: 0.5 });
     this.notice.name = 'CaseNotice';
@@ -159,7 +151,6 @@ export class FishOrderSystem extends createSystem({
       this.noticeTime -= delta;
       if (this.noticeTime <= 0) this.notice.visible = false;
     }
-    this.updateSign();
     if (fishOrder.ordering) this.takeOrder();
     this.slip.visible = fishOrder.ordering;
     if (fishOrder.ordering && this.drawn !== fishOrder.version) this.drawSlip();
@@ -174,7 +165,11 @@ export class FishOrderSystem extends createSystem({
     }
     if (prep.delivered && !this.wasDelivered) {
       this.wasDelivered = true;
-      if (fishOrder.difficulty === 'full') this.deliverReady();
+      if (fishOrder.difficulty === 'full') this.deliverReady('fish');
+    }
+    if (fishOrder.greensDelivered && !this.wasGreensDelivered) {
+      this.wasGreensDelivered = true;
+      this.deliverReady('greengrocer');
     }
     if (day.closed && !this.saved) {
       this.saved = true;
@@ -185,68 +180,40 @@ export class FishOrderSystem extends createSystem({
     }
   }
 
-  /** The sign shows the difficulty while it may change (the morning, before the call); it lights when pointed at. */
-  private updateSign(): void {
-    const shown = fishOrderApi.canSwitch();
-    this.sign.visible = shown;
-    if (!shown) return;
-    const mode = fishOrder.difficulty === 'full' ? `Full, day ${fishOrder.day}` : 'Easy';
-    const key = `${mode}|${fishOrder.signHover}`;
-    if (key === this.signDrawn) return;
-    this.signDrawn = key;
-    setSpriteText(this.sign, `${mode}: point to change`, { background: SIGN_WOOD, color: fishOrder.signHover ? '#FFE08A' : '#FFFFFF' });
-  }
-
-  /** A pinch on a case item while the shop is on the line: its order steps on. */
+  /** A pinch on a case item while a shop is on the line: its order steps on (the other shop's items are not theirs). */
   private takeOrder(): void {
+    const shop = SUPPLIER_NAME[fishOrder.calling];
     for (let side = 0; side < 2; side++) {
       const hand = hands.all[side];
       if (!hand?.tracked || !hand.pinchStart) continue;
       const item = caseApi.chosen(side);
       if (!item) continue;
       const neta = caseApi.neta(item);
-      if (fromGreengrocer(neta)) {
-        // Not the fish shop's: the greengrocer brings it.
-        playPress();
-        console.log(`[Order] ${NETA[neta].name}: the greengrocer brings it`);
+      const id = orderOf(neta);
+      playPress();
+      if (supplierOf(id) !== fishOrder.calling) {
+        this.say(`${shop}: That's the ${fishOrder.calling === 'fish' ? "greengrocer's" : "fish shop's"}, not ours`);
+        console.log(`[Order] ${NETA[neta].name}: not the ${shop.toLowerCase()}'s`);
         continue;
       }
-      const id = orderOf(neta);
       const size = cycleOrder(id);
-      playPress();
       if (size && orderRoom() < 0) {
-        // No borrowing: the fish shop takes no more than the shop can pay.
+        // No borrowing: a shop takes no more than the shop can pay.
         fishOrder.lines.delete(id);
         fishOrder.version++;
-        this.say(`Fish shop: That's more than the shop has (${yen(Math.max(0, orderRoom()))} left to spend)`);
-        console.log(`[Order] ${NETA[neta].name}: ${size.name} is over the shop's money (funds ${yen(fundsNow())}) | total ${yen(orderTotal())}`);
+        this.say(`${shop}: That's more than the shop has (${yen(Math.max(0, orderRoom()))} left to spend)`);
+        console.log(`[Order] ${NETA[neta].name}: ${size.name} is over the shop's money (funds ${yen(fundsNow())}) | total ${yen(orderTotal(fishOrder.calling))}`);
         continue;
       }
-      console.log(`[Order] ${NETA[neta].name}: ${size ? `${size.name} (${yen(priceOf(id, size))})` : 'none'} | total ${yen(orderTotal())}`);
+      console.log(`[Order] ${shop}, ${NETA[neta].name}: ${size ? `${size.name} (${yen(priceOf(id, size))})` : 'none'} | total ${yen(orderTotal(fishOrder.calling))}`);
     }
   }
 
-  /** The ready items ordered go into the case (the fish shop's bill for each); the greengrocer tops up its own. */
-  private deliverReady(): void {
-    const greens: string[] = [];
-    let greenYen = 0;
-    // Kept aside when the call began; none today if the shop could not pay it then.
-    for (const [neta, item] of this.items) {
-      if (!fromGreengrocer(neta) || !fishOrder.greens) continue;
-      const full = NETA[neta].stock;
-      const left = item.getValue(CaseItem, 'remaining') ?? 0;
-      if (left >= full) continue;
-      item.setValue(CaseItem, 'remaining', full);
-      noteAdded(neta, full - left);
-      greenYen += greensYen(neta, left);
-      greens.push(`${NETA[neta].name.toLowerCase()} x${full - left}`);
-    }
-    if (greens.length) {
-      ledger.add('Greengrocer', greenYen, 0);
-      console.log(`[Order] the greengrocer topped up: ${greens.join(', ')} (${yen(greenYen)})`);
-    }
+  /** One shop's ready items, as ordered, go into the case, billed (the fish shop's prep materials come in the ice box). */
+  private deliverReady(supplier: Supplier): void {
+    let total = 0;
     for (const [id] of fishOrder.lines) {
-      if (isMaterial(id)) continue;
+      if (isMaterial(id) || supplierOf(id) !== supplier) continue;
       const neta = id as NetaId;
       const size = orderedSize(neta)!;
       const item = this.items.get(neta);
@@ -258,9 +225,12 @@ export class FishOrderSystem extends createSystem({
         item.setValue(CaseItem, 'remaining', now);
         noteAdded(neta, now - left);
       }
-      ledger.fishShop(priceOf(neta, size));
-      console.log(`[Order] delivered ready: ${size.name}`);
+      const price = priceOf(neta, size);
+      total += price;
+      if (supplier === 'fish') ledger.fishShop(price);
+      console.log(`[Order] delivered ready (${SUPPLIER_NAME[supplier].toLowerCase()}): ${size.name}`);
     }
+    if (supplier === 'greengrocer' && total > 0) ledger.add('Greengrocer', total, 0);
   }
 
   /** The order slip: each line and its price, the total, and how to end the call. */
@@ -281,12 +251,12 @@ export class FishOrderSystem extends createSystem({
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     ctx.font = 'bold 40px sans-serif';
-    ctx.fillText('Order', SLIP_W / 2, 40);
+    ctx.fillText(`Order: ${SUPPLIER_NAME[fishOrder.calling].toLowerCase()}`, SLIP_W / 2, 40);
     ctx.font = '22px sans-serif';
     ctx.fillStyle = '#5B5348';
     ctx.fillText('Pinch a case item: more, then none', SLIP_W / 2, 80);
     let y = 128;
-    const rows = [...fishOrder.lines];
+    const rows = [...fishOrder.lines].filter(([id]) => supplierOf(id) === fishOrder.calling);
     const shown = rows.slice(0, 11);
     for (const [id, at] of shown) {
       const size = sizesOf(id)[at];
@@ -320,13 +290,12 @@ export class FishOrderSystem extends createSystem({
     ctx.textAlign = 'left';
     ctx.fillText('Total', 22, SLIP_H - 76);
     ctx.textAlign = 'right';
-    ctx.fillText(yen(orderTotal()), SLIP_W - 22, SLIP_H - 76);
+    ctx.fillText(yen(orderTotal(fishOrder.calling)), SLIP_W - 22, SLIP_H - 76);
     ctx.font = '20px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#5B5348';
-    // No borrowing: what the shop's money still allows (the greengrocer's top-up is kept aside).
-    const greens = fishOrder.greens ? `, greengrocer ${yen(fishOrder.greens)}` : '';
-    ctx.fillText(`Funds ${yen(fundsNow())}${greens}: ${yen(Math.max(0, orderRoom()))} left`, SLIP_W / 2, SLIP_H - 42);
+    // No borrowing: what the shop's money still allows (all that is ordered and not yet delivered set aside).
+    ctx.fillText(`Funds ${yen(fundsNow())}: ${yen(Math.max(0, orderRoom()))} left to spend`, SLIP_W / 2, SLIP_H - 42);
     ctx.font = '22px sans-serif';
     ctx.fillText('Point at the phone to end the call', SLIP_W / 2, SLIP_H - 16);
     this.slipTexture.needsUpdate = true;
