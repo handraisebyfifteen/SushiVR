@@ -1726,27 +1726,29 @@ export class MasterSystem extends createSystem({
         return true;
       }
       case 'pinNori': {
-        // The strip's end down to the shari's near side (the neta hand's side),
-        // then the rice hand's index finger on it (the tip ~11 cm ahead of the palm).
+        // The strip's end down to the shari's near end (下部; the shari lies
+        // lengthwise), then the rice hand's index finger on it (the tip ~11 cm
+        // ahead of the palm).
         const k = this.phase(2);
-        a.copy(progress.pieceAt).add(off.set(-0.035 * hs, 0.08, 0.03));
-        b.copy(progress.pieceAt).add(off.set(-0.035 * hs, 0.02, 0.03));
+        a.copy(progress.pieceAt).add(off.set(-0.03 * hs, 0.08, 0.05));
+        b.copy(progress.pieceAt).add(off.set(-0.03 * hs, 0.02, 0.05));
         neta.pose(this.go(Math.min(1, k / 0.35), a, b), yaw, 0, 1);
         a.set(0.3 * hs, 0.92, -0.2);
-        c.copy(progress.pieceAt).add(off.set(-0.017 * hs + 0.027 * hs, 0.03, 0.015 + 0.11));
+        c.copy(progress.pieceAt).add(off.set(0.027 * hs, 0.03, 0.025 + 0.11));
         rice.pose(this.go(Math.max(0, Math.min(1, (k - 0.35) / 0.35)), a, c), yaw, 1, 0, true);
         return true;
       }
       case 'wrapNori': {
-        // The finger holds the end while the strip goes once round and on
-        // over it, then the last end a small pull out ("ピン"), let go.
+        // The finger holds the end while the strip goes once round, the far
+        // tip (頂点) and on over its start, then the last end a small pull
+        // out ("ピン"), let go.
         const k = this.phase(2.4);
-        const start = Math.atan2(-hs, 1);
+        const start = Math.atan2(-0.03 * hs, 0.05);
         const turn = start + Math.min(1, k / 0.7) * Math.PI * 2 * 1.42;
         const r = 0.045 + (k > 0.72 ? Math.min(1, (k - 0.72) / 0.08) * 0.02 : 0);
         a.copy(progress.pieceAt).add(off.set(Math.sin(turn) * r, 0.02, Math.cos(turn) * r));
         neta.pose(a, yaw, 0, k < 0.86 ? 1 : 0);
-        c.copy(progress.pieceAt).add(off.set(-0.017 * hs + 0.027 * hs, 0.03 + (k > 0.4 ? 0.05 : 0), 0.015 + 0.11));
+        c.copy(progress.pieceAt).add(off.set(0.027 * hs, 0.03 + (k > 0.4 ? 0.05 : 0), 0.025 + 0.11));
         rice.pose(c, yaw, 1, 0, true);
         return true;
       }

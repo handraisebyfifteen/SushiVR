@@ -87,6 +87,13 @@ const PIN_UNTIL = 0.75;
 const TAUT_PULL = 0.012;
 /** A band let go loose sits this much wider round the rice. */
 const LOOSE_SCALE = 1.06;
+/**
+ * The shari lies lengthwise on the board (縦, its long axis pointing away
+ * from the chef): its near end is the bottom (下部), where the strip's end
+ * is set and held, and its far end the apex (頂点), where the strip curls
+ * round ("クルッ") half way.
+ */
+const SHARI_YAW_DEG = 90;
 /** The topping rests here on the rice (piece-local y). */
 const TOP_Y = 0.026;
 /**
@@ -203,6 +210,8 @@ export class GunkanAssembly implements Assembly {
   private readonly tools = new Map<NetaId, Group>();
   private readonly tmp = new Vector3();
   private readonly tmp2 = new Vector3();
+  /** Toward the chef at the bar (world +z), for the shari's near end. */
+  private readonly towardChef = new Vector3(0, 0, 0.05);
 
   constructor(
     private readonly core: PieceCore,
@@ -311,6 +320,7 @@ export class GunkanAssembly implements Assembly {
     core.hasNeta = true;
     core.rice.scale.copy(RICE_GUNKAN);
     core.rice.rotation.set(0, 0, 0);
+    core.pieceYaw = SHARI_YAW_DEG;
     core.shariLevel = RICE_GUNKAN_STAGE;
     core.setStage(GunkanStage.Rice);
     useShari('gunkan');
@@ -375,10 +385,12 @@ export class GunkanAssembly implements Assembly {
       const above = hand.grasp.y - core.focus.y;
       if (this.reach > START_RADIUS || above < -0.03 || above > START_ABOVE) return;
       this.started = true;
-      this.startAngle = this.lastAngle = angle;
+      this.lastAngle = angle;
+      // The end goes to the shari's near end (下部), whichever side the hand comes from.
+      this.startAngle = this.angleOf(this.tmp2.copy(core.focus).add(this.towardChef));
       this.turned = 0;
       this.dir = 0;
-      console.log('[Gunkan] the nori\'s end on the shari: a finger on it');
+      console.log('[Gunkan] the nori\'s end on the shari\'s near end: a finger on it');
       return;
     }
     let d = angle - this.lastAngle;
@@ -387,12 +399,11 @@ export class GunkanAssembly implements Assembly {
     this.lastAngle = angle;
     this.updatePin(riceHand);
     if (!this.pinned) {
-      // Nothing holds the end: it slides round with the hand, or comes off the shari.
+      // Nothing holds the end: taken away, it comes off the shari.
       if (this.reach > START_RADIUS * 1.5) {
         this.started = false;
         return;
       }
-      this.startAngle += d;
       this.turned += d;
       if (!this.toldPin && Math.abs(this.turned) > 0.4) {
         this.toldPin = true;
@@ -410,6 +421,11 @@ export class GunkanAssembly implements Assembly {
       this.layBand();
     }
     const turns = Math.min(WRAP_TURNS, Math.max(this.wrapT, (this.dir * this.turned) / (Math.PI * 2)));
+    if (turns >= 0.5 && this.wrapT < 0.5) {
+      // Round the far end, the apex: the strip curls round it.
+      playTone(1320, 0.04, 0.05);
+      console.log('[Gunkan] round the apex (頂点)');
+    }
     if (turns >= WRAP_TURNS && this.wrapT < WRAP_TURNS) {
       this.fullReach = this.reach;
       console.log('[Gunkan] round: pull the last end a little, then let go');

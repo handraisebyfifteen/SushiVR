@@ -694,7 +694,7 @@ export class PracticeSystem extends createSystem({
     if (this.driver[rice].busy || chef.hands[rice].holding !== Held.None) return this.say('Rice hand is busy');
     const shari = progress.pieceAt.clone();
     const s = sideX(-1);
-    const a0 = Math.atan2(s, 1);
+    const a0 = Math.atan2(s * 0.03, 0.05);
     const round = Math.PI * 2 * 1.45;
     const steps = [
       move(box, v(0, 0.1, 0.02), 'grasp', 0.35),
@@ -702,8 +702,8 @@ export class PracticeSystem extends createSystem({
       pinch(1),
       wait(0.12),
       move(box, v(0, 0.1, 0), 'grasp', 0.2),
-      move(shari, v(s * 0.03, 0.08, 0.03), 'grasp', 0.35),
-      move(shari, v(s * 0.03, 0.02, 0.03), 'grasp', 0.15),
+      move(shari, v(s * 0.03, 0.08, 0.05), 'grasp', 0.35),
+      move(shari, v(s * 0.03, 0.02, 0.05), 'grasp', 0.15),
       wait(0.6),
     ];
     for (let i = 1; i <= 14; i++) {
@@ -715,7 +715,7 @@ export class PracticeSystem extends createSystem({
     // The rice hand's index finger holds the end until the strip is most of the way round.
     this.run(rice, 'A finger on the nori\'s end', [
       wait(1.25),
-      move(shari, v(s * 0.017, 0.018, 0.017), 'tip', 0.25),
+      move(shari, v(0, 0.018, 0.025), 'tip', 0.25),
       wait(1.6),
       move(shari, v(sideX(0.06), 0.1, 0.08), 'tip', 0.2),
       this.rest(rice),

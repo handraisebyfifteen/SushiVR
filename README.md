@@ -459,9 +459,11 @@ the palm:
    first, and not on the far half).
 3. The nori, two-point wrapped (二点留め). Left hand: pinch a nori strip
    (6切り: a sheet cut in six, 3.5 x 19 cm) from the nori tin and bring it
-   down to the shari: its end goes against the rice. Put the right index
-   finger on that end to hold it. Take the left hand once round the shari:
-   the strip wraps round and on over its start. Lift the finger only when
+   down to the shari, which lies lengthwise (its long side pointing away
+   from you): the strip's end goes to its near end (下部). Put the right
+   index finger on that end to hold it. Take the left hand once round the
+   shari: the strip curls round the far tip (頂点, a soft click) and comes
+   back on over its start. Lift the finger only when
    it is most of the way round (sooner, the strip springs off). At the
    end, pull the last end a little outward (taut, ping), then let go. Let
    go loose, the band sags round the rice and the piece scores lower.
