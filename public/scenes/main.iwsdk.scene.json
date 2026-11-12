@@ -471,7 +471,7 @@
       },
       "transform": {
         "position": [
-          -0.6269,
+          -0.6256,
           0.834,
           -0.525
         ],
@@ -499,7 +499,7 @@
       },
       "transform": {
         "position": [
-          -0.5804,
+          -0.5777,
           0.834,
           -0.525
         ],
@@ -527,7 +527,7 @@
       },
       "transform": {
         "position": [
-          -0.5353,
+          -0.5313,
           0.834,
           -0.525
         ],
@@ -555,7 +555,7 @@
       },
       "transform": {
         "position": [
-          -0.4912,
+          -0.4859,
           0.834,
           -0.525
         ]
@@ -578,7 +578,7 @@
       },
       "transform": {
         "position": [
-          -0.4492,
+          -0.4425,
           0.834,
           -0.525
         ],
@@ -606,7 +606,7 @@
       },
       "transform": {
         "position": [
-          -0.4161,
+          -0.4081,
           0.834,
           -0.525
         ],
@@ -634,7 +634,7 @@
       },
       "transform": {
         "position": [
-          -0.383,
+          -0.3737,
           0.834,
           -0.525
         ],
@@ -662,7 +662,7 @@
       },
       "transform": {
         "position": [
-          -0.343,
+          -0.3323,
           0.834,
           -0.525
         ],
@@ -690,7 +690,7 @@
       },
       "transform": {
         "position": [
-          -0.3029,
+          -0.2909,
           0.834,
           -0.525
         ],
@@ -718,7 +718,7 @@
       },
       "transform": {
         "position": [
-          -0.2629,
+          -0.2495,
           0.834,
           -0.525
         ],
@@ -746,7 +746,7 @@
       },
       "transform": {
         "position": [
-          -0.2228,
+          -0.2081,
           0.834,
           -0.525
         ],
@@ -774,7 +774,7 @@
       },
       "transform": {
         "position": [
-          -0.1827,
+          -0.1667,
           0.834,
           -0.525
         ],
@@ -802,7 +802,7 @@
       },
       "transform": {
         "position": [
-          -0.1427,
+          -0.1253,
           0.834,
           -0.525
         ],
@@ -830,7 +830,7 @@
       },
       "transform": {
         "position": [
-          -0.1026,
+          -0.0839,
           0.834,
           -0.525
         ]
@@ -853,7 +853,7 @@
       },
       "transform": {
         "position": [
-          -0.0625,
+          -0.0425,
           0.834,
           -0.525
         ]
@@ -876,7 +876,7 @@
       },
       "transform": {
         "position": [
-          -0.0225,
+          -0.0011,
           0.834,
           -0.525
         ],
@@ -904,7 +904,7 @@
       },
       "transform": {
         "position": [
-          0.0201,
+          0.0428,
           0.834,
           -0.525
         ]
@@ -927,7 +927,7 @@
       },
       "transform": {
         "position": [
-          0.0627,
+          0.0867,
           0.834,
           -0.525
         ]
@@ -950,7 +950,7 @@
       },
       "transform": {
         "position": [
-          0.1052,
+          0.1306,
           0.834,
           -0.525
         ]
@@ -958,7 +958,7 @@
       "components": {
         "CaseItem": {
           "neta": "Scallop",
-          "remaining": 4
+          "remaining": 9
         }
       }
     },
@@ -973,7 +973,7 @@
       },
       "transform": {
         "position": [
-          0.1508,
+          0.1775,
           0.834,
           -0.525
         ]
@@ -996,7 +996,7 @@
       },
       "transform": {
         "position": [
-          0.1939,
+          0.2219,
           0.834,
           -0.525
         ]
@@ -1019,7 +1019,7 @@
       },
       "transform": {
         "position": [
-          0.2369,
+          0.2663,
           0.834,
           -0.525
         ]
@@ -1042,7 +1042,7 @@
       },
       "transform": {
         "position": [
-          0.285,
+          0.3157,
           0.834,
           -0.525
         ]
@@ -1065,7 +1065,7 @@
       },
       "transform": {
         "position": [
-          0.353,
+          0.3851,
           0.834,
           -0.525
         ]
@@ -1088,7 +1088,7 @@
       },
       "transform": {
         "position": [
-          0.4111,
+          0.4445,
           0.834,
           -0.525
         ]
@@ -1097,29 +1097,6 @@
         "CaseItem": {
           "neta": "Ikura",
           "remaining": 4
-        }
-      }
-    },
-    {
-      "id": "case-tuna-stick",
-      "name": "Case: Tuna stick",
-      "content": {
-        "type": "asset",
-        "asset": "case-tuna-stick",
-        "castShadow": false,
-        "receiveShadow": true
-      },
-      "transform": {
-        "position": [
-          0.4602,
-          0.834,
-          -0.525
-        ]
-      },
-      "components": {
-        "CaseItem": {
-          "neta": "TunaStick",
-          "remaining": 6
         }
       }
     },
@@ -1134,7 +1111,7 @@
       },
       "transform": {
         "position": [
-          0.5002,
+          0.4949,
           0.834,
           -0.525
         ]
@@ -1157,7 +1134,7 @@
       },
       "transform": {
         "position": [
-          0.5423,
+          0.5383,
           0.834,
           -0.525
         ]
@@ -1180,7 +1157,7 @@
       },
       "transform": {
         "position": [
-          0.5844,
+          0.5817,
           0.834,
           -0.525
         ]
@@ -1203,7 +1180,7 @@
       },
       "transform": {
         "position": [
-          0.6264,
+          0.6251,
           0.834,
           -0.525
         ]
@@ -1340,6 +1317,32 @@
           "depth": 0.38,
           "height": 0,
           "below": 0.15
+        }
+      }
+    },
+    {
+      "id": "whetstone",
+      "name": "Whetstone",
+      "content": {
+        "type": "asset",
+        "asset": "whetstone",
+        "castShadow": true,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          -0.0875,
+          0.85,
+          0.91
+        ]
+      },
+      "components": {
+        "Station": {
+          "kind": "Whetstone",
+          "radius": 0.13,
+          "height": 0.06,
+          "below": 0.05,
+          "above": 0.25
         }
       }
     },

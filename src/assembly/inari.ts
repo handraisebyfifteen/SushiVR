@@ -4,6 +4,7 @@ import { COLOR_DONE, feedback } from '../feedback.js';
 import { chef, orderKind, progress, service } from '../game-state.js';
 import type { HandReader } from '../hand-reader.js';
 import { hands } from '../hands.js';
+import { useShari } from '../pantry.js';
 import type { PieceResult } from '../scoring.js';
 import { inariShapes, lookMaterial } from '../scene-assets/lib/neta-look.js';
 import { Held, InariStage, NigiriStage, StationKind } from '../sushi-components.js';
@@ -78,6 +79,7 @@ export class InariAssembly implements Assembly {
     core.cutAge = 0;
     core.startMetronome(60);
     core.setStage(InariStage.Stuffed);
+    useShari('inari');
     coach.done('stuffAge');
     console.log('[Inari] rice in the pouch');
   }

@@ -17,6 +17,8 @@ export const prepApi = {
   usePaper: (_side: Side): void => {},
   /** This material still comes to its pot today (before the delivery, all may): not ordered, or taken by the cook, it does not. */
   potWanted: (_id: string): boolean => true,
+  /** This material has still to go into its pot (in the ice box, or in a hand on the way): its insert is not done with yet. */
+  awaitingPot: (_id: PrepId): boolean => false,
 };
 
 export const cureApi = {
@@ -47,4 +49,14 @@ export const tamagoApi = {
   bowlAt: (_out: Vector3): boolean => false,
   /** The cook took the batter to the back: no tamago on the range today. */
   byCook: (): void => {},
+};
+
+/** The fish shop's inserts (中子) and the anago's plate (src/nakago-system.ts). */
+export const nakagoApi = {
+  /** The delivery is being laid out afresh (a new day): yesterday's inserts go. */
+  clear: (): void => {},
+  /** This range ingredient comes in an insert (the anago on a plate) at this spot in the ice box (world; the food rests on its floor). */
+  deliver: (_id: PrepId, _slot: Vector3): void => {},
+  /** The part-timer's cleanup: the inserts washed and stacked without the chef. */
+  byStaff: (): void => {},
 };

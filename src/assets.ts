@@ -17,6 +17,7 @@ import {
   createWetCloth,
 } from './scene-assets/counter.scene-asset.js';
 import { createIceBox } from './scene-assets/ice-box.scene-asset.js';
+import { createNakagoPreview } from './scene-assets/lib/nakago-look.js';
 import { createMenuBoard } from './scene-assets/menu-board.scene-asset.js';
 import {
   createEntrance,
@@ -26,6 +27,7 @@ import {
   createPhone,
   createPhoneShelf,
   createTrashBin,
+  createWhetstone,
 } from './scene-assets/shop-props.scene-asset.js';
 import { createNigiriStages } from './scene-assets/nigiri-stages.scene-asset.js';
 import { createBackRowPreview } from './scene-assets/back-row-preview.scene-asset.js';
@@ -67,8 +69,10 @@ export default defineAssets({
   'wasabi-dish': createWasabiDish(),
   'nori-box': createNoriBox(),
   'ice-box': createIceBox(),
+  'nakago-preview': createNakagoPreview(),
   'trash-bin': createTrashBin(),
   'paper-box': createPaperBox(),
+  whetstone: createWhetstone(),
   phone: createPhone(),
   'phone-shelf': createPhoneShelf(),
   'books-board': createBooksBoard(),

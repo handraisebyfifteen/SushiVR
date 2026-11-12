@@ -1,29 +1,35 @@
-import { BoxGeometry, type Entity, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Vector3, type World } from '@iwsdk/core';
+import { BoxGeometry, type BufferGeometry, type Entity, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Vector3, type World } from '@iwsdk/core';
 import { coach } from '../coach.js';
 import { knifeApi } from '../cutting-system.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from '../feedback.js';
-import { chef, orderKind, progress, service } from '../game-state.js';
+import { chef, orderKind, progress, service, wearKnife } from '../game-state.js';
 import type { HandReader } from '../hand-reader.js';
 import { hands } from '../hands.js';
-import { MENU, menuFor, NETA, type NetaId } from '../menu.js';
+import { CORE_FROM, MENU, menuFor, NETA, type NetaId, rollCore } from '../menu.js';
 import { caseApi } from '../neta-case-system.js';
+import { canTakeNori, useNori, useShari } from '../pantry.js';
 import type { PieceResult } from '../scoring.js';
-import { caseLook, fillingOnRice, lookMaterial, MAKI_RADIUS, makiMaterial, makiSegmentGeometry, noriMaterial } from '../scene-assets/lib/neta-look.js';
+import { caseLook, fillingOnRice, lookMaterial, MAKI_RADIUS, MAKI_RADIUS_THICK, makiMaterial, makiSegmentGeometry, noriMaterial, sliceLook } from '../scene-assets/lib/neta-look.js';
+import { restMaterial } from '../scene-assets/lib/neta-material.js';
 import { patterned } from '../scene-assets/lib/neta-paint.js';
 import { overStation, stations } from '../station-system.js';
 import { Held, MakiStage, NigiriStage, StationKind } from '../sushi-components.js';
-import { CUT_STROKE, ROLL_PUSH_DISTANCE, ROLL_WINDOW_SECONDS, SPREAD_DISTANCE, SQUEEZE_SYNC_SECONDS } from '../tuning.js';
+import { CUT_STROKE, ROLL_PUSH_DISTANCE, ROLL_WINDOW_SECONDS, SPREAD_DISTANCE, SQUEEZE_SYNC_SECONDS, TOUCH_DISTANCE } from '../tuning.js';
 import type { Assembly, PieceCore } from './types.js';
 
 const ROLL_LENGTH = 0.2;
+/** A 中太 (the tekka): the half sheet rolled 縦, its short side along the roll. */
+const ROLL_LENGTH_THICK = 0.105;
 /** Rows of halves (and quarters) laid side by side for cutting, and the gap a cut leaves. */
 const ROW = 0.028;
+const ROW_THICK = 0.051;
 const GAP = 0.002;
 const MAX_SEGMENTS = 8;
+type Pieces = 4 | 6 | 8;
 
-/** Knife strokes for a roll: three either way (cut into six, or into eight). */
-function strokesFor(_pieces: 6 | 8): number {
-  return 3;
+/** Knife strokes for a roll: two for a 中太 into four; three either way for six or eight. */
+function strokesFor(pieces: Pieces): number {
+  return pieces === 4 ? 2 : 3;
 }
 const RICE_LAYER_Y = 0.0065;
 
@@ -34,32 +40,35 @@ interface Seg {
 }
 
 /**
- * The roll's pieces after k knife strokes (piece-local, lying along X). The
- * first stroke halves the roll and the halves lie side by side. Into six
- * (kanpyo): two more strokes cut both halves into thirds. Into eight: halve
- * both halves, lay the four quarters side by side, halve them all.
+ * The roll's pieces after k knife strokes (piece-local, lying along X; L the
+ * roll's length, row the pitch of the rows). The first stroke halves the
+ * roll and the halves lie side by side. Into four (the 中太): one more
+ * stroke halves both halves. Into six (kanpyo): two more strokes cut both
+ * halves into thirds. Into eight: halve both halves, lay the four quarters
+ * side by side, halve them all.
  */
-function segmentsAfter(pieces: 6 | 8, k: number): Seg[] {
-  const L = ROLL_LENGTH;
+function segmentsAfter(pieces: Pieces, k: number, L: number, row: number): Seg[] {
   if (k === 0) return [{ x: 0, z: 0, len: L }];
   const half = L / 2;
   const two = [-0.5, 0.5];
-  if (k === 1) return two.map((r) => ({ x: 0, z: r * ROW, len: half }));
+  if (k === 1) return two.map((r) => ({ x: 0, z: r * row, len: half }));
+  if (pieces === 4) return two.flatMap((r) => [-1, 1].map((sign) => ({ x: (sign * L) / 8, z: r * row, len: L / 4 })));
   if (pieces === 6) {
     const sixth = L / 6;
-    if (k === 2) return two.flatMap((r) => [{ x: -sixth, z: r * ROW, len: sixth }, { x: sixth / 2, z: r * ROW, len: 2 * sixth }]);
-    return two.flatMap((r) => [-1, 0, 1].map((i) => ({ x: i * sixth, z: r * ROW, len: sixth })));
+    if (k === 2) return two.flatMap((r) => [{ x: -sixth, z: r * row, len: sixth }, { x: sixth / 2, z: r * row, len: 2 * sixth }]);
+    return two.flatMap((r) => [-1, 0, 1].map((i) => ({ x: i * sixth, z: r * row, len: sixth })));
   }
   const four = [-1.5, -0.5, 0.5, 1.5];
-  if (k === 2) return four.map((r) => ({ x: 0, z: r * ROW, len: L / 4 }));
-  return four.flatMap((r) => [-1, 1].map((sign) => ({ x: (sign * L) / 16, z: r * ROW, len: L / 8 })));
+  if (k === 2) return four.map((r) => ({ x: 0, z: r * row, len: L / 4 }));
+  return four.flatMap((r) => [-1, 1].map((sign) => ({ x: (sign * L) / 16, z: r * row, len: L / 8 })));
 }
 
 /** Where stroke k+1 cuts (piece-local x), and how far its line runs across (z half-span). */
-function guideFor(pieces: 6 | 8, k: number): { x: number; span: number } {
+function guideFor(pieces: Pieces, k: number, L: number, row: number): { x: number; span: number } {
   if (k === 0) return { x: 0, span: 0.02 };
-  if (pieces === 6) return { x: ((k === 1 ? -1 : 1) * ROLL_LENGTH) / 12, span: ROW };
-  return { x: 0, span: k === 1 ? ROW : 2 * ROW };
+  if (pieces === 4) return { x: 0, span: row };
+  if (pieces === 6) return { x: ((k === 1 ? -1 : 1) * L) / 12, span: row };
+  return { x: 0, span: k === 1 ? row : 2 * row };
 }
 
 /**
@@ -75,6 +84,11 @@ function guideFor(pieces: 6 | 8, k: number): { x: number; span: number } {
  *    kanpyo into six (halve, lay the halves side by side, cut them in
  *    thirds), the others into eight (halve, halve, halve, laying the
  *    pieces side by side each time). The pieces stand ready.
+ * The tekka is a 中太 (the user's shop): the half sheet is laid 縦, its long
+ * side away from the chef, so the roll is short and thick; its core is not
+ * a case item but a slice of the lean tuna cut on the board in service (with
+ * the trimmings), laid on the rice by the neta hand; two strokes cut it into
+ * four.
  */
 export class MakiAssembly implements Assembly {
   readonly kind = 'maki' as const;
@@ -93,7 +107,18 @@ export class MakiAssembly implements Assembly {
   private squeezed = false;
   private readonly lastFist = [-10, -10];
   private strokes = 0;
-  private pieces: 6 | 8 = 8;
+  private pieces: Pieces = 8;
+  /** A 中太: the roll's length, the rows' pitch and its radius follow. */
+  private thick = false;
+  private length = ROLL_LENGTH;
+  private row = ROW;
+  private radius = MAKI_RADIUS;
+  /** A core cut from a saku (the tekka's tuna): the slice on the board, or on the neta hand. */
+  private coreOnBoard: NetaId | null = null;
+  private coreHeld = false;
+  private coreYaw = 0;
+  /** Where the core's slice lies (world); the piece itself stays on the mat. */
+  private readonly coreAt = new Vector3();
   private cutStartZ: number | null = null;
   private time = 0;
   private matOpen: boolean | null = null;
@@ -104,6 +129,8 @@ export class MakiAssembly implements Assembly {
   private readonly fillingMeshes: Mesh[] = [];
   private readonly carried: Mesh;
   private readonly segments: Mesh[] = [];
+  private readonly thinSegment: BufferGeometry;
+  private readonly thickSegment: BufferGeometry;
   private readonly guide: Mesh;
   private readonly tmp = new Vector3();
   private readonly guideAt = new Vector3();
@@ -123,9 +150,10 @@ export class MakiAssembly implements Assembly {
       core.piece.add(m);
       this.fillingMeshes.push(m);
     }
-    const segment = makiSegmentGeometry();
+    this.thinSegment = makiSegmentGeometry();
+    this.thickSegment = makiSegmentGeometry(MAKI_RADIUS_THICK);
     for (let i = 0; i < MAX_SEGMENTS; i++) {
-      const m = new Mesh(segment, makiMaterial(['Kanpyo']));
+      const m = new Mesh(this.thinSegment, makiMaterial(['Kanpyo']));
       m.name = `RollPiece${i}`;
       core.piece.add(m);
       this.segments.push(m);
@@ -169,8 +197,9 @@ export class MakiAssembly implements Assembly {
     else if (this.spread < 1) this.updateSpread(riceHand);
     else if (!this.filled()) {
       // Wasabi goes on the rice before the fillings.
-      this.core.updateWasabi(riceHand, this.placed.length === 0 && !this.carriedItem);
-      this.updateFilling(riceHand);
+      this.core.updateWasabi(riceHand, this.placed.length === 0 && !this.carriedItem && !this.coreHeld);
+      if (this.nextIsCore()) this.updateCore(netaHand);
+      else this.updateFilling(riceHand);
     } else if (!this.rolled) this.updateRoll(riceHand, netaHand);
     else if (!this.squeezed) this.updateSqueeze(riceHand, netaHand);
     else this.updateCut(netaHand);
@@ -198,7 +227,19 @@ export class MakiAssembly implements Assembly {
         coach.mistake('washFirst', StationKind.NoriBox);
         return;
       }
+      // On full the tin can run out (src/pantry.ts).
+      if (!canTakeNori('maki')) {
+        feedback.flash(StationKind.NoriBox, COLOR_WARN);
+        console.log('[Maki] the nori tin is empty');
+        return;
+      }
       if (!this.core.begin('maki')) return;
+      // A 中太 (the tekka): the half sheet laid 縦, rolled into a shorter, thicker roll cut into four.
+      const item = service.order?.item;
+      this.thick = !!item && MENU[item].kind === 'maki' && MENU[item].pieces === 4;
+      this.length = this.thick ? ROLL_LENGTH_THICK : ROLL_LENGTH;
+      this.row = this.thick ? ROW_THICK : ROW;
+      this.radius = this.thick ? MAKI_RADIUS_THICK : MAKI_RADIUS;
       this.matCentre(this.core.netaOnBoard);
       this.core.hasNeta = true;
       this.carryingNori = true;
@@ -215,6 +256,7 @@ export class MakiAssembly implements Assembly {
       return;
     }
     this.laid = true;
+    useNori('maki');
     this.core.setStage(MakiStage.Laid);
     feedback.flash(StationKind.Makisu, COLOR_DONE);
     coach.done('layNori');
@@ -241,6 +283,7 @@ export class MakiAssembly implements Assembly {
     this.spread = 1;
     chef.hands[chef.riceSide].holding = Held.None;
     core.setStage(MakiStage.Spread);
+    useShari('maki');
     coach.done('spreadRice');
     console.log('[Maki] rice spread');
   }
@@ -293,6 +336,73 @@ export class MakiAssembly implements Assembly {
     }
   }
 
+  // ---- 5b: a core cut from a saku (the tekka's tuna) ----------------------------
+
+  /** The next filling is cut from a saku in service, not taken from the case. */
+  private nextIsCore(): boolean {
+    const next = this.wanted()?.[this.placed.length];
+    return !!next && !!CORE_FROM[next];
+  }
+
+  /** The roll waits for its core: a saku may be taken to the board and sliced (src/cutting-system.ts). */
+  wantsCore(): boolean {
+    return this.laid && !this.filled() && !this.coreOnBoard && !this.coreHeld && this.nextIsCore();
+  }
+
+  /** A slice cut from the saku on the board for this roll's core: it lies there until the neta hand takes it. */
+  coreCut(neta: NetaId, at: Vector3): void {
+    this.coreOnBoard = neta;
+    this.coreHeld = false;
+    this.coreAt.copy(at);
+    const look = sliceLook(neta);
+    this.carried.geometry = look.geometry;
+    this.carried.material = restMaterial(look.material);
+    this.coreYaw = look.blockAxes ? -Math.PI / 2 : 0;
+    console.log(`[Maki] a slice of ${neta} for the core, on the board`);
+  }
+
+  /** The neta hand takes the slice from the board and lays it along the middle of the rice. */
+  private updateCore(hand: HandReader): void {
+    const state = chef.hands[chef.netaSide];
+    if (!this.coreOnBoard) return;
+    if (!this.coreHeld) {
+      if (!hand.tracked || !hand.pinchStart || state.holding !== Held.None) return;
+      if (hand.grasp.distanceTo(this.coreAt) > TOUCH_DISTANCE) return;
+      this.coreHeld = true;
+      state.holding = Held.Filling;
+      coach.done('takeNeta');
+      console.log('[Maki] the core on the hand');
+      return;
+    }
+    if (hand.tracked) {
+      this.carried.position.copy(hand.grasp);
+      this.carried.rotation.y = (hand.yawDeg * Math.PI) / 180;
+    }
+    if (hand.tracked && !hand.pinchEnd) return;
+    this.coreHeld = false;
+    state.holding = Held.None;
+    if (!overStation(hand.grasp, StationKind.Makisu)) {
+      // Let go elsewhere: it lies there, on the board's level.
+      const board = stations.get(StationKind.CuttingBoard);
+      this.coreAt.set(hand.grasp.x, board ? board.pos.y : hand.grasp.y, hand.grasp.z);
+      console.log('[Maki] the core put down off the mat');
+      return;
+    }
+    const from = this.coreOnBoard;
+    const neta = rollCore(from);
+    this.coreOnBoard = null;
+    const slot = this.fillingMeshes[this.placed.length];
+    slot.geometry = fillingOnRice(neta);
+    slot.material = lookMaterial(neta);
+    this.placed.push(neta);
+    feedback.flash(StationKind.Makisu, COLOR_DONE);
+    console.log(`[Maki] ${neta} laid on the rice (the core, cut from the ${from})`);
+    if (this.filled()) {
+      this.core.setStage(MakiStage.Filled);
+      coach.done('placeFilling');
+    }
+  }
+
   // ---- 6-7: roll and squeeze ---------------------------------------------------
 
   private updateRoll(rice: HandReader, neta: HandReader): void {
@@ -318,10 +428,13 @@ export class MakiAssembly implements Assembly {
     core.cutAge = 0;
     core.startMetronome(60);
     const fillings = this.placed.length ? this.placed : ['Kanpyo' as NetaId];
-    const material = makiMaterial(fillings);
-    for (const s of this.segments) s.material = material;
+    const material = makiMaterial(fillings, this.thick);
+    for (const s of this.segments) {
+      s.material = material;
+      s.geometry = this.thick ? this.thickSegment : this.thinSegment;
+    }
     const order = service.order;
-    this.pieces = (order && MENU[order.item].kind === 'maki' ? MENU[order.item].pieces : null) ?? (fillings[0] === 'Kanpyo' ? 6 : 8);
+    this.pieces = (order && MENU[order.item].kind === 'maki' ? MENU[order.item].pieces : null) ?? (this.thick ? 4 : fillings[0] === 'Kanpyo' ? 6 : 8);
     core.setStage(MakiStage.Rolled);
     coach.done('rollMaki');
     console.log('[Maki] rolled');
@@ -351,8 +464,8 @@ export class MakiAssembly implements Assembly {
       return;
     }
     const core = this.core;
-    const g = guideFor(this.pieces, this.strokes);
-    core.piece.localToWorld(this.guideAt.set(g.x, MAKI_RADIUS, 0));
+    const g = guideFor(this.pieces, this.strokes, this.length, this.row);
+    core.piece.localToWorld(this.guideAt.set(g.x, this.radius, 0));
     const blade = knifeApi.blade;
     const holdingDown =
       neta.tracked && Math.hypot(neta.palm.x - core.focus.x, neta.palm.z - core.focus.z) < 0.14 && neta.palm.y < core.focus.y + 0.15;
@@ -369,6 +482,7 @@ export class MakiAssembly implements Assembly {
     this.cutStartZ = null;
     this.strokes++;
     chef.knifeDirty = true;
+    wearKnife();
     coach.done('cutRoll');
     console.log(`[Maki] cut ${this.strokes} of ${strokesFor(this.pieces)}`);
     if (this.strokes === strokesFor(this.pieces)) {
@@ -383,36 +497,55 @@ export class MakiAssembly implements Assembly {
   layout(): boolean {
     this.updateMat();
     const core = this.core;
-    this.carried.visible = !!this.carriedItem;
+    this.carried.visible = !!this.carriedItem || !!this.coreOnBoard;
+    if (this.coreOnBoard && !this.coreHeld) {
+      // The core's slice lying on the board.
+      this.carried.position.copy(this.coreAt);
+      this.carried.rotation.y = this.coreYaw;
+    }
     this.sheet.visible = this.carryingNori || (this.laid && !this.rolled);
+    // 縦 for a 中太: the sheet's long side runs away from the chef.
+    this.sheet.rotation.y = this.thick ? Math.PI / 2 : 0;
+    this.riceLayer.rotation.y = this.thick ? Math.PI / 2 : 0;
     if (this.carryingNori) {
       core.piece.worldToLocal(this.sheet.position.copy(hands.all[chef.netaSide].grasp));
     } else {
       this.sheet.position.set(0, 0.002, 0);
     }
     this.riceLayer.visible = this.spread > 0 && !this.rolled;
-    this.riceLayer.scale.set(0.25 + 0.75 * this.spread, 1, 0.3 + 0.7 * this.spread);
+    const along = 0.25 + 0.75 * this.spread;
+    const across = 0.3 + 0.7 * this.spread;
+    // 縦: the rice stops short of the sheet's far edge and spans its width.
+    if (this.thick) this.riceLayer.scale.set(along * 0.84, 1, across * 1.21);
+    else this.riceLayer.scale.set(along, 1, across);
     this.riceLayer.position.set(0, 0.0042, 0);
     if (this.spread > 0) core.rice.visible = false;
     // Wasabi: drawn as a line along the middle of the rice.
     if (core.wasabi === 'neta') {
       core.wasabiBlob.visible = !this.rolled;
       core.wasabiBlob.position.set(0, 0.0085, 0);
-      core.wasabiBlob.scale.set(6, 0.3, 0.45);
+      core.wasabiBlob.scale.set(this.thick ? 3 : 6, 0.3, 0.45);
     } else {
       core.wasabiBlob.scale.set(1, 1, 1);
     }
     this.fillingMeshes.forEach((m, i) => {
       m.visible = i < this.placed.length && !this.rolled;
-      m.position.set(0, 0.0075 + i * 0.002, (i - (this.placed.length - 1) / 2) * 0.008);
+      if (this.thick) {
+        // The 中太's core, the slice with the trimmings: a thick line along the short side.
+        m.scale.set(0.55, 2.2, 2);
+        m.position.set(0, 0.011, 0);
+      } else {
+        m.scale.set(1, 1, 1);
+        m.position.set(0, 0.0075 + i * 0.002, (i - (this.placed.length - 1) / 2) * 0.008);
+      }
     });
     this.layoutSegments();
     const cutting = this.squeezed && this.strokes < strokesFor(this.pieces) && knifeApi.held;
     this.guide.visible = cutting;
     if (cutting) {
-      const g = guideFor(this.pieces, this.strokes);
+      const g = guideFor(this.pieces, this.strokes, this.length, this.row);
       this.guide.position.copy(this.guideAt);
-      this.guide.position.y += MAKI_RADIUS + 0.002;
+      this.guide.position.y += this.radius + 0.002;
       this.guide.scale.z = 2 * g.span + 0.03;
     }
     return this.spread > 0 || this.rolled;
@@ -425,10 +558,12 @@ export class MakiAssembly implements Assembly {
       return;
     }
     if (this.strokes >= strokesFor(this.pieces)) {
-      // Standing, cut face up, in two rows: three or four to a row.
+      // Standing, cut face up, in two rows: two, three or four to a row.
       const n = this.pieces;
-      const cols = n / 2;
-      const len = ROLL_LENGTH / n;
+      const cols = n === 4 ? 2 : n / 2;
+      const rows = n / cols;
+      const len = this.length / n;
+      const pitch = this.row + 0.001;
       this.segments.forEach((m, i) => {
         m.visible = i < n;
         if (i >= n) return;
@@ -436,18 +571,18 @@ export class MakiAssembly implements Assembly {
         const row = Math.floor(i / cols);
         m.rotation.set(0, 0, Math.PI / 2);
         m.scale.set(len - GAP, 1, 1);
-        m.position.set((col - (cols - 1) / 2) * 0.029, len / 2, (row - 0.5) * 0.029);
+        m.position.set((col - (cols - 1) / 2) * pitch, len / 2, (row - (rows - 1) / 2) * pitch);
       });
       return;
     }
-    const segs = segmentsAfter(this.pieces, this.strokes);
+    const segs = segmentsAfter(this.pieces, this.strokes, this.length, this.row);
     this.segments.forEach((m, i) => {
       const s = segs[i];
       m.visible = !!s;
       if (!s) return;
       m.rotation.set(0, 0, 0);
       m.scale.set(s.len - (this.strokes ? GAP : 0), this.squeezed ? 0.94 : 1, this.squeezed ? 1.04 : 1);
-      m.position.set(s.x, MAKI_RADIUS, s.z);
+      m.position.set(s.x, this.radius, s.z);
     });
   }
 
@@ -472,7 +607,13 @@ export class MakiAssembly implements Assembly {
       feedback.hints.add(core.hasRice ? StationKind.Makisu : riceState.wet ? StationKind.RiceTub : StationKind.Tezu);
     } else if (!this.filled()) {
       if (service.order?.wasabi && core.wasabi === 'none' && !this.placed.length) feedback.hints.add(StationKind.Wasabi);
-      else feedback.hints.add(this.carriedItem ? StationKind.Makisu : StationKind.NetaCase);
+      else if (this.nextIsCore()) {
+        // The core is cut from a saku: the case, the knife and the board, then the mat.
+        if (this.coreHeld) feedback.hints.add(StationKind.Makisu);
+        else if (this.coreOnBoard) feedback.hints.add(knifeApi.held ? StationKind.WetCloth : StationKind.CuttingBoard);
+        else if (!progress.sakuOnBoard) feedback.hints.add(StationKind.NetaCase);
+        else feedback.hints.add(knifeApi.held ? StationKind.CuttingBoard : StationKind.Knife);
+      } else feedback.hints.add(this.carriedItem ? StationKind.Makisu : StationKind.NetaCase);
     } else if (!this.squeezed || knifeApi.held) {
       feedback.hints.add(StationKind.Makisu);
     } else if (this.strokes < strokesFor(this.pieces)) {
@@ -495,6 +636,13 @@ export class MakiAssembly implements Assembly {
     this.rollStartZ = null;
     this.cutStartZ = null;
     this.strokes = 0;
+    this.thick = false;
+    this.length = ROLL_LENGTH;
+    this.row = ROW;
+    this.radius = MAKI_RADIUS;
+    this.coreOnBoard = null;
+    this.coreHeld = false;
+    this.sheet.rotation.y = this.riceLayer.rotation.y = 0;
     this.lastFist[0] = this.lastFist[1] = -10;
     this.sheet.visible = this.riceLayer.visible = this.carried.visible = this.guide.visible = false;
     for (const m of this.fillingMeshes) m.visible = false;
@@ -511,11 +659,14 @@ export class MakiAssembly implements Assembly {
     progress.squeezed = this.squeezed;
     progress.cutsDone = this.strokes;
     progress.cutsNeeded = strokesFor(this.pieces);
+    progress.coreOnBoard = !!this.coreOnBoard && !this.coreHeld;
+    progress.coreHeld = this.coreHeld;
+    if (this.coreOnBoard && !this.coreHeld) progress.sliceAt.copy(this.coreAt);
     if (this.squeezed && this.strokes < strokesFor(this.pieces)) progress.guideAt.copy(this.guideAt);
     else progress.guideAt.copy(this.core.focus);
   }
 
   describe(): string {
-    return `nori=${this.laid ? 'y' : 'n'} spread=${this.spread.toFixed(2)} fillings=${this.placed.join('+') || '-'} rolled=${this.rolled ? 'y' : 'n'} squeezed=${this.squeezed ? 'y' : 'n'} cuts=${this.strokes}/${strokesFor(this.pieces)} into ${this.pieces}`;
+    return `nori=${this.laid ? 'y' : 'n'}${this.thick ? ' chubuto' : ''} spread=${this.spread.toFixed(2)} core=${this.coreHeld ? 'held' : this.coreOnBoard ? 'board' : '-'} fillings=${this.placed.join('+') || '-'} rolled=${this.rolled ? 'y' : 'n'} squeezed=${this.squeezed ? 'y' : 'n'} cuts=${this.strokes}/${strokesFor(this.pieces)} into ${this.pieces}`;
   }
 }

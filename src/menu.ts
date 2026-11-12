@@ -173,13 +173,15 @@ export const NETA: Record<NetaId, NetaDef> = {
   CuredMackerel: def('Cured mackerel', 'saku', 8, look('saku', '#E8C7BD', '#5E7488', 'mackerel', 0.6, 0.04), { skinEdge: true }),
   Prawn: def('Prawn', 'piece', 4, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.045)),
   SweetShrimp: def('Sweet shrimp', 'piece', 18, look('shrimps', '#F6A48C', '#F8D3C6', 'plain', 0.85, 0.04), { perPiece: 2 }),
-  Scallop: def('Scallop', 'piece', 4, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.045)),
+  // The owner: scallops come nine to a pack, one scallop a piece.
+  Scallop: def('Scallop', 'piece', 9, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.045)),
   ArkShell: def('Ark shell', 'piece', 4, look('tongues', '#E5583E', '#F6C9A8', 'rim', 0.75, 0.046)),
   Cockle: def('Egg cockle', 'piece', 4, look('tongues', '#F0E2CC', '#2C2230', 'tip', 0.6, 0.04)),
   SeaEel: def('Sea eel', 'piece', 8, look('eels', '#8C5A2E', '#E9D6BE', 'glaze', 0.7, 0.046)),
   InariAge: def('Inari pouch', 'age', 12, look('pouches', '#B87A33', '#8E5A22', 'plain', 0.5, 0.05)),
   Uni: def('Sea urchin', 'scoop', 4, look('urchin', '#E89A34', '#E3C99C', 'plain', 0.75, 0.058)),
   Ikura: def('Salmon roe', 'scoop', 4, look('roe', '#F0561C', '#ECE6DA', 'plain', 0.95, 0.058)),
+  // Not in the case: the tekka's core is cut from the lean tuna saku in service (CORE_FROM); this is its look in the roll.
   TunaStick: def('Tuna stick', 'filling', 6, look('sticks', '#B3202C', '#7A1820', 'plain', 0.5, 0.04)),
   Cucumber: def('Cucumber', 'filling', 6, look('sticks', '#2F5B2A', '#D7E8B5', 'core', 0.4, 0.04)),
   Kanpyo: def('Gourd strips', 'filling', 6, look('ribbons', '#A0703A', '#7A5228', 'plain', 0.5, 0.044)),
@@ -198,7 +200,7 @@ export const CASE_ORDER: readonly NetaId[] = [
   'LeanTuna', 'MediumFattyTuna', 'FattyTuna',
   'Kohada', 'HorseMackerel', 'CuredMackerel', 'Prawn', 'SweetShrimp', 'Scallop', 'ArkShell', 'Cockle',
   'SeaEel', 'InariAge',
-  'Uni', 'Ikura', 'TunaStick', 'Cucumber', 'Kanpyo', 'Takuan', 'UmePaste', 'Shiso',
+  'Uni', 'Ikura', 'Cucumber', 'Kanpyo', 'Takuan', 'UmePaste', 'Shiso',
 ];
 
 /** Scene node id and asset id of a case item, e.g. case-lean-tuna. */
@@ -220,8 +222,8 @@ export interface MenuDef {
   wasabi: 'ask' | 'never';
   /** Relative order frequency. */
   weight: number;
-  /** Pieces one roll is cut into: kanpyo into six, the others into eight. */
-  pieces?: 6 | 8;
+  /** Pieces one roll is cut into: the tekka (a 中太: the half sheet rolled 縦) into four, kanpyo into six, the others into eight. */
+  pieces?: 4 | 6 | 8;
   /**
    * An order of two pieces, one of each (bonito with no part named: back
    * and belly), served one at a time in either order.
@@ -312,7 +314,7 @@ export const MENU: Record<MenuId, MenuDef> = {
   IkuraGunkan: { name: 'Salmon roe', kind: 'gunkan', neta: ['Ikura'], wasabi: 'ask', weight: 1.5 },
   Inari: { name: 'Inari', kind: 'inari', neta: ['InariAge'], wasabi: 'never', weight: 1 },
   KanpyoRoll: { name: 'Gourd roll', kind: 'maki', neta: ['Kanpyo'], wasabi: 'ask', weight: 1, pieces: 6 },
-  TunaRoll: { name: 'Tuna roll', kind: 'maki', neta: ['TunaStick'], wasabi: 'ask', weight: 1.5, pieces: 8 },
+  TunaRoll: { name: 'Tuna roll', kind: 'maki', neta: ['TunaStick'], wasabi: 'ask', weight: 1.5, pieces: 4 },
   CucumberRoll: { name: 'Cucumber roll', kind: 'maki', neta: ['Cucumber'], wasabi: 'ask', weight: 1, pieces: 8 },
   PickleRoll: { name: 'Pickle roll', kind: 'maki', neta: ['Takuan'], wasabi: 'never', weight: 0.7, pieces: 8 },
   UmeShisoRoll: { name: 'Plum and shiso roll', kind: 'maki', neta: ['Shiso', 'UmePaste'], wasabi: 'never', weight: 0.7, pieces: 8 },
@@ -331,6 +333,19 @@ export function pairRest(ordered: MenuId, served: MenuId): MenuId | null {
 }
 
 /** The menu item a finished piece is, from its kind and neta (null if none matches). */
+/**
+ * A roll's core cut in service from a saku in the case, not bought ready:
+ * the tekka's tuna from the lean tuna (the user: 「赤身の柵」, the slice with
+ * the trimmings). Keyed by the filling, valued by the saku it is cut from.
+ */
+export const CORE_FROM: Partial<Record<NetaId, NetaId>> = { TunaStick: 'LeanTuna' };
+
+/** The filling a slice of this saku makes in a roll; the saku itself when it is no roll's core (a wrong one). */
+export function rollCore(saku: NetaId): NetaId {
+  for (const [core, from] of Object.entries(CORE_FROM) as [NetaId, NetaId][]) if (from === saku) return core;
+  return saku;
+}
+
 export function menuFor(kind: PieceKind, neta: readonly NetaId[]): MenuId | null {
   for (const id of Object.keys(MENU) as MenuId[]) {
     const m = MENU[id];

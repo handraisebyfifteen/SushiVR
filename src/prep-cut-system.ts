@@ -15,11 +15,12 @@ import { coach, type Grade } from './coach.js';
 import { knifeApi } from './cutting-system.js';
 import { debugLines } from './debug.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { chef, prep, type Side, staff } from './game-state.js';
+import { chef, prep, type Side, staff, wearKnife } from './game-state.js';
 import { handedness, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { ledger, wageYen, yen } from './ledger.js';
-import { cureApi, prepApi, rangeApi, tamagoApi } from './prep-api.js';
+import { cureApi, nakagoApi, prepApi, rangeApi, tamagoApi } from './prep-api.js';
+import { NAKAGO_FLOOR } from './scene-assets/lib/nakago-look.js';
 import { NETA, type NetaId } from './menu.js';
 import { scrapsApi } from './opening-system.js';
 import {
@@ -48,7 +49,7 @@ import {
   FISH_STAND_HEIGHT,
 } from './layout.js';
 import { canAfford, fractionOf, kohadaScale, noteAdded, todaysMaterials, todaysTaskCount } from './fish-order.js';
-import { PREP, type PrepId, prepTasks } from './prep.js';
+import { NAKAGO_IDS, PREP, type PrepId, prepTasks } from './prep.js';
 import {
   createDeba,
   createFishBox,
@@ -296,6 +297,7 @@ export class PrepCutSystem extends createSystem({
     prepApi.stock = (neta, stock) => this.stock(neta, stock, NETA[neta].stock);
     prepApi.paperIn = (side) => this.carried[side]?.kind === 'paper';
     prepApi.potWanted = (id) => !this.built || this.materials.some((m) => m.id === id && (m.state === 'box' || m.state === 'held' || m.state === 'pot'));
+    prepApi.awaitingPot = (id) => this.materials.some((m) => m.id === id && (m.state === 'box' || m.state === 'held'));
     prepApi.usePaper = (side) => {
       const c = this.carried[side];
       if (c?.kind !== 'paper') return;
@@ -326,6 +328,7 @@ export class PrepCutSystem extends createSystem({
     const fishBox = new Vector3(FISH_BOX_X, FISH_STAND_HEIGHT, FISH_BOX_Z);
     let bill = 0;
     // Everything on easy; what was ordered on full.
+    nakagoApi.clear();
     for (const id of todaysMaterials()) {
       const look = prepMaterialLook(id, kohadaScale());
       if (!look) continue;
@@ -348,6 +351,11 @@ export class PrepCutSystem extends createSystem({
       } else {
         const [sx, sy, sz] = SLOT[id] ?? [0, 0];
         slot = new Vector3(box.pos.x + sx, box.pos.y + sy, box.pos.z + (sz ?? 0));
+        // The range's ingredients come in the fish shop's inserts (the anago opened, in its pack): each rests on its floor.
+        if (NAKAGO_IDS.includes(id)) {
+          slot.y += NAKAGO_FLOOR;
+          nakagoApi.deliver(id, slot);
+        }
       }
       const boxYaw = inFishBox ? FISH_BOX_YAW : 0;
       root.position.copy(slot);
@@ -976,7 +984,10 @@ export class PrepCutSystem extends createSystem({
     const mean = this.offSum / Math.max(1, this.offCount);
     const grade: Grade = mean < PREP_CUT_EXCELLENT ? 'Excellent' : mean < PREP_CUT_GOOD ? 'Good' : mean < PREP_CUT_POOR ? 'Poor' : 'Bad';
     m.grades.push(grade);
-    if (!debaHeld) chef.knifeDirty = true;
+    if (!debaHeld) {
+      chef.knifeDirty = true;
+      wearKnife();
+    }
     if (m.state === 'board') chef.boardDirt = Math.min(1, chef.boardDirt + BOARD_DIRT_PER_CUT);
     coach.done('cutPrep');
     console.log(`[Prep] ${s.say.toLowerCase()} (${PREP[m.id].name.toLowerCase()}, step ${m.step + 1}): ${grade}, ${(mean * 1000).toFixed(1)} mm off the line`);
@@ -1439,6 +1450,7 @@ export class PrepCutSystem extends createSystem({
   private publish(): void {
     prep.next = null;
     prep.takeToPot = false;
+    prep.takeId = '';
     prep.onBoard = '';
     prep.say = '';
     prep.guideAcross = prep.guideLow = false;
@@ -1589,6 +1601,7 @@ export class PrepCutSystem extends createSystem({
     prep.next = 'take';
     prep.takeTo = PREP[x.id].kind === 'simmer' ? 'pot' : this.sinkNext(x) ? 'wash' : 'board';
     prep.takeToPot = prep.takeTo === 'pot';
+    prep.takeId = x.id;
     prep.takeFrom = x.home === 'wash' ? 'wash' : this.fromFishBox(x) ? 'fish' : 'ice';
     const { alongX, length, top } = x.look;
     this.tmpL.set(alongX ? length / 2 - 0.04 : 0, top + 0.012, alongX ? 0 : length / 2 - 0.04);

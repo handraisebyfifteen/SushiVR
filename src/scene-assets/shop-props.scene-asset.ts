@@ -1,4 +1,5 @@
 import {
+  BoxGeometry,
   type BufferGeometry,
   CircleGeometry,
   Color,
@@ -17,6 +18,7 @@ import {
 } from '@iwsdk/core';
 import { boxBatch, type BoxPart, mergeBoxes, mergeGeometries } from './lib/batch.js';
 import { seeded } from './lib/neta-paint.js';
+import { createOilPot } from './lib/tamago-look.js';
 
 /**
  * Small shop props for the morning prep and the opening: the trash bin with
@@ -40,6 +42,27 @@ const timber = new MeshStandardMaterial({ color: '#6B4A2E', roughness: 0.7 });
 const lattice = new MeshStandardMaterial({ color: '#8C6A44', roughness: 0.7 });
 const noren = new MeshStandardMaterial({ color: '#23305A', roughness: 0.92, side: DoubleSide });
 const bamboo = new MeshStandardMaterial({ color: '#C8B27A', roughness: 0.6 });
+const whetstone = new MeshStandardMaterial({ color: '#B97A47', roughness: 0.95 });
+
+/**
+ * The whetstone (砥石; the user: one stone): a medium stone on its wooden
+ * stand, on the sink's end strip, its length along Z. Origin: the stand's
+ * bottom centre. The stone mesh is 'Stone': src/sharpen-system.ts darkens
+ * it while it is wet.
+ */
+export const WHETSTONE_TOP = 0.06;
+export function createWhetstone(): Group {
+  const root = new Group();
+  root.name = 'Whetstone';
+  const stand = new Mesh(new BoxGeometry(0.1, 0.03, 0.24), timber);
+  stand.name = 'Stand';
+  stand.position.y = 0.015;
+  const stone = new Mesh(new BoxGeometry(0.07, WHETSTONE_TOP - 0.03, 0.205), whetstone);
+  stone.name = 'Stone';
+  stone.position.y = 0.03 + (WHETSTONE_TOP - 0.03) / 2;
+  root.add(stand, stone);
+  return root;
+}
 
 /** Trash bin height and radius: the lid's top, where scraps are let go. */
 export const TRASH_BIN_HEIGHT = 0.42;
@@ -205,9 +228,19 @@ export function createFoodShelf(): Group {
     body.name = `Jar${text}`;
     body.position.set(x, shelf2, -0.02);
     const lid = new Mesh(new CylinderGeometry(0.057, 0.057, 0.018, 20).translate(0, 0.139, 0), jarLid);
+    lid.name = `Jar${text}Lid`;
     lid.position.set(x, shelf2, -0.02);
-    items.push(body, lid, label(text, x, shelf2 + 0.07, -0.02 - 0.056, 0.075, 0.045));
+    const tag = label(text, x, shelf2 + 0.07, -0.02 - 0.056, 0.075, 0.045);
+    tag.name = `Jar${text}Label`;
+    items.push(body, lid, tag);
   });
+  // The oil (a seasoning, the owner): an oil pot at the front of the same shelf, beside the sugar.
+  const oil = createOilPot();
+  oil.name = 'JarOil';
+  oil.position.set(0.05, shelf2, -0.11);
+  const oilTag = label('Oil', 0.05, shelf2 + 0.05, -0.11 - 0.045, 0.06, 0.035);
+  oilTag.name = 'JarOilLabel';
+  items.push(oil, oilTag);
   const parts: BoxPart[] = [];
   for (let i = 0; i < 3; i++) parts.push({ w: 0.11, h: 0.14 + rnd() * 0.06, d: 0.16, x: 0.02 + i * 0.13, y: levels[2] + 0.09, z: 0.02 });
   for (let i = 0; i < 4; i++) parts.push({ w: 0.16, h: 0.12, d: 0.22, x: -0.27 + i * 0.18, y: levels[1] + 0.07, z: 0.01 });

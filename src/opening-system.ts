@@ -1,7 +1,8 @@
 import { createSystem, type Material, type Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
+import { nakagoApi } from './prep-api.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { chef, day, prep, prepCleaned, prepReady, type Side, staff } from './game-state.js';
+import { chef, day, nakago, prep, prepCleaned, prepReady, type Side, staff } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { BACK_ROW_Z, MANAITA_DEPTH, MANAITA_THICKNESS, MANAITA_WIDTH, SINK_TOP } from './layout.js';
 import { ledger } from './ledger.js';
@@ -283,7 +284,7 @@ export class OpeningSystem extends createSystem({}) {
 
   /** Once the prep is done, the part-timer (at the board, src/staff-system.ts) throws out the scraps and washes the board. */
   private updatePartTimer(delta: number): void {
-    staff.cleanupWanted = prep.done && (prep.scrapsLeft > 0 || !prep.boardWashed) && this.boardState === 'home';
+    staff.cleanupWanted = prep.done && (prep.scrapsLeft > 0 || !prep.boardWashed || nakago.left > 0) && this.boardState === 'home';
     const work = staff.partTimer && staff.cleanupWanted && staff.partTimerReady;
     if (!work) {
       staff.cleaning = false;
@@ -296,6 +297,7 @@ export class OpeningSystem extends createSystem({}) {
     if (this.cleanLeft > 0) return;
     scrapsApi.clear();
     prep.boardWashed = true;
+    nakagoApi.byStaff();
     chef.boardDirt = 0;
     staff.cleaning = false;
     feedback.flash(StationKind.CuttingBoard, COLOR_DONE);

@@ -7,6 +7,7 @@ import { StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import { fishOrder, fundsNow, orderNames, orderTotal, pickKohadaSize, startOrder, type Supplier } from './fish-order.js';
 import { yen } from './ledger.js';
+import { canOrderPantry, placePantryOrder } from './pantry.js';
 import { DELIVERY_SECONDS } from './tuning.js';
 
 /** The handset rises this far off its cradle, the call goes through after this long, and it goes back down after this. */
@@ -26,6 +27,9 @@ export const phoneApi = {
   /** This shop can be called now: the morning, before its order (the greengrocer on the full difficulty). */
   canDial: (_who: Supplier): boolean => false,
   dial: (_who: Supplier): void => undefined,
+  /** The rice shop (full): any time, when something is on the card's order and nothing is on its way (src/pantry.ts). */
+  canDialRice: (): boolean => false,
+  dialRice: (): void => undefined,
   hangUp: (): void => undefined,
 };
 
@@ -45,7 +49,7 @@ export class PhoneSystem extends createSystem({}) {
   /** Seconds since the handset was picked up, or -1 while it rests. */
   private lifted = -1;
   /** A shop's number is ringing (seconds since it was dialled). */
-  private dialing: Supplier | null = null;
+  private dialing: Supplier | 'rice' | null = null;
   private ring = 0;
   private deliverIn = 0;
   private greensIn = 0;
@@ -79,6 +83,13 @@ export class PhoneSystem extends createSystem({}) {
       this.dialing = who;
       this.ring = 0;
     };
+    phoneApi.canDialRice = () => !!this.handset && !fishOrder.ordering && this.dialing === null && canOrderPantry();
+    phoneApi.dialRice = () => {
+      if (!phoneApi.canDialRice()) return;
+      phoneApi.book = false;
+      this.dialing = 'rice';
+      this.ring = 0;
+    };
     phoneApi.hangUp = () => {
       phoneApi.book = false;
       if (this.lifted >= 0 && this.dialing === null && !fishOrder.ordering) this.lifted = Math.max(this.lifted, HANG_UP_SECONDS - 0.6);
@@ -108,6 +119,7 @@ export class PhoneSystem extends createSystem({}) {
           const who = this.dialing;
           this.dialing = null;
           if (who === 'fish') this.order();
+          else if (who === 'rice') this.orderRice();
           else this.orderGreens();
         }
       }
@@ -156,6 +168,14 @@ export class PhoneSystem extends createSystem({}) {
     startOrder('greengrocer');
     this.say('Greengrocer: Morning! What do you need?', stations.get(StationKind.Phone)!.pos, 0.3);
     console.log(`[Phone] called the greengrocer: taking the order (funds ${yen(fundsNow())})`);
+  }
+
+  /** The rice shop (full): the card's order is placed at once; it comes on its own timer (src/pantry-system.ts). */
+  private orderRice(): void {
+    feedback.flash(StationKind.Phone, COLOR_DONE);
+    const words = placePantryOrder();
+    this.say(words, stations.get(StationKind.Phone)!.pos, 0.3);
+    console.log(`[Phone] called the rice shop: ${words}`);
   }
 
   /** The order is given (full): the shop repeats it, the handset goes down, the delivery is on its way. */

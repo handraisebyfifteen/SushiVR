@@ -285,6 +285,10 @@ export const DEBA_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - 0.04;
 /** Where the scaler's grip and the deba's bolster lie (Z). */
 export const SCALER_Z = BACK_ROW_Z + 0.16;
 export const DEBA_Z = BACK_ROW_Z + 0.21;
+/** The whetstone (砥石) on the sink's end strip, at the back behind the deba, its length along Z; the knife is sharpened standing at the sink (src/sharpen-system.ts). */
+export const WHETSTONE_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - SINK_END_STRIP / 2;
+export const WHETSTONE_Z = BACK_WALL_Z - 0.02 - 0.12;
+export const WHETSTONE_TOP = 0.06;
 export const SINK_BIN_X = SINK_BASIN_X - 0.32;
 export const SINK_BIN_Z = BACK_ROW_Z - 0.16;
 /** The tweezers (骨抜き) on the board's back row, between the paper box and the wasabi (X from the board's centre). */
@@ -370,6 +374,9 @@ export const PAPER_BOX_X = -0.2;
 export const END_WALL_X = ROOM_END_X - WALL_THICKNESS / 2;
 export const FOOD_SHELF_X = END_WALL_X - 0.18;
 export const FOOD_SHELF_Z = AISLE_CENTER_Z - 0.1;
+/** Where the chef stands for the food shelf (the salt and sugar for the tamago; full difficulty): in the aisle before it, facing the back row, the shelf at the right hand. */
+export const SHELF_SPOT_X = FOOD_SHELF_X - 0.42;
+export const SHELF_SPOT_Z = FOOD_SHELF_Z;
 /** The phone and the books, between the food shelf and the dish cabinet. */
 export const OFFICE_BACK_Z = AISLE_CENTER_Z + 0.5;
 export const PHONE_SHELF_Y = 1.0;
@@ -450,6 +457,7 @@ export const SCENE_LAYOUT: Record<string, NodeLayout> = {
     position: [0, -STEP_HEIGHT, TSUKEDAI_CUSTOMER_Z - CUSTOMER_COUNTER_DEPTH / 2],
   },
   'sink-unit': { position: [SINK_UNIT_X, 0, SINK_UNIT_Z] },
+  whetstone: { position: [WHETSTONE_X, SINK_TOP, WHETSTONE_Z], station: { radius: 0.13, height: WHETSTONE_TOP, below: 0.05, above: 0.25 } },
   sink: {
     position: [SINK_BASIN_X, SINK_TOP, SINK_ZONE_Z],
     // Hands wash down inside the basin, so the zone reaches 15 cm below the rim.

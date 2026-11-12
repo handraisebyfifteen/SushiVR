@@ -9,6 +9,7 @@ import { menuFor, NETA, type NetaId, orderAccepts } from '../menu.js';
 import type { PieceResult } from '../scoring.js';
 import { sliceLook } from '../scene-assets/lib/neta-look.js';
 import { restMaterial } from '../scene-assets/lib/neta-material.js';
+import { useShari } from '../pantry.js';
 import { Drape, SHARI_FINISHED, TOPPING_STIFFNESS } from '../scene-assets/lib/nigiri-form.js';
 import { Held, NigiriStage, Piece, StationKind } from '../sushi-components.js';
 import {
@@ -206,6 +207,7 @@ export class NigiriAssembly implements Assembly {
     chef.boardDirt = Math.min(1, chef.boardDirt + BOARD_DIRT_PER_NIGIRI);
     core.startMetronome(60);
     core.setStage(NigiriStage.Joined);
+    useShari('nigiri');
     coach.done('join');
     console.log('[Nigiri] rice on the neta');
   }

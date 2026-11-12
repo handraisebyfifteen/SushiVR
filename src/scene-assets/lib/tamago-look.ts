@@ -30,6 +30,7 @@ const copper = new MeshStandardMaterial({ color: '#B66A3C', metalness: 0.75, rou
 const tin = new MeshStandardMaterial({ color: '#C9CCCF', metalness: 0.7, roughness: 0.32 });
 const handleWood = new MeshStandardMaterial({ color: '#8A6038', roughness: 0.7 });
 const bowlSteel = new MeshStandardMaterial({ color: '#C8CDD1', metalness: 0.65, roughness: 0.3, side: DoubleSide });
+const oilFilm = new MeshStandardMaterial({ color: '#E2B04A', roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.45, depthWrite: false });
 const wrap = new MeshStandardMaterial({ color: '#F4F6F8', roughness: 0.1, transparent: true, opacity: 0.28, depthWrite: false });
 
 /** The tamago's colours: the raw batter, the set egg, a golden face, a scorched one. */
@@ -52,7 +53,7 @@ export interface EggParts {
  * and the tamago in it ('Egg', hidden till poured). The egg group's pivot is
  * the block's middle (it is turned over about X).
  */
-export function createTamagoPan(): { pan: Group; egg: EggParts } {
+export function createTamagoPan(): { pan: Group; egg: EggParts; oil: Mesh } {
   const pan = new Group();
   pan.name = 'TamagoPan';
   const O = PAN_INNER + 2 * WALL;
@@ -85,7 +86,11 @@ export function createTamagoPan(): { pan: Group; egg: EggParts } {
   egg.add(box(W - 0.002, 0.001, W - 0.002, faceB, 'FaceB', 0, EGG_HEIGHT / 2 - 0.0005));
   egg.visible = false;
   pan.add(egg);
-  return { pan, egg: { egg, body, faceA, faceB } };
+  // The oil left on the tin after the 油返し (hidden till the pan is oiled).
+  const oil = box(PAN_INNER - 0.004, 0.0008, PAN_INNER - 0.004, oilFilm, 'Oil', 0, 0.0011);
+  oil.visible = false;
+  pan.add(oil);
+  return { pan, egg: { egg, body, faceA, faceB }, oil };
 }
 
 // ---------------------------------------------------------------- the suribachi
@@ -182,6 +187,17 @@ export function createPestle(): Group {
   return g;
 }
 
+const jarWhite = new MeshStandardMaterial({ color: '#F4F2EC', roughness: 0.35 });
+const jarLidMat = new MeshStandardMaterial({ color: '#B8B4AA', roughness: 0.4, metalness: 0.4 });
+/** A seasoning jar as on the food shelf (the salt, the sugar), carried to the suribachi: a lidded white jar, its foot at the origin. */
+export function createSeasoningJar(text: 'Salt' | 'Sugar'): Group {
+  const g = new Group();
+  g.name = `${text}Jar`;
+  g.add(named(new Mesh(new CylinderGeometry(0.055, 0.052, 0.13, 20).translate(0, 0.065, 0), jarWhite), 'Body'));
+  g.add(named(new Mesh(new CylinderGeometry(0.057, 0.057, 0.018, 20).translate(0, 0.139, 0), jarLidMat), 'Lid'));
+  return g;
+}
+
 /** The cooking chopsticks (菜箸), held as one: their tips together at the origin, running up +Y, a little apart toward the top. */
 export function createChopsticks(): Group {
   const g = new Group();
@@ -250,4 +266,56 @@ export function tamagoMakings(): PrepMaterialLook {
     steps: [],
     products: [{ parts: [], neta: 'Tamago', dest: 'case' }],
   };
+}
+
+// ---------------------------------------------------------------- the lid and the oil
+
+/**
+ * The pan's wooden lid (木蓋), a set with the pan: a square board that fits
+ * inside it, one bar across its top to hold it by. At the end it is laid on
+ * the baked tamago and pressed once to square it, then the pan is turned over
+ * onto it and the tamago cools on it. Origin at the board's underside middle;
+ * the bar runs along X.
+ */
+export const LID_SIZE = PAN_INNER - 0.008;
+export const LID_THICK = 0.012;
+export const LID_BAR_H = 0.02;
+/** Where the lid is held (lid-local): the bar's top, in the middle. */
+export const LID_GRIP_Y = LID_THICK + LID_BAR_H;
+const lidWood = new MeshStandardMaterial({ color: '#DCC093', roughness: 0.78 });
+const lidBarWood = new MeshStandardMaterial({ color: '#CDAE7C', roughness: 0.75 });
+
+export function createTamagoLid(): Group {
+  const g = new Group();
+  g.name = 'TamagoLid';
+  g.add(box(LID_SIZE, LID_THICK, LID_SIZE, lidWood, 'Board', 0, LID_THICK / 2));
+  g.add(box(LID_SIZE, LID_BAR_H, 0.024, lidBarWood, 'Bar', 0, LID_THICK + LID_BAR_H / 2));
+  return g;
+}
+
+/**
+ * The oil pot (オイルポット) from the food shelf, beside the salt and sugar: a
+ * stainless pot with a lid and knob, a spout to the right (+X) and a dark
+ * handle to the left. Origin at its foot's middle.
+ */
+export const OIL_POT_TOP = 0.114;
+const potSteel = new MeshStandardMaterial({ color: '#C3C8CC', metalness: 0.7, roughness: 0.28 });
+const potHandle = new MeshStandardMaterial({ color: '#2B2B2B', roughness: 0.6 });
+
+export function createOilPot(): Group {
+  const g = new Group();
+  g.name = 'OilPot';
+  g.add(named(new Mesh(new CylinderGeometry(0.04, 0.043, 0.09, 20).translate(0, 0.045, 0), potSteel), 'Body'));
+  g.add(named(new Mesh(new CylinderGeometry(0.035, 0.041, 0.012, 20).translate(0, 0.096, 0), potSteel), 'Lid'));
+  g.add(named(new Mesh(new CylinderGeometry(0.008, 0.01, 0.012, 10).translate(0, 0.108, 0), potHandle), 'Knob'));
+  // The spout: out of the body's right side near the top, tilted up.
+  const spout = named(new Mesh(new CylinderGeometry(0.004, 0.009, 0.05, 10), potSteel), 'Spout');
+  spout.rotation.z = -0.9;
+  spout.position.set(0.04 + 0.025 * Math.sin(0.9), 0.07 + 0.025 * Math.cos(0.9), 0);
+  g.add(spout);
+  // The handle: a bar standing off the left side on two arms.
+  g.add(box(0.008, 0.06, 0.012, potHandle, 'Handle', -0.058, 0.06));
+  g.add(box(0.016, 0.008, 0.012, potHandle, 'HandleTop', -0.049, 0.088));
+  g.add(box(0.016, 0.008, 0.012, potHandle, 'HandleFoot', -0.049, 0.032));
+  return g;
 }

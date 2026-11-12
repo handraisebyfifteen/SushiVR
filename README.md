@@ -84,8 +84,9 @@ squid, squid legs (geso), flounder, striped jack, young yellowtail, bonito
 back and belly, lean / medium fatty
 / fatty tuna, gizzard shad (kohada), horse mackerel, cured mackerel, prawn,
 sweet shrimp, scallop, ark shell, egg cockle, sea eel and the inari pouches,
-then, at the right end, sea urchin, salmon roe and the roll fillings (tuna
-sticks, cucumber, gourd strips, pickled radish, plum paste, shiso). The left
+then, at the right end, sea urchin, salmon roe and the roll fillings (cucumber,
+gourd strips, pickled radish, plum paste, shiso; the tekka roll's tuna is cut
+from the lean tuna saku to order). The left
 (neta) hand takes the neta; the right-end items are the right hand's (the
 uni, its lobes laid in overlapping rows on a white-wood ori with a small
 wooden spatula, and the salmon roe in a small rustic stoneware bowl with a spoon,
@@ -142,8 +143,10 @@ change it (it is remembered):
   and the part-timer are not called in without an hour's wage in hand;
   the part-timer goes home, and the cook stops before a fish, when the
   money no longer covers the next job. A ready-made item's full case is
-  what its price buys: four servings (four prawns, four of each shell),
-  the inari pouches a set of twelve, the sweet shrimp a sheet of eighteen
+  what its price buys: four servings (four prawns, four ark shells, four
+  cockles), the scallops a pack of nine (one a piece; farmed, so the
+  cheapest shellfish, about ¥150 each, and bought by the pack only), the
+  inari pouches a set of twelve, the sweet shrimp a sheet of eighteen
   (six by three, nine pieces of two).
 
 Time runs faster than in a shop, and the work runs side by side: the rice
@@ -178,6 +181,19 @@ and the pots go on first, the fish is cut while they cook.
    there the ice box is in reach, turned to the bar). Each burner has a knob
    on the range's front: a short pinch lights it on high or puts it out;
    keep pinching and it turns down a notch at a time (high, medium, low).
+   The octopus, the abalone and the gourd strips come in the fish shop's
+   stainless inserts (中子); the eel is bought opened, in a pack (a white
+   foam tray). Once all four are in their pots, the empty inserts pile up
+   in the box and are dealt with one at a time: first the eel's pack, which
+   is pinched and dropped in the trash bin at your foot; then each insert,
+   pinched from the top of the pile (from the stool), turned to the sink,
+   held over the basin and scrubbed with the other hand, then dried with
+   the cloth that hangs on the sink's front edge (that hand pinches it,
+   rubs the insert, and lets it go: it hangs back), and let go on the
+   sink's end strip by the whetstone, where it stacks upside down. The
+   master asks for this before the fish
+   under them, and the bar does not open with them left (the part-timer's
+   cleanup covers them).
    - Octopus: 炊く, at a rolling boil on a high flame. Boiled on long after it
      is done, it toughens.
    - Conger eel: 煮る with the broth held at 90 degrees (the word over the
@@ -187,7 +203,11 @@ and the pots go on first, the fish is cut while they cook.
      word over the pot counts it down), then the flame off before they
      scorch.
    When one is done, put its flame out, take it out of the pot and let go
-   over the case (step back to the board). Its pot is put away.
+   over the case (step back to the board). Its pot goes back into the
+   cupboard under the sink. On the full difficulty every pot starts in that
+   cupboard (its right half, behind the right sliding door): before an
+   ingredient is taken from the ice box, pinch the right door's handle,
+   take its pot by the top and let go over its burner.
    - Tamago (full difficulty only; the shop's way: 厚焼き with scallop, made
      and baked in the shop): the batter is made in the suribachi (すり鉢),
      which lives in the cupboard under the sink. Pinch the handle of the
@@ -197,18 +217,31 @@ and the pots go on first, the fish is cut while they cook.
      and eggs from the ice box and let go over the suribachi: the scallops
      go in and the pack of eggs is set beside it. Pinch the pestle (すりこぎ)
      and go round and round till the scallops are a paste; tap the pack of
-     eggs and they go in (the cracking is skipped); pinch the cooking
-     chopsticks (菜箸) and go round till the batter is frothy. The square
-     copper tamago pan hangs on the end wall beside the net. Take it by its
-     handle and let go over a burner whose pot is put away; pinch the
-     suribachi's front rim and let go over the pan to pour it (the suribachi
-     is then put away); light that burner low (higher bakes faster
-     but scorches the face down). When the first side is done, pinch the
-     handle and lift: it is turned once (the board over the pan, turned,
-     slid back, in one move). When the other side is done too, the flame
-     off, pinch the tamago out and let go over the case. The times are a
-     guide, not a grade; only a scorched face costs a couple of pieces
-     (`src/tamago-system.ts`).
+     eggs and they go in (the cracking is skipped). A pinch of salt and a
+     teaspoon of sugar go in before the mixing: step to the food shelf by
+     the end wall, take the salt jar, let go over the suribachi; the same
+     with the sugar jar. Then pinch the cooking chopsticks (菜箸) and go
+     round till the batter is frothy. The square
+     copper tamago pan hangs on the end wall beside the net, its wooden lid
+     (木蓋) in it as a set. Take the pan by its handle and let go over a
+     burner whose pot is put away, and heat it on a medium flame. When it
+     is hot, oil it (油返し): the oil pot stands on the food shelf with the
+     seasonings; let it go over the hot pan and the oil goes round it, the
+     rest back into the pot. Pinch the suribachi's front rim and let go over
+     the pan to pour it: a hot, oiled pan sizzles (a cold or dry one makes
+     the tamago stick). Turn the flame down low (higher bakes faster but
+     scorches the face down). When the first side is set, toss it over like
+     fried rice: the chopsticks (left on the pan's rim) in one hand, the
+     handle in the other, a quick flick up (tossed too soon, it breaks).
+     When the other side is done too, put the flame out, take the lid from
+     its hook by its bar, let it go over the pan onto the tamago, and press
+     it down once with an open palm to square it. Then raise the handle:
+     pan and lid turn over together and the tamago comes out on the lid on
+     the work table. Let it cool a little there (15 s), then pinch it and
+     let go over the case. Wipe the pan while it is hot with a sheet of
+     kitchen paper (no soap on the copper): it goes back on its hook with
+     its lid. The times are a guide, not a grade; a scorched face, a stuck
+     or a broken tamago costs a couple of pieces (`src/tamago-system.ts`).
 4. The fish: left hand, pinch a fish in the box (the one on top first) and
    let go over the board. Each one is wrapped in paper inside a plastic bag:
    hold it with the left hand, pinch the wrapping with the right and pull it
@@ -316,8 +349,14 @@ and the pots go on first, the fish is cut while they cook.
 8. Clean up: wipe and put the knife down; pinch the board's near edge, turn
    around, wash it under the faucet (rub it with the other hand), let go
    over the sink to stand it up to drain, then after a moment take it back
-   to the counter. Every burner must be off. Wash your hands with soap, and
-   finally point at the noren hanging inside the shop's entrance (beyond the
+   to the counter. Every burner must be off. Wash your hands with soap.
+   Then the knife's morning edge: take the knife, turn around, pinch the
+   whetstone on the sink's end strip and let it go in the basin (it comes
+   back dark, wetted), press the blade with the other hand and draw it back
+   and forth along the stone (the blade point over the stone), then dip the
+   blade in the basin to rinse off the slurry, turn back and wipe it, and put
+   it down. The edge wears with every cut (about 45 cuts from fresh to none);
+   a piece cut with a dull knife loses points. Finally point at the noren hanging inside the shop's entrance (beyond the
    customer's seat) and pinch: it is hung outside, the bar is open and the
    first customer walks in.
 
@@ -380,7 +419,7 @@ name and whether wasabi is wanted):
 
    The shari is shaped through the work, the way the shop's owner shapes it:
    a funagata (舟形: a flat bottom, a gently domed top, ends rounding off),
-   about 29 g (6.5 x 2.9 x 2.4 cm). Touch 1 presses the top (its future bottom)
+   about 19 g (5.6 x 2.5 x 2.1 cm). Touch 1 presses the top (its future bottom)
    flat, touch 2 sets the form and lays the neta over it, touch 3 evens it
    into the finished piece. The neta (7.5 x 3 cm, 6 mm thick for a saku
    slice) lies along the shari and drapes over it; stiff toppings (tamago,
@@ -405,11 +444,15 @@ an excellent piece, or shakes his head with "Again." for a bad one. Once you
 have done a step three times he stays quiet about it. The timings are in
 `src/tuning.ts` (`MASTER_*`).
 
-**A gunkan** (sea urchin or salmon roe):
+**A gunkan** (sea urchin or salmon roe) is made on the cutting board, not in
+the palm:
 
-1. Right hand: tezu and rice as for a nigiri (steps 4).
-2. Left hand: pinch a nori strip from the nori tin; it lies on your fingers.
-3. Bring the palms together: the nori wraps the rice.
+1. Right hand: tezu and rice as for a nigiri (steps 4), then make a fist
+   once to shape it.
+2. Lower the right hand onto the cutting board: the shaped shari is set
+   down there (loose rice is not; squeeze it first).
+3. Left hand: pinch a nori strip from the nori tin and let go at the shari:
+   the nori goes round it.
 4. If wasabi is ordered: the right index finger to the wasabi dish, then onto
    the rice.
 5. Right hand: reach to the case's right end and pinch the tool (the
@@ -430,8 +473,8 @@ have done a step three times he stays quiet about it. The timings are in
 4. Make a fist with the left hand on the beat: the mouth folds shut.
 5. Onto the geta and serve. No wasabi.
 
-**A roll** (hosomaki: gourd strips, tuna, cucumber, pickled radish, plum and
-shiso, plum and cucumber):
+**A roll** (hosomaki: gourd strips, cucumber, pickled radish, plum and
+shiso, plum and cucumber; and the tekka, a medium-thick roll):
 
 1. Left hand: pinch a half sheet of nori from the nori tin and let go over
    the mat.
@@ -440,13 +483,18 @@ shiso, plum and cucumber):
 3. If wasabi is ordered: the index finger from the dish onto the rice.
 4. Right hand: lay the filling from the case's right end along the middle
    (plum and shiso: shiso, then plum; plum and cucumber: plum, then
-   cucumber).
+   cucumber). The tekka roll is a 中太 (medium-thick): its half sheet lies
+   縦, long side away from you, and its core is not a case item: left hand,
+   take the lean tuna saku to the board, cut one slice (it stands for the
+   slice and the trimmings), wipe and put the knife down, then lay the slice
+   along the middle of the rice with the left hand.
 5. Both hands at the near edge of the mat push it away: rolled. Both fists
    together on the beat: squeezed firm.
 6. Grip the knife and, with the left hand steadying the roll, draw the blade
    along the white line three times. The first stroke halves the roll and
    the halves lie side by side. The gourd roll is cut into six (cut both
    halves into thirds); the others into eight (halve, lay the four side by
+   side, halve again); the tekka into four (halve, lay the halves side by
    side, halve again). Wipe and put the knife down.
 7. Pinch the pieces (they stand cut face up) onto the geta and serve.
 
@@ -537,7 +585,7 @@ ingredient into its pot or out to the case, the net, the bonito belly),
 each stepping there and turning as needed; / steps to where you look (the
 work table, the range, the sink, or back to the board), and Tab does
 whatever the master is asking for (the whole fish's work too: the scaler,
-turning it over, the deba, rinsing, the tweezers). For a gunkan, Z takes a nori strip, H wraps, and 4
+turning it over, the deba, rinsing, the tweezers). For a gunkan, Space squeezes the rice, H sets it on the board, Z wraps a nori strip round it, and 4
 on a sea urchin or salmon roe order puts the topping on. For an inari, 4
 takes a pouch, H fills it and Space folds it shut on the beat. For a roll,
 Z lays the nori on the mat, U spreads the rice, 4 lays the next filling, I
@@ -583,7 +631,7 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/place-system.ts` | Where the chef stands: the stool, or a step back at the work table or the range |
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
 | `src/range-system.ts` | The gas range: the pots, their knobs and heat, and the bonito belly on skewers |
-| `src/tamago-system.ts` | The full difficulty's tamago: the suribachi from the cupboard under the sink, the scallops ground in it, the eggs tapped in, mixed with chopsticks till frothy; the square pan from its hook onto a burner, the batter poured, baked low, turned once, into the case |
+| `src/tamago-system.ts` | The full difficulty's tamago: the suribachi from the cupboard under the sink, the scallops ground in it, the eggs tapped in, mixed with chopsticks till frothy; the square pan from its hook onto a burner, heated and oiled, the batter poured, baked low, tossed once with the chopsticks, the lid pressed on and the tamago turned out onto it, cooled, into the case, the pan wiped with paper |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
 | `src/tuning.ts` | Every gameplay number: prices, wages, the fish shop's bill, timings, tolerances |
 | `src/ledger.ts` | The day's books: sales, the fish shop, wages and the pieces by grade (the shop's money across days is in `src/fish-order.ts`) |

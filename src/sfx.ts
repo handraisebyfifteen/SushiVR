@@ -51,6 +51,27 @@ export function playRustle(): void {
 }
 
 /** Short tone: a metronome tick, or a brighter chime for a good judgement. */
+/** The batter hitting a hot oiled pan: a high hiss that dies away (ジュッ). */
+export function playSizzle(): void {
+  const ac = context();
+  if (!ac) return;
+  const src = ac.createBufferSource();
+  src.buffer = noise(ac);
+  src.loop = true;
+  const filter = ac.createBiquadFilter();
+  filter.type = 'highpass';
+  filter.frequency.value = 3200;
+  const gain = ac.createGain();
+  const t = ac.currentTime;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.35, t + 0.03);
+  gain.gain.exponentialRampToValueAtTime(0.02, t + 0.9);
+  gain.gain.linearRampToValueAtTime(0, t + 1);
+  src.connect(filter).connect(gain).connect(ac.destination);
+  src.start(t);
+  src.stop(t + 1);
+}
+
 export function playTone(frequency: number, seconds = 0.08, volume = 0.15): void {
   const ac = context();
   if (!ac) return;

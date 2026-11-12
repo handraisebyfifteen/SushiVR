@@ -2,15 +2,19 @@ import { createSystem, type Object3D, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_HINT, glowObject } from './feedback.js';
 import { type FarTarget, FarChooser } from './far-choice.js';
-import { chef, cure, type Place, prep, tamago } from './game-state.js';
+import { chef, cure, nakago, type Place, prep, range, sharpen, sharpenWanted, tamago } from './game-state.js';
 import {
   BACK_ROW_Z,
   BACK_SPOT_Z,
   DRAIN_SPOT_X,
+  FOOD_SHELF_X,
+  FOOD_SHELF_Z,
   MANAITA_TOP,
   MANAITA_Z,
   RANGE_HEIGHT,
   RANGE_SPOT_X,
+  SHELF_SPOT_X,
+  SHELF_SPOT_Z,
   SINK_BASIN_X,
   SINK_SPOT_X,
   SINK_TOP,
@@ -52,6 +56,7 @@ export class PlaceSystem extends createSystem({}) {
     table: new Vector3(TABLE_SPOT_X, 0, BACK_SPOT_Z),
     range: new Vector3(RANGE_SPOT_X, 0, BACK_SPOT_Z),
     sink: new Vector3(SINK_SPOT_X, 0, BACK_SPOT_Z),
+    shelf: new Vector3(SHELF_SPOT_X, 0, SHELF_SPOT_Z),
     drain: new Vector3(DRAIN_SPOT_X, 0, BACK_SPOT_Z),
   };
   private readonly all: Record<Where, FarTarget<Where>> = {
@@ -60,6 +65,7 @@ export class PlaceSystem extends createSystem({}) {
     // The sink and the drainboard are side by side: each is pointed at toward the wall (the tap, the drainboard's back), so it is far enough to point at from the other.
     sink: { id: 'sink', at: new Vector3(SINK_BASIN_X, SINK_TOP + 0.12, BACK_ROW_Z + 0.4), radius: 0.22 },
     drain: { id: 'drain', at: new Vector3(DRAIN_SPOT_X, SINK_TOP + 0.12, BACK_ROW_Z + 0.42), radius: 0.18 },
+    shelf: { id: 'shelf', at: new Vector3(FOOD_SHELF_X, 0.95, FOOD_SHELF_Z), radius: 0.3 },
     board: { id: 'board', at: new Vector3(0, MANAITA_TOP + 0.03, MANAITA_Z), radius: 0.4 },
   };
   private enabled: FarTarget<Where>[] = [];
@@ -100,11 +106,15 @@ export class PlaceSystem extends createSystem({}) {
       if (chef.at !== 'table') out.push(this.all.table);
       if (chef.at !== 'range') out.push(this.all.range);
       // The sink only while there is a fish to wash there, or the tamago's suribachi to take from the cupboard under it (and not while the hands want washing in it).
-      const sink = prep.sinkWanted || tamago.next === 'cupboard' || (tamago.next === 'suribachi' && !tamago.bowlHeld);
+      const potStored = prep.next === 'take' && prep.takeToPot && prep.takeId !== 'Tamago' && !range.potHeld && range.burners.some((b) => b.id === prep.takeId && b.stored);
+      // ... or the knife's edge wants the stone there (and its rinse after).
+      const sink = prep.sinkWanted || tamago.next === 'cupboard' || (tamago.next === 'suribachi' && !tamago.bowlHeld) || potStored || sharpenWanted() || !sharpen.rinsed || nakago.held !== null;
       if (chef.at !== 'sink' && sink && !chef.hands.some((h) => h.needsWash)) out.push(this.all.sink);
       // The drainboard while there is curing to do, a fish for its tray, or a fish to take from the box at its foot.
       const drain = cure.wanted || (prep.next === 'take' && prep.takeFrom === 'fish') || (prep.next === 'stock' && prep.stockTo === 'cure');
       if (chef.at !== 'drain' && drain && !chef.hands.some((h) => h.needsWash)) out.push(this.all.drain);
+      // The food shelf by the end wall while the tamago wants its salt or sugar from the jars there.
+      if (chef.at !== 'shelf' && (tamago.next === 'salt' || tamago.next === 'sugar' || tamago.next === 'oil') && !tamago.jarHeld && !tamago.oilHeld) out.push(this.all.shelf);
     } else if (chef.at !== 'seat') {
       out.push(this.all.board);
     }
@@ -133,8 +143,8 @@ export class PlaceSystem extends createSystem({}) {
     }
     chef.at = place;
     this.chooser.reset();
-    coach.done(place === 'seat' ? 'stepSeat' : place === 'table' ? 'stepTable' : place === 'sink' ? 'stepSink' : place === 'drain' ? 'stepDrain' : 'stepRange');
-    const words: Record<Place, string> = { seat: 'back on the stool at the bar', table: 'at the work table', sink: 'at the sink', drain: 'at the drainboard', range: 'at the range' };
+    coach.done(place === 'seat' ? 'stepSeat' : place === 'table' ? 'stepTable' : place === 'sink' ? 'stepSink' : place === 'drain' ? 'stepDrain' : place === 'shelf' ? 'stepShelf' : 'stepRange');
+    const words: Record<Place, string> = { seat: 'back on the stool at the bar', table: 'at the work table', sink: 'at the sink', drain: 'at the drainboard', range: 'at the range', shelf: 'at the food shelf' };
     console.log(`[Place] ${words[place]}`);
   }
 
@@ -146,7 +156,7 @@ export class PlaceSystem extends createSystem({}) {
   private objectOf(where: Where): Object3D | undefined {
     if (where === 'board') return stations.get(StationKind.CuttingBoard)?.entity.object3D ?? undefined;
     if (!this.objects[where]) {
-      const name = where === 'table' ? 'WorkTable' : where === 'sink' || where === 'drain' ? 'SinkUnit' : 'GasRange';
+      const name = where === 'table' ? 'WorkTable' : where === 'sink' || where === 'drain' ? 'SinkUnit' : where === 'shelf' ? 'FoodShelf' : 'GasRange';
       this.world.scene.traverse((o) => {
         if (!this.objects[where] && o.name === name) this.objects[where] = o;
       });

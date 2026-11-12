@@ -1,7 +1,7 @@
 import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, orderKind, orderTakes, prep, progress, service } from './game-state.js';
+import { chef, orderKind, orderTakes, prep, progress, service, wearKnife } from './game-state.js';
 import { homePose, type Pose, sideSign, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { NETA, type NetaId } from './menu.js';
@@ -143,7 +143,7 @@ export class CuttingSystem extends createSystem({
     if (!this.held) {
       if (!hand.tracked || !hand.pinchStart || state.holding !== Held.None) return;
       // The saku on the board, picked up again.
-      if (this.onBoard && hand.grasp.distanceTo(this.sakuMid) < PICK_DISTANCE && !pieceApi.hasNeta()) {
+      if (this.onBoard && hand.grasp.distanceTo(this.sakuMid) < PICK_DISTANCE && pieceApi.sliceWanted()) {
         this.held = this.onBoard;
         this.onBoard = null;
         state.holding = Held.Saku;
@@ -298,7 +298,7 @@ export class CuttingSystem extends createSystem({
 
     // Cutting: neta hand on the saku, blade drawn toward the chef across its cut end.
     const saku = this.onBoard;
-    if (saku && !pieceApi.hasNeta()) {
+    if (saku && pieceApi.sliceWanted()) {
       const s = sideSign();
       const guideX = s * Math.max(s * this.sakuMid.x, s * (this.sakuEndX - s * SLICE_THICKNESS));
       this.guide.visible = true;
@@ -369,6 +369,7 @@ export class CuttingSystem extends createSystem({
     caseApi.consume(saku, 1);
     this.returnHome(saku);
     chef.knifeDirty = true;
+    wearKnife();
     chef.boardDirt = Math.min(1, chef.boardDirt + BOARD_DIRT_PER_CUT);
     this.cutStartZ = null;
     feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
@@ -380,8 +381,8 @@ export class CuttingSystem extends createSystem({
     if (!chef.open) return;
     if (this.held) return;
     if (orderKind() === 'nigiri' && !this.onBoard && !pieceApi.hasNeta()) feedback.hints.add(StationKind.NetaCase);
-    if (this.onBoard && !this.knifeHeld && !pieceApi.hasNeta()) feedback.hints.add(StationKind.Knife);
-    if (this.onBoard && this.knifeHeld && !pieceApi.hasNeta()) feedback.hints.add(StationKind.CuttingBoard);
+    if (this.onBoard && !this.knifeHeld && pieceApi.sliceWanted()) feedback.hints.add(StationKind.Knife);
+    if (this.onBoard && this.knifeHeld && pieceApi.sliceWanted()) feedback.hints.add(StationKind.CuttingBoard);
     if (this.knifeHeld && chef.knifeDirty) feedback.hints.add(StationKind.WetCloth);
   }
 }

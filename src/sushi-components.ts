@@ -20,6 +20,8 @@ export const StationKind = {
   /** The rice tub on a low stand at the chef's right, under the counter, out of the customers' view. */
   RiceTub: 'RiceTub',
   Sink: 'Sink',
+  /** The whetstone on the sink's end strip (src/sharpen-system.ts). */
+  Whetstone: 'Whetstone',
   Soap: 'Soap',
   Towel: 'Towel',
   /** Nori for gunkan and rolls, on the board's back-left corner. */
@@ -93,6 +95,12 @@ export const Held = {
   Filling: 'Filling',
   /** A half sheet of nori on its way to the mat. */
   NoriSheet: 'NoriSheet',
+  /** The whetstone, on its way to the basin to be wetted. */
+  Stone: 'Stone',
+  /** One of the fish shop's empty inserts (or the anago's pack), on its way to the sink and the sink's end (or the trash). */
+  Nakago: 'Nakago',
+  /** The dry cloth from the sink's front edge (drying an insert). */
+  DryCloth: 'DryCloth',
   /** A sheet of kitchen paper (patting the squid dry). */
   Paper: 'Paper',
   /** The manaita, carried to the sink to be washed and back. */
@@ -178,9 +186,11 @@ export const NigiriStage = {
 
 /** A gunkan's own stages; None, Done, Carried and Placed are shared with the nigiri. */
 export const GunkanStage = {
-  /** A nori strip on the neta hand's fingers. */
+  /** The shaped shari on the cutting board (a gunkan is made there, not in the palm). */
+  Rice: 'ShariDown',
+  /** A nori strip in the neta hand's pinch, the shari still on the board. */
   Nori: 'Nori',
-  /** The rice wrapped in the nori, on the neta hand. */
+  /** The rice wrapped in the nori, on the board. */
   Wrapped: 'Wrapped',
 } as const;
 

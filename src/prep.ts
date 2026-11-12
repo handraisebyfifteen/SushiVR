@@ -79,6 +79,8 @@ export type PrepId = keyof typeof PREP;
 export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoHalf', 'Squid', 'Octopus', 'SeaEel', 'Abalone', 'Kanpyo', 'Tamago'];
 /** The long fish box at the sink's foot, bottom first: the flounder flat on the ice, the jack and the hamachi half over it, then the saba and the row of kohada (full). */
 export const FISH_BOX_ORDER: readonly PrepId[] = ['Flounder', 'StripedJack', 'Yellowtail', 'Saba', 'Kohada'];
+/** The range's ingredients that come in the fish shop's stainless inserts (中子); the anago on a plate (src/nakago-system.ts). */
+export const NAKAGO_IDS: readonly PrepId[] = ['Octopus', 'SeaEel', 'Abalone', 'Kanpyo'];
 
 /** The tasks of the stages built so far (with the full difficulty's own, or without). */
 export function prepTasks(stage: number, full = true): PrepId[] {

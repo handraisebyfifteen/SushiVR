@@ -17,11 +17,11 @@ import {
 import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
 import { debugLines } from './debug.js';
 import { fishOrder } from './fish-order.js';
-import { chef, cure, holdingAnything, orderKind, orderNeta, type Place, prep, progress, range, service, shari, staff, tamago, tea } from './game-state.js';
-import { BACK_ROW_Z, RANGE_HEIGHT, SINK_BASIN_X, SINK_TOP, STOVE_X, WORKTABLE_X, DRAIN_SPOT_X } from './layout.js';
+import { chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, sharpenWanted, staff, tamago, tea } from './game-state.js';
+import { BACK_ROW_Z, DRAIN_SPOT_X, FOOD_SHELF_X, FOOD_SHELF_Z, RANGE_HEIGHT, SINK_BASIN_X, SINK_TOP, STOVE_X, WORKTABLE_X } from './layout.js';
 import { handedness, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
-import { MENU, NETA } from './menu.js';
+import { CORE_FROM, MENU, NETA } from './menu.js';
 import { playClack } from './sfx.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { type BoxPart, mergeGeometries, partMatrix } from './scene-assets/lib/batch.js';
@@ -66,8 +66,10 @@ const STEP_WORDS: Record<StepKey, string> = {
   touch3: 'Pinch on the beat',
   place: 'Geta: on the diagonal',
   serve: 'Hold a fist',
+  shapeShari: 'Squeeze the rice',
+  setShari: 'Rice on the board',
   takeNori: 'Take a nori strip',
-  wrapNori: 'Hands together: wrap',
+  wrapNori: 'Nori round the rice',
   spoonTopping: 'Spoon it on',
   takeAge: 'Take an inari pouch',
   stuffAge: 'Hands together: fill it',
@@ -88,14 +90,22 @@ const STEP_WORDS: Record<StepKey, string> = {
   cureOut: 'Out of the vinegar, into the case',
   waitCure: 'Get ready at the drainboard',
   panOn: 'The tamago pan: off its hook, onto a free burner',
+  stepShelf: 'Step to the food shelf by the end wall',
+  saltTamago: 'A pinch of salt from the jar on the food shelf, over the suribachi',
+  sugarTamago: 'A teaspoon of sugar from its jar on the food shelf, over the suribachi',
   cupboardTamago: 'The cupboard under the sink: slide its door open',
   suribachiOut: 'The suribachi from the cupboard, onto the work table',
   grindTamago: 'The pestle round and round in the suribachi',
   eggsTamago: 'Tap the pack of eggs: the eggs into the suribachi',
   whiskTamago: 'The chopsticks round and round in the suribachi',
   pourTamago: 'The batter into the pan: the suribachi by its rim',
-  turnEgg: 'Turn the tamago over: lift the pan by its handle',
-  eggOut: 'The tamago: out of the pan, into the case',
+  oilPan: 'Oil the hot pan: the oil pot',
+  turnEgg: 'Chopsticks in hand, flick the handle up',
+  lidTamago: 'Flame off: the lid onto the tamago',
+  pressLid: 'Press the lid down once',
+  turnOutTamago: 'Raise the handle: out onto the lid',
+  wipePan: 'Wipe the pan: kitchen paper',
+  eggOut: 'The tamago: from its lid into the case',
   takeMaterial: 'Take it from the ice',
   cutPrep: 'Along the line',
   pullPrep: 'Pull it off',
@@ -107,6 +117,14 @@ const STEP_WORDS: Record<StepKey, string> = {
   leanBoard: 'Stand it to drain',
   returnBoard: 'Board back on the counter',
   hangNoren: 'Point at the noren, pinch',
+  wetStone: 'Wet the stone in the basin',
+  sharpen: 'Draw the edge along the stone',
+  rinseKnife: 'Rinse the blade',
+  binPack: "The anago's empty pack into the trash",
+  takeNakago: 'Take an empty insert from the pile',
+  washNakago: 'Wash the insert under the tap',
+  dryNakago: "Dry it with the cloth on the sink's edge",
+  rackNakago: "Stack it upside down on the sink's end",
   stepTable: 'Point at the work table, pinch',
   stepRange: 'Point at the range, pinch',
   stepSink: 'Point at the sink, pinch',
@@ -125,6 +143,8 @@ const STEP_WORDS: Record<StepKey, string> = {
   bringTub: 'Bring the ohitsu over',
   scoopShari: 'Scoop it into the ohitsu',
   returnTub: 'Ohitsu back to its stand',
+  cupboardPot: 'The cupboard under the sink: slide its right door open',
+  potFromCupboard: 'Its pot from the cupboard, onto its burner',
   potIn: 'Into its pot',
   turnKnob: 'Turn the knob',
   potOut: 'Out of the pot, into the case',
@@ -536,14 +556,38 @@ export class MasterSystem extends createSystem({
     return prep.next === 'washBoard' || prep.next === 'leanBoard' || prep.next === 'dryBoard' || (prep.next === 'liftBoard' && prep.boardAt.z > 0) || prep.where === 'sink';
   }
 
+  /** The knife's morning edge, once the board is back: the knife from its box, the stone wetted in the basin, the strokes, the rinse, then the wipe at the bar. */
+  private sharpenStep(back: boolean): StepKey {
+    if (!progress.knifeHeld) return this.goTo('seat', 'front', back, 'holdKnife');
+    if (!sharpen.stoneWet) return this.goTo('sink', 'back', back, 'wetStone');
+    if (!sharpen.doneToday) return this.goTo('sink', 'back', back, 'sharpen');
+    if (!sharpen.rinsed) return this.goTo('sink', 'back', back, 'rinseKnife');
+    return this.goTo('seat', 'front', back, chef.knifeDirty ? 'wipeKnife' : 'putKnife');
+  }
+
+  /** The empties: the anago's pack into the trash (at the bar); then the inserts one at a time from the pile (from the stool), washed at the sink under the other hand, dried with the cloth from the sink's edge in that hand, stacked on the sink's end. */
+  private nakagoStep(back: boolean): StepKey {
+    if (nakago.held === null) return this.atIceBox(back, nakago.pack ? 'binPack' : 'takeNakago');
+    if (nakago.heldKind === 'pack') return this.goTo('seat', 'front', back, 'binPack');
+    return this.goTo('sink', 'back', back, !nakago.washed ? 'washNakago' : !nakago.dried ? 'dryNakago' : 'rackNakago');
+  }
+
   /** The morning prep: the fish from the ice, its work, the saku into the case, the scraps out, the board washed, the noren. */
   private prepStep(back: boolean): StepKey | null {
+    // Before the noren: the knife's edge (the knife stays in hand through it, and comes back to the bar after).
+    if (sharpenWanted() || !sharpen.rinsed || (sharpen.doneToday && progress.knifeHeld && chef.at !== 'seat')) return this.sharpenStep(back);
     // The tamago's first side done: whatever is in hand is put down first (its face down goes on browning), then the range.
     if (tamago.next === 'turn') {
       if (prep.debaHeld) return 'putDeba';
       if (prep.scalerHeld || prep.tweezersHeld) return 'putTool';
       if (progress.knifeHeld) return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
     }
+    // A pot in hand (from the cupboard under the sink) goes onto its burner first. A pot still in the
+    // cupboard is fetched in backRowStep, after a flame that wants turning: the practice's range key
+    // turns the knob first too, and asking for the pot here sent the two to and fro between the sink and the range.
+    if (range.potHeld) return this.goTo('range', 'back', back, 'potFromCupboard');
+    // The emptied inserts (中子) the range's ingredients came in: once all are in their pots, washed and stacked before the fish under them.
+    if (nakagoWanted()) return this.nakagoStep(back);
     // The whole fish's tools go back once their work is done: the deba at the sink, the scaler and the tweezers anywhere.
     if (prep.debaHeld) return prep.next === 'cut' && prep.where === 'sink' ? this.goTo('sink', 'back', back, 'cutPrep') : 'putDeba';
     if ((prep.scalerHeld && prep.next !== 'scale') || (prep.tweezersHeld && prep.next !== 'pins')) return 'putTool';
@@ -630,7 +674,7 @@ export class MasterSystem extends createSystem({
   private goTo(place: Place, facing: 'back' | 'front', back: boolean, step: StepKey): StepKey {
     if (chef.at !== place) {
       if (place === 'seat') return back ? 'turnFront' : 'stepSeat';
-      return back ? (place === 'table' ? 'stepTable' : place === 'sink' ? 'stepSink' : place === 'drain' ? 'stepDrain' : 'stepRange') : 'turnBack';
+      return back ? (place === 'table' ? 'stepTable' : place === 'sink' ? 'stepSink' : place === 'drain' ? 'stepDrain' : place === 'shelf' ? 'stepShelf' : 'stepRange') : 'turnBack';
     }
     if (facing === 'back') return back ? step : 'turnBack';
     return back ? 'turnFront' : step;
@@ -697,6 +741,12 @@ export class MasterSystem extends createSystem({
     if (tamago.eggHeld) return this.goTo('seat', 'front', back, 'eggOut');
     if (tamago.pestleHeld) return this.goTo('table', 'back', back, 'grindTamago');
     if (tamago.sticksHeld) return this.goTo('table', 'back', back, 'whiskTamago');
+    if (tamago.jarHeld) return this.goTo('table', 'back', back, tamago.next === 'sugar' ? 'sugarTamago' : 'saltTamago');
+    // The oil pot and the lid go to the pan; the chopsticks stay there for the toss; a sheet of paper wipes the pan.
+    if (tamago.oilHeld) return this.goTo('range', 'back', back, 'oilPan');
+    if (tamago.lidHeld) return this.goTo('range', 'back', back, 'lidTamago');
+    if (tamago.flipSticksHeld && tamago.next === 'turn') return this.goTo('range', 'back', back, 'turnEgg');
+    if (tamago.next === 'wipe' && chef.hands.some((h) => h.holding === Held.Paper)) return this.goTo('range', 'back', back, 'wipePan');
     // The suribachi in hand: from the cupboard to the work table, or (with the batter) to the pan.
     if (tamago.bowlHeld) return this.goTo(tamago.next === 'suribachi' ? 'table' : 'range', 'back', back, tamago.next === 'suribachi' ? 'suribachiOut' : 'pourTamago');
     if (range.netHeld) return this.goTo('range', 'back', back, 'hangNet');
@@ -716,17 +766,28 @@ export class MasterSystem extends createSystem({
     }
     if (holdingAnything()) return null;
     // The tamago's pan onto its burner before its batter comes out of the ice; turned (before the rice: the face down goes on browning); out when done.
-    if (tamago.next === 'pan' || tamago.next === 'turn' || tamago.next === 'out') {
-      return this.goTo('range', 'back', back, tamago.next === 'pan' ? 'panOn' : tamago.next === 'turn' ? 'turnEgg' : 'eggOut');
+    if (tamago.next === 'pan' || tamago.next === 'turn' || tamago.next === 'lid' || tamago.next === 'press' || tamago.next === 'turnOut') {
+      const key = { pan: 'panOn', turn: 'turnEgg', lid: 'lidTamago', press: 'pressLid', turnOut: 'turnOutTamago' } as const;
+      return this.goTo('range', 'back', back, key[tamago.next]);
     }
+    // The oil from the food shelf (the pan hot); the paper from its box at the bar to wipe the pan; the cooled tamago from its lid on the work table.
+    if (tamago.next === 'oil') return this.goTo('shelf', 'back', back, 'oilPan');
+    if (tamago.next === 'wipe') return this.goTo('seat', 'front', back, 'wipePan');
+    if (tamago.next === 'out') return this.goTo('table', 'back', back, 'eggOut');
     // The suribachi from the cupboard under the sink onto the work table; the batter made in it there: ground, the eggs in, mixed; then taken to the pan.
     if (tamago.next === 'cupboard') return this.goTo('sink', 'back', back, 'cupboardTamago');
     if (tamago.next === 'suribachi') return this.goTo('sink', 'back', back, 'suribachiOut');
     if (tamago.next === 'grind') return this.goTo('table', 'back', back, 'grindTamago');
+    if (tamago.next === 'salt' || tamago.next === 'sugar') return this.goTo('shelf', 'back', back, tamago.next === 'salt' ? 'saltTamago' : 'sugarTamago');
     if (tamago.next === 'whisk') return this.goTo('table', 'back', back, 'whiskTamago');
     if (tamago.next === 'eggs') return this.goTo('table', 'back', back, 'eggsTamago');
     if (tamago.next === 'pour') return this.goTo('table', 'back', back, 'pourTamago');
     if (shari.step === 'light' || shari.step === 'turnOut') return this.goTo('table', 'back', back, shari.step === 'light' ? 'lightRice' : 'turnOutRice');
+    // Its pot comes out of the cupboard under the sink onto its burner before the ingredient is taken.
+    if (range.potHeld) return this.goTo('range', 'back', back, 'potFromCupboard');
+    if (prep.next === 'take' && prep.takeToPot && prep.takeId !== 'Tamago' && range.burners.find((b) => b.id === prep.takeId)?.stored) {
+      return this.goTo('sink', 'back', back, cupboard.open === 'right' ? 'potFromCupboard' : 'cupboardPot');
+    }
     if (prep.next === 'take' && prep.takeToPot) return this.atIceBox(back, 'takeMaterial');
     if (range.burners.some((b) => b.want === 'take')) return this.goTo('range', 'back', back, 'potOut');
     switch (shari.step) {
@@ -771,7 +832,11 @@ export class MasterSystem extends createSystem({
     if (progress.stage === 'Done' || progress.stage === 'Carried') return 'place';
     if (progress.stage === 'Placed') return 'serve';
     if (!progress.wrapped) {
-      if (!progress.hasRice) return chef.hands[chef.riceSide].wet ? 'rice' : 'tezu';
+      // Made on the board: the shari shaped and set down, then the nori round it.
+      if (!progress.shariDown) {
+        if (!progress.hasRice) return chef.hands[chef.riceSide].wet ? 'rice' : 'tezu';
+        return progress.shaped ? 'setShari' : 'shapeShari';
+      }
       return progress.noriHeld ? 'wrapNori' : 'takeNori';
     }
     if (service.order?.wasabi && progress.wasabi !== 'neta') return 'wasabi';
@@ -790,9 +855,17 @@ export class MasterSystem extends createSystem({
     return progress.closed ? null : 'closeAge';
   }
 
-  /** A roll: nori on the mat, rice, spread, wasabi, fillings, roll, squeeze, three cuts, then the geta. */
+  /** The ordered roll's next filling is cut from a saku on the board (the tekka's tuna) and is not cut yet. */
+  private coreNext(): boolean {
+    const order = service.order;
+    if (!order || MENU[order.item].kind !== 'maki') return false;
+    const next = MENU[order.item].neta[progress.fillings];
+    return !!next && !!CORE_FROM[next] && !progress.coreOnBoard && !progress.coreHeld;
+  }
+
+  /** A roll: nori on the mat, rice, spread, wasabi, fillings (the tekka's cut from the lean tuna), roll, squeeze, the cuts, then the geta. */
   private makiStep(): StepKey | null {
-    if (progress.sakuOnBoard && !progress.knifeHeld) return 'returnSaku';
+    if (progress.sakuOnBoard && !progress.knifeHeld && !this.coreNext()) return 'returnSaku';
     const stage = progress.stage;
     if (stage === 'Done' || stage === 'Carried') {
       if (progress.knifeHeld) return chef.knifeDirty ? 'wipeKnife' : 'putKnife';
@@ -806,7 +879,17 @@ export class MasterSystem extends createSystem({
     }
     const needed = service.order ? MENU[service.order.item].neta.length : 1;
     if (service.order?.wasabi && progress.wasabi !== 'neta' && progress.fillings === 0) return 'wasabi';
-    if (progress.fillings < needed) return 'placeFilling';
+    if (progress.fillings < needed) {
+      const next = service.order ? MENU[service.order.item].neta[progress.fillings] : undefined;
+      if (next && CORE_FROM[next]) {
+        // The tekka's core: the lean tuna to the board, one slice, the knife away, the slice onto the mat.
+        if (progress.coreHeld) return 'placeFilling';
+        if (progress.coreOnBoard) return progress.knifeHeld ? (chef.knifeDirty ? 'wipeKnife' : 'putKnife') : 'takeNeta';
+        if (!progress.sakuOnBoard) return 'takeSaku';
+        return progress.knifeHeld ? 'cut' : 'holdKnife';
+      }
+      return 'placeFilling';
+    }
     if (!progress.rolled) return 'rollMaki';
     if (!progress.squeezed) return 'squeezeRoll';
     if (progress.cutsDone < progress.cutsNeeded) return progress.knifeHeld ? 'cutRoll' : 'holdKnife';
@@ -842,7 +925,7 @@ export class MasterSystem extends createSystem({
     // A cut or a pull in the prep says which one (Cut off the skin side, Off with the bag...).
     if ((step === 'cutPrep' || step === 'pullPrep' || step === 'scaleFish' || step === 'turnFish' || step === 'rinseFish' || step === 'pullPins') && prep.say) return prep.say;
     if ((step === 'saltCure' || step === 'rinseCure' || step === 'vinegarCure' || step === 'cureOut' || step === 'waitCure') && cure.say) return cure.say;
-    if ((step === 'panOn' || step === 'turnEgg' || step === 'eggOut' || step === 'cupboardTamago' || step === 'suribachiOut' || step === 'grindTamago' || step === 'eggsTamago' || step === 'whiskTamago' || step === 'pourTamago') && tamago.say) return tamago.say;
+    if ((step === 'panOn' || step === 'turnEgg' || step === 'eggOut' || step === 'oilPan' || step === 'lidTamago' || step === 'pressLid' || step === 'turnOutTamago' || step === 'wipePan' || step === 'cupboardTamago' || step === 'suribachiOut' || step === 'saltTamago' || step === 'sugarTamago' || step === 'grindTamago' || step === 'eggsTamago' || step === 'whiskTamago' || step === 'pourTamago') && tamago.say) return tamago.say;
     if (step === 'potIn' && prep.onBoard === 'Tamago' && tamago.next === 'makings') return tamago.say;
     return STEP_WORDS[step];
   }
@@ -878,8 +961,18 @@ export class MasterSystem extends createSystem({
         return StationKind.Makisu;
       case 'takeNori':
         return StationKind.NoriBox;
+      case 'setShari':
+        return StationKind.CuttingBoard;
       case 'takeMaterial':
+      case 'takeNakago':
         return StationKind.IceBox;
+      case 'binPack':
+        return nakago.held !== null ? StationKind.TrashBin : StationKind.IceBox;
+      case 'washNakago':
+      case 'dryNakago':
+        return StationKind.Sink;
+      case 'rackNakago':
+        return StationKind.Whetstone;
       case 'callFishShop':
         return StationKind.Phone;
       case 'orderFish':
@@ -895,6 +988,8 @@ export class MasterSystem extends createSystem({
         return cure.fishHeld ? StationKind.NetaCase : StationKind.Sink;
       case 'eggOut':
         return tamago.eggHeld ? StationKind.NetaCase : null;
+      case 'wipePan':
+        return chef.hands.some((h) => h.holding === Held.Paper) ? null : StationKind.PaperBox;
       case 'wipePaper':
         return StationKind.PaperBox;
       case 'discardScrap':
@@ -988,6 +1083,15 @@ export class MasterSystem extends createSystem({
       case 'stepSink':
         out.set(SINK_BASIN_X, SINK_TOP + 0.3, BACK_ROW_Z + 0.15);
         return;
+      case 'stepShelf':
+        out.set(FOOD_SHELF_X - 0.1, 1.1, FOOD_SHELF_Z);
+        return;
+      case 'saltTamago':
+        out.copy(tamago.jarHeld ? tamago.bowlAt : tamago.saltAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'sugarTamago':
+        out.copy(tamago.jarHeld ? tamago.bowlAt : tamago.sugarAt).add(this.tmp.set(0, 0.15, 0));
+        return;
       case 'stepDrain':
         out.set(DRAIN_SPOT_X, SINK_TOP + 0.3, BACK_ROW_Z + 0.15);
         return;
@@ -1070,8 +1174,16 @@ export class MasterSystem extends createSystem({
       case 'grindTamago':
         out.copy(tamago.pestleHeld ? tamago.bowlAt : tamago.pestleAt).add(this.tmp.set(0, 0.18, 0));
         return;
+      case 'cupboardPot':
+        out.copy(cupboard.rightHandleAt).add(this.tmp.set(0, 0.12, 0));
+        break;
+      case 'potFromCupboard': {
+        const b = range.burners.find((x) => x.id === prep.takeId);
+        if (b) out.copy(range.potHeld ? b.at : b.potAt).add(this.tmp.set(0, 0.15, 0));
+        break;
+      }
       case 'cupboardTamago':
-        out.copy(tamago.doorAt).add(this.tmp.set(0, 0.12, 0));
+        out.copy(cupboard.leftHandleAt).add(this.tmp.set(0, 0.12, 0));
         break;
       case 'suribachiOut':
         out.copy(tamago.bowlHeld ? tamago.tableAt : tamago.rimAt).add(this.tmp.set(0, 0.18, 0));
@@ -1079,6 +1191,19 @@ export class MasterSystem extends createSystem({
       case 'whiskTamago':
         out.copy(tamago.sticksHeld ? tamago.bowlAt : tamago.sticksAt).add(this.tmp.set(0, 0.18, 0));
         break;
+      case 'takeNakago':
+      case 'binPack':
+        if (nakago.held === null) {
+          out.copy(nakago.at).add(this.tmp.set(0, 0.15, 0));
+          return;
+        }
+        break;
+      case 'dryNakago':
+        out.copy(nakago.clothHeld === null ? nakago.clothAt : nakago.at).add(this.tmp.set(0, 0.14, 0));
+        return;
+      case 'rackNakago':
+        out.copy(nakago.rackAt).add(this.tmp.set(0, 0.2, 0));
+        return;
       case 'eggsTamago':
         out.copy(tamago.packAt).add(this.tmp.set(0, 0.15, 0));
         return;
@@ -1086,8 +1211,26 @@ export class MasterSystem extends createSystem({
         out.copy(tamago.bowlHeld ? tamago.panAt : tamago.rimAt).add(this.tmp.set(0, 0.2, 0));
         return;
       case 'eggOut':
-        out.copy(tamago.eggHeld ? tamago.caseAt : tamago.panAt).add(this.tmp.set(0, 0.2, 0));
+        out.copy(tamago.eggHeld ? tamago.caseAt : tamago.eggAt).add(this.tmp.set(0, 0.2, 0));
         return;
+      case 'oilPan':
+        out.copy(tamago.oilHeld ? tamago.panAt : tamago.oilAt).add(this.tmp.set(0, 0.18, 0));
+        return;
+      case 'lidTamago':
+        out.copy(tamago.lidHeld ? tamago.panAt : tamago.lidAt).add(this.tmp.set(0, 0.18, 0));
+        return;
+      case 'pressLid':
+        out.copy(tamago.lidAt).add(this.tmp.set(0, 0.18, 0));
+        return;
+      case 'turnOutTamago':
+        out.copy(tamago.gripAt).add(this.tmp.set(0, 0.18, 0));
+        return;
+      case 'wipePan':
+        if (chef.hands.some((h) => h.holding === Held.Paper)) {
+          out.copy(tamago.panAt).add(this.tmp.set(0, 0.18, 0));
+          return;
+        }
+        break;
       case 'hangNet': {
         const free = range.netHeld ? range.burners.find((x) => x.state === 'out' && !x.net) : undefined;
         out.copy(free ? free.at : range.netAt).add(this.tmp.set(0, 0.22, 0));
@@ -1343,6 +1486,32 @@ export class MasterSystem extends createSystem({
         rice.pose(this.there(k, a, b), yaw, 0, k > 0.35 && k < 0.65 ? 1 : 0);
         return true;
       }
+      case 'wetStone': {
+        // The free hand takes the stone to the basin and lets it go there.
+        const stone = this.stationPos(StationKind.Whetstone);
+        const sink = this.stationPos(StationKind.Sink);
+        if (!stone || !sink) return false;
+        const k = this.phase(2);
+        if (k < 0.3) neta.pose(a.copy(stone).add(off.set(0, 0.1 - k * 0.2, 0)), yaw, 0, k > 0.2 ? 1 : 0);
+        else neta.pose(this.there((k - 0.3) / 0.7, a.copy(stone).add(off.set(0, 0.04, 0)), b.copy(sink).add(off.set(0, 0.02, 0))), yaw, 0, k < 0.9 ? 1 : 0);
+        return true;
+      }
+      case 'sharpen': {
+        // The knife hand draws the blade back and forth along the stone (the blade runs ahead of the palm); the other hand presses it down.
+        const stone = this.stationPos(StationKind.Whetstone);
+        if (!stone) return false;
+        const s = Math.sin(this.phase(1.4) * Math.PI * 2) * 0.07;
+        rice.pose(a.copy(stone).add(off.set(0, 0.06, -0.14 + s)), yaw, 1, 0);
+        neta.pose(b.copy(stone).add(off.set(-0.04 * hs, 0.05, s * 0.5 - 0.02)), yaw, 0.2, 0);
+        return true;
+      }
+      case 'rinseKnife': {
+        // The blade into the basin for a moment.
+        const sink = this.stationPos(StationKind.Sink);
+        if (!sink) return false;
+        rice.pose(a.copy(sink).add(off.set(0, 0.08, -0.1)), yaw, 1, 0);
+        return true;
+      }
       case 'washHands': {
         const sink = this.stationPos(StationKind.Sink);
         if (!sink) return false;
@@ -1489,8 +1658,35 @@ export class MasterSystem extends createSystem({
         const k = this.phase(1.8);
         a.copy(box).add(off.set(0, 0.1, 0));
         b.copy(box).add(off.set(0, 0.02, 0));
+        // Pinched, it goes over to the shari on the board.
+        c.copy(progress.pieceAt).add(off.set(0, 0.06, 0));
         if (k < 0.45) neta.pose(this.go(k / 0.45, a, b), yaw, 0, k > 0.35 ? 1 : 0);
-        else neta.pose(this.go((k - 0.45) / 0.55, b, this.netaHold(c)), yaw, 0, k < 0.85 ? 1 : 0);
+        else neta.pose(this.go((k - 0.45) / 0.55, b, c), yaw, 0, 1);
+        return true;
+      }
+      case 'shapeShari': {
+        // One squeeze of the rice in the hand.
+        a.set(0.3 * hs, 0.92, -0.2);
+        const k = this.phase(1.2);
+        rice.pose(a, yaw, k > 0.35 && k < 0.75 ? 1 : 0.1, 0);
+        return true;
+      }
+      case 'setShari': {
+        // The shaped rice down onto the board, on the rice hand's side.
+        const board = this.stationPos(StationKind.CuttingBoard);
+        if (!board) return false;
+        a.set(0.3 * hs, 0.92, -0.2);
+        b.copy(board).add(off.set(0.12 * hs, 0.03, 0.02));
+        rice.pose(this.there(this.phase(1.8), a, b), yaw, 0.1, 0);
+        return true;
+      }
+      case 'wrapNori': {
+        // The strip down to the shari, once round it ("kururi"), let go.
+        const k = this.phase(1.8);
+        const turn = Math.min(1, k / 0.7) * Math.PI * 2;
+        const drop = k < 0.15 ? (0.15 - k) * 0.2 : 0;
+        a.copy(progress.pieceAt).add(off.set(Math.sin(turn) * 0.03, 0.03 + drop, Math.cos(turn) * 0.03));
+        neta.pose(a, yaw, 0, k < 0.75 ? 1 : 0);
         return true;
       }
       case 'spoonTopping': {
@@ -1631,7 +1827,6 @@ export class MasterSystem extends createSystem({
         return true;
       }
       case 'stuffAge':
-      case 'wrapNori':
       case 'join': {
         this.netaHold(a);
         neta.pose(a, yaw, 0, 0);

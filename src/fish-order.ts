@@ -1,4 +1,4 @@
-import { NETA, type NetaId } from './menu.js';
+import { CASE_ORDER, NETA, type NetaId } from './menu.js';
 import { FISH_BOX_ORDER, ICE_BOX_ORDER, PREP, type PrepId, type PrepTask } from './prep.js';
 import { prep } from './game-state.js';
 import { ledger } from './ledger.js';
@@ -108,9 +108,16 @@ for (const id of MATERIALS) {
   }
 }
 for (const neta of Object.keys(NETA) as NetaId[]) {
+  // Only what the case holds (the tekka's tuna is cut from the lean tuna in service, not bought).
+  if (!CASE_ORDER.includes(neta)) continue;
   // Ready items only: none a prep task makes (on either difficulty; the module is still loading, so no orderOf here).
   if ((Object.keys(PREP) as PrepId[]).some((id) => PREP[id].stage <= PREP_STAGE && (PREP[id].makes as readonly NetaId[]).includes(neta))) continue;
   const full = NETA[neta].stock;
+  // Scallops are bought by the pack (the owner: nine to a pack, one a piece), never a half.
+  if (neta === 'Scallop') {
+    SIZES.set(neta, [{ name: `${NETA[neta].name} pack x${full}`, frac: 1 }]);
+    continue;
+  }
   const half = Math.max(1, Math.round(full / 2));
   SIZES.set(neta, [{ name: `${NETA[neta].name} x${half}`, frac: half / full }, { name: `${NETA[neta].name} x${full}`, frac: 1 }]);
 }

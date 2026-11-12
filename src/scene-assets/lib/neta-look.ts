@@ -610,6 +610,9 @@ export function containerMaterial(id: NetaId): Material | null {
 /** Roll radius (a hosomaki, about 2.6 cm across) and the filling's radius in its cut face. */
 export const MAKI_RADIUS = 0.013;
 const MAKI_FILLING_RADIUS = 0.0045;
+/** A 中太 (the tekka: the half sheet rolled 縦), about 4.7 cm across, its core the slice and the trimmings. */
+export const MAKI_RADIUS_THICK = 0.0235;
+const MAKI_FILLING_RADIUS_THICK = 0.011;
 /** The colour each filling shows in a roll's cut face. */
 const FACE_COLOR: Partial<Record<NetaId, string>> = {
   Kanpyo: '#8C5E2E',
@@ -621,22 +624,23 @@ const FACE_COLOR: Partial<Record<NetaId, string>> = {
 };
 const rolls = new Map<string, NetaMaterial>();
 
-/** The material of a roll with these fillings (nori outside, the fillings in the cut face). */
-export function makiMaterial(fillings: readonly NetaId[]): NetaMaterial {
-  const key = fillings.join('+');
+/** The material of a roll with these fillings (nori outside, the fillings in the cut face); a 中太's face is bigger, with a bigger core. */
+export function makiMaterial(fillings: readonly NetaId[], thick = false): NetaMaterial {
+  const key = `${thick ? 'chu:' : ''}${fillings.join('+')}`;
   let m = rolls.get(key);
   if (!m) {
     const c2 = FACE_COLOR[fillings[0]] ?? '#888888';
     const c3 = fillings[1] ? (FACE_COLOR[fillings[1]] ?? c2) : undefined;
-    m = makeNetaMaterial(`Roll_${key}`, NetaPattern.MakiRoll, '#16241B', c2, [1, MAKI_RADIUS, MAKI_FILLING_RADIUS], 4.2, 0.4, false, c3);
+    const radii: [number, number, number] = thick ? [1, MAKI_RADIUS_THICK, MAKI_FILLING_RADIUS_THICK] : [1, MAKI_RADIUS, MAKI_FILLING_RADIUS];
+    m = makeNetaMaterial(`Roll_${key}`, NetaPattern.MakiRoll, '#16241B', c2, radii, 4.2, 0.4, false, c3);
     rolls.set(key, m);
   }
   return m;
 }
 
-/** A roll segment: a unit length along X (scale x to the length), radius MAKI_RADIUS, capped. */
-export function makiSegmentGeometry(): BufferGeometry {
-  return patterned(new CylinderGeometry(MAKI_RADIUS, MAKI_RADIUS, 1, 24, 1).rotateZ(Math.PI / 2));
+/** A roll segment: a unit length along X (scale x to the length), of this radius (a hosomaki's by default), capped. */
+export function makiSegmentGeometry(radius = MAKI_RADIUS): BufferGeometry {
+  return patterned(new CylinderGeometry(radius, radius, 1, 24, 1).rotateZ(Math.PI / 2));
 }
 
 /** A filling as it is laid on the rice, along X: sticks and ribbons end to end, a line of plum paste, two shiso leaves. */

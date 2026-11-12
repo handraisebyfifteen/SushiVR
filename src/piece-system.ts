@@ -19,7 +19,8 @@ import { NigiriAssembly } from './assembly/nigiri.js';
 import { type Assembly, normYaw, type PieceCore } from './assembly/types.js';
 import { coach, type Grade } from './coach.js';
 import { customerApi } from './customer-system.js';
-import { COLOR_DONE, feedback } from './feedback.js';
+import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
+import { canTakeRice } from './pantry.js';
 import { chef, type JudgeKind, prep, progress, service, shari } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { sideSign } from './handedness.js';
@@ -61,7 +62,9 @@ const SHARI_MATERIAL = restMaterial(makeNetaMaterial('shari', NetaPattern.Shari,
 export const pieceApi = {
   /** A piece is in progress (a slice exists, a gunkan is being made...): nothing else can start. */
   hasNeta: (): boolean => false,
-  /** A slice was cut from a saku and lies on the board at `at`. */
+  /** A saku may be taken up and sliced now: no piece in progress, or a roll waiting for its core (the tekka's tuna). */
+  sliceWanted: (): boolean => true,
+  /** A slice was cut from a saku and lies on the board at `at` (a nigiri's topping, or a waiting roll's core). */
   cut: (_neta: NetaId, _skinRight: boolean, _at: Vector3): void => undefined,
   /** A ready-cut piece was taken from the case straight onto the neta hand. */
   take: (_neta: NetaId): void => undefined,
@@ -122,6 +125,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   private metronomeUntil = 0;
   private lastBeat = -1;
   private inTub = false;
+  private toldEmpty = false;
   private lastLowRight = false;
   private carryYawOffset = 0;
   private holdTime = 0;
@@ -197,7 +201,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.maki = new MakiAssembly(this, this.world);
 
     pieceApi.hasNeta = () => this.kind !== null;
-    pieceApi.cut = (neta, skinRight, at) => this.nigiri.cut(neta, skinRight, at);
+    pieceApi.sliceWanted = () => this.kind === null || (this.kind === 'maki' && this.maki.wantsCore());
+    pieceApi.cut = (neta, skinRight, at) => (this.kind === 'maki' ? this.maki.coreCut(neta, at) : this.nigiri.cut(neta, skinRight, at));
     pieceApi.take = (neta) => this.nigiri.take(neta);
     pieceApi.takeAge = () => this.inari.take();
   }
@@ -266,7 +271,14 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     // Reaching down to the rice tub on the rice hand's side: by zone, or by leaving the camera's view there.
     const lowRight = hand.tracked && hand.palm.y < TUB_MAX_Y && hand.palm.x * sideSign() > TUB_MIN_X && hand.palm.z > TUB_MIN_Z;
     const inZone = hand.tracked && overStation(hand.palm, StationKind.RiceTub);
-    const riceIn = shari.inTub || !prep.active;
+    // On full the ohitsu can run out (src/pantry.ts): an empty one gives nothing.
+    const riceIn = (shari.inTub || !prep.active) && canTakeRice();
+    if (!riceIn && free && !this.hasRice && inZone && !this.toldEmpty && (shari.inTub || !prep.active)) {
+      this.toldEmpty = true;
+      feedback.flash(StationKind.RiceTub, COLOR_WARN);
+      console.log('[Piece] the ohitsu is empty: no rice');
+    }
+    if (riceIn) this.toldEmpty = false;
     if (riceIn && free && !this.hasRice && !this.inTub && (inZone || lowRight || (!hand.tracked && this.lastLowRight))) {
       this.inTub = true;
       playRustle();
@@ -384,10 +396,12 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       boardDirty: this.boardWasDirty,
       soapDuringService: chef.soapDuringService,
       knifeUnwiped: chef.knifeUnwiped,
+      knifeDull: chef.knifeDull,
     };
     active.score(result);
     chef.soapDuringService = false;
     chef.knifeUnwiped = false;
+    chef.knifeDull = false;
     const score = scorePiece(result);
     this.entity.setValue(Piece, 'wrongItem', !result.itemOk);
     this.entity.setValue(Piece, 'boardWasDirty', result.boardDirty);
@@ -573,7 +587,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     progress.hasRice = this.hasRice;
     progress.wasabi = this.wasabi;
     progress.beatOrigin = this.phaseStart ?? 0;
-    progress.sliceAt.copy(this.netaOnBoard);
+    // A roll's core slice publishes its own place (MakiAssembly.publish).
+    if (this.kind !== 'maki') progress.sliceAt.copy(this.netaOnBoard);
     progress.pieceAt.copy(this.focus);
     this.gunkan.publish();
     this.nigiri.publish();

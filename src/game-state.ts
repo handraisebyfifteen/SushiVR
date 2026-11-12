@@ -1,5 +1,6 @@
 import { Vector3 } from '@iwsdk/core';
-import { MENU, type MenuId, NETA, type NetaId, type PieceKind } from './menu.js';
+import { CORE_FROM, MENU, type MenuId, NETA, type NetaId, type PieceKind } from './menu.js';
+import { KNIFE_DULL, KNIFE_WEAR_PER_CUT } from './tuning.js';
 import { Held, Judge } from './sushi-components.js';
 import { handedness, onHandsChanged } from './handedness.js';
 
@@ -16,7 +17,7 @@ export interface HandState {
   holding: HeldKind;
 }
 
-export type Place = 'seat' | 'table' | 'range' | 'sink' | 'drain';
+export type Place = 'seat' | 'table' | 'range' | 'sink' | 'drain' | 'shelf';
 
 /** Plain game state shared by the systems (fast to read every frame). */
 export const chef = {
@@ -33,6 +34,10 @@ export const chef = {
   knifeDirty: false,
   /** Set by the knife system when the knife is put down dirty; consumed per piece. */
   knifeUnwiped: false,
+  /** The edge: 1 freshly sharpened, worn by every cut (src/sharpen-system.ts); the morning starts with yesterday's wear. */
+  knifeSharp: 0.6,
+  /** A cut was made with a worn edge; consumed per piece. */
+  knifeDull: false,
   facingBack: false,
   /** Where the chef is: on the stool at the bar, or a step back at the work table or the range (the morning prep). */
   at: 'seat' as Place,
@@ -48,7 +53,7 @@ onHandsChanged(() => {
 
 /** True while a hand carries food, the knife or the finished piece (the wet cloth and the board may travel to the sink). */
 export function holdingAnything(): boolean {
-  return chef.hands.some((h) => h.holding !== Held.None && h.holding !== Held.Cloth && h.holding !== Held.Dish && h.holding !== Held.Board);
+  return chef.hands.some((h) => h.holding !== Held.None && h.holding !== Held.Cloth && h.holding !== Held.DryCloth && h.holding !== Held.Dish && h.holding !== Held.Board);
 }
 
 /** The current order; null while no customer is seated. */
@@ -109,7 +114,13 @@ export const progress = {
   stage: 'None' as string,
   hasNeta: false,
   netaHeld: false,
-  /** Gunkan: a nori strip is on the neta hand, the rice is wrapped, the topping is on. */
+  /**
+   * Gunkan (made on the board): the rice in the hand has had its squeeze, the
+   * shari is on the board, a nori strip is in the neta hand's pinch, the rice
+   * is wrapped, the topping is on.
+   */
+  shaped: false,
+  shariDown: false,
   noriHeld: false,
   wrapped: false,
   topped: false,
@@ -136,6 +147,9 @@ export const progress = {
   sakuHome: new Vector3(),
   sliceAt: new Vector3(),
   pieceAt: new Vector3(),
+  /** Rolls whose core is cut in service (the tekka): the slice lies on the board (at sliceAt), or is on the neta hand. */
+  coreOnBoard: false,
+  coreHeld: false,
 };
 
 /** What the morning prep asks for next (for the master, practice and hints). */
@@ -189,6 +203,8 @@ export const prep = {
   boardBusy: false,
   /** The next thing to take from the ice box goes into a pot on the range (not onto the board). */
   takeToPot: false,
+  /** The id of the next material to take (PrepId; '' when none). */
+  takeId: '',
   tasksDone: 0,
   tasksTotal: 0,
   next: null as PrepNext | null,
@@ -278,6 +294,9 @@ export interface BurnerView {
   temp: number;
   liquid: number;
   state: 'empty' | 'cooking' | 'done' | 'out';
+  /** Its pot is in the cupboard under the sink (full difficulty: it comes out when its ingredient is next), and where to take it by (world). */
+  stored: boolean;
+  potAt: Vector3;
   /** The grill net is on this burner (its pot put away). */
   net: boolean;
   /** The tamago's square pan is on this burner (full difficulty). */
@@ -350,6 +369,8 @@ export const range = {
   netHeld: false,
   /** Something cooked is in a hand on its way to the case (its case item). */
   ingHeld: false,
+  /** A hand holds a pot (from the cupboard under the sink to its burner). */
+  potHeld: false,
   caseNeta: '',
   /** That item's place in the case (world). */
   caseAt: new Vector3(),
@@ -360,8 +381,16 @@ export const range = {
   panTarget: 0,
 };
 
+export type CupboardSide = 'left' | 'right';
+/** The cupboard under the sink (src/cupboard-system.ts): which half is open, and where each door's handle is (world). */
+export const cupboard = {
+  open: 'none' as CupboardSide | 'none',
+  leftHandleAt: new Vector3(),
+  rightHandleAt: new Vector3(),
+};
+
 /** What the tamago (full difficulty, src/tamago-system.ts) wants next. */
-export type TamagoNext = 'cupboard' | 'suribachi' | 'makings' | 'grind' | 'eggs' | 'whisk' | 'pan' | 'place' | 'pour' | 'bake' | 'turn' | 'out' | 'case';
+export type TamagoNext = 'cupboard' | 'suribachi' | 'makings' | 'grind' | 'eggs' | 'salt' | 'sugar' | 'whisk' | 'pan' | 'place' | 'heat' | 'oil' | 'pour' | 'bake' | 'turn' | 'lid' | 'press' | 'turnOut' | 'cool' | 'wipe' | 'out' | 'case';
 
 /**
  * The full difficulty's tamago (厚焼き): the suribachi from the cupboard under
@@ -375,18 +404,30 @@ export const tamago = {
   next: null as TamagoNext | null,
   /** Its words for the master. */
   say: '',
-  /** World points: the cupboard door's handle, the suribachi's place on the work table, the suribachi's middle (over its floor), its front rim, the pestle's grip, the chopsticks' grip, the pack of eggs. */
-  doorAt: new Vector3(),
+  /** World points: the suribachi's place on the work table, the suribachi's middle (over its floor), its front rim, the pestle's grip, the chopsticks' grip, the pack of eggs. */
   tableAt: new Vector3(),
   bowlAt: new Vector3(),
   rimAt: new Vector3(),
   pestleAt: new Vector3(),
   sticksAt: new Vector3(),
+  /** The salt and sugar jars' grips (on the food shelf, or in hand). */
+  saltAt: new Vector3(),
+  sugarAt: new Vector3(),
   packAt: new Vector3(),
   /** A hand holds the pestle (grinding), the chopsticks (mixing), the suribachi (from the cupboard, or to pour). */
   pestleHeld: false,
   sticksHeld: false,
+  /** A hand holds the salt or sugar jar. */
+  jarHeld: false,
   bowlHeld: false,
+  /** The oil pot's knob (on the food shelf, or in hand); the lid's bar (on its hook, in hand, on the pan); the tamago (in the pan or on its lid). */
+  oilAt: new Vector3(),
+  lidAt: new Vector3(),
+  eggAt: new Vector3(),
+  /** A hand holds the oil pot, the lid, the chopsticks at the range (for the toss). */
+  oilHeld: false,
+  lidHeld: false,
+  flipSticksHeld: false,
   /** World points: the handle's grip (on the hook or on the burner), the pan's middle, a free burner, the case item. */
   gripAt: new Vector3(),
   panAt: new Vector3(),
@@ -436,14 +477,68 @@ export const day = {
   closed: false,
 };
 
+/** The knife's edge wears with a cut; worn past KNIFE_DULL, the cut marks the piece. */
+export function wearKnife(): void {
+  chef.knifeSharp = Math.max(0, chef.knifeSharp - KNIFE_WEAR_PER_CUT);
+  if (chef.knifeSharp < KNIFE_DULL) chef.knifeDull = true;
+}
+
+/** The whetstone at the sink (包丁研ぎ, src/sharpen-system.ts). */
+export const sharpen = {
+  /** Wetted in the basin (it dries overnight). */
+  stoneWet: false,
+  /** Sharpened this morning: the bar may open. */
+  doneToday: false,
+  /** The blade was rinsed after the stone (then it is wiped). */
+  rinsed: true,
+  /** The strokes so far, 0..1, while the blade is on the stone. */
+  progress: 0,
+};
+
+/**
+ * The fish shop's inserts (中子) the range's ingredients come in, and the
+ * anago's pack (src/nakago-system.ts): emptied into the pots, the pack into
+ * the trash; the inserts one at a time, washed at the sink under the other
+ * hand, dried with the cloth from the sink's front edge, stacked upside down
+ * on the sink's end strip.
+ */
+export const nakago = {
+  /** The dry cloth's grip (world, hanging on the sink's front edge), and the hand it is in. */
+  clothAt: new Vector3(),
+  clothHeld: null as Side | null,
+  /** Delivered today and not yet dealt with (inserts to wash and stack, the pack to throw out). */
+  left: 0,
+  /** Every ingredient that came in one is in its pot (none left in the box or in a hand): the empties can go. */
+  ready: false,
+  /** The anago's pack is still to be thrown out. */
+  pack: false,
+  /** An insert (or the pack) is in this hand. */
+  held: null as Side | null,
+  heldKind: null as 'nakago' | 'pack' | null,
+  /** The held insert's state. */
+  washed: false,
+  dried: false,
+  /** The next thing to pinch (the pack, or the pile's top insert; the held one's middle while in hand), world; where the washed inserts go (the sink's end strip), for hints and practice. */
+  at: new Vector3(),
+  rackAt: new Vector3(),
+};
+/** The empty inserts want washing: once every ingredient that came in one is in its pot, before the fish under them. */
+export function nakagoWanted(): boolean {
+  return prep.active && nakago.left > 0 && (nakago.held !== null || nakago.ready);
+}
+/** The knife wants the stone: in the morning, once the board is washed and back (the scraps gone), before the noren. */
+export function sharpenWanted(): boolean {
+  return prep.active && !sharpen.doneToday && prep.done && prep.scrapsLeft === 0 && prep.boardWashed && nakago.left === 0;
+}
+
 /** Cleaning is done after the prep: no scraps, the board washed and back, the knife wiped and down. */
 export function prepCleaned(): boolean {
-  return prep.done && prep.scrapsLeft === 0 && prep.boardWashed && !progress.knifeHeld && !chef.knifeDirty;
+  return prep.done && prep.scrapsLeft === 0 && prep.boardWashed && nakago.left === 0 && !progress.knifeHeld && !chef.knifeDirty;
 }
 
 /** The noren may be hung out: prep and cleaning done, hands washed after, the fire out (or there was no prep). */
 export function prepReady(): boolean {
-  return !prep.active || (prepCleaned() && prep.washedAfter && prep.burnersOn === 0);
+  return !prep.active || (prepCleaned() && prep.washedAfter && prep.burnersOn === 0 && sharpen.doneToday);
 }
 
 /** The kind of the current order (nigiri, gunkan...), or null. */
@@ -455,12 +550,16 @@ export function orderKind(): PieceKind | null {
 export function orderTakes(neta: NetaId): boolean {
   if (!service.order) return true;
   const m = MENU[service.order.item];
+  // A roll takes the saku its core is cut from (the tekka: the lean tuna).
+  if (m.kind === 'maki') return m.neta.some((n) => CORE_FROM[n] === neta);
   return m.pair ? m.neta.includes(neta) : m.neta[0] === neta;
 }
 
-/** The neta of the current order's first ingredient (the topping of a nigiri). */
+/** The neta of the current order's first ingredient (the topping of a nigiri; for a roll whose core is cut in service, the saku it is cut from). */
 export function orderNeta(): NetaId | null {
-  return service.order ? MENU[service.order.item].neta[0] : null;
+  if (!service.order) return null;
+  const n = MENU[service.order.item].neta[0];
+  return CORE_FROM[n] ?? n;
 }
 
 /**

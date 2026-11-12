@@ -96,6 +96,17 @@ export const TAMAGO_POUR_SECONDS = 1.2;
 /** The tamago's batter in the suribachi (the owner: the scallops ground, the eggs in, mixed with chopsticks till frothy): how far the hand goes round with the pestle (metres, about 6 and 5 rounds). */
 export const TAMAGO_GRIND_TRAVEL = 1.8;
 export const TAMAGO_WHISK_TRAVEL = 1.4;
+/** The copper pan's heat (0 cold .. 1 hot) per second by flame level (off cools it): a medium flame heats it for the oil in about 5 s. */
+export const TAMAGO_HEAT_RATE: readonly number[] = [-0.05, 0.04, 0.1, 0.16];
+/** Hot enough to take the oil (油返し), and for the batter to sizzle (a colder or dry pan, the tamago sticks). */
+export const TAMAGO_OIL_HEAT = 0.5;
+export const TAMAGO_POUR_HEAT = 0.5;
+/** The toss: the handle flicked up at least this fast (m/s), the chopsticks in the other hand. */
+export const TAMAGO_FLIP_SPEED = 0.6;
+/** Tossed before the first side is this far baked, the tamago breaks. */
+export const TAMAGO_TURN_READY = 0.8;
+/** Seconds the turned-out tamago cools on its lid before it goes into the case. */
+export const TAMAGO_COOL_SECONDS = 15;
 
 // --- money (yen) ---
 /**
@@ -165,7 +176,10 @@ export const FISH_SHOP_PRICE: Partial<Record<PrepId, number>> = {
  * full case of it (a half is half). The owner (2026-11-10): a full case is
  * what this price buys, four servings ("全部4人前用でこの値段"): four prawns,
  * four of each shell; the inari pouches a set of twelve; sweet shrimp one
- * sheet, eighteen (six by three), nine pieces of two. The menu's case stocks follow (src/menu.ts).
+ * sheet, eighteen (six by three), nine pieces of two. Scallops (the owner,
+ * 2026-11-11) come nine to a pack, one a piece, and are the cheapest of the
+ * shellfish now that farming works: about ¥150 each, ¥250 at most. The
+ * menu's case stocks follow (src/menu.ts).
  */
 export const READY_PRICE: Partial<Record<NetaId, number>> = {
   Tamago: 500,
@@ -174,7 +188,7 @@ export const READY_PRICE: Partial<Record<NetaId, number>> = {
   CuredMackerel: 900,
   Prawn: 1500,
   SweetShrimp: 800,
-  Scallop: 1200,
+  Scallop: 1350,
   ArkShell: 1200,
   Cockle: 1100,
   InariAge: 400,
@@ -260,6 +274,26 @@ export const SHARI_GRAMS = 19;
 export const SHARI_CUT_DISTANCE = 1.4;
 /** Scoops of shari from the hangiri into the ohitsu. */
 export const SHARI_SCOOPS = 6;
+// --- the rice and nori stock (full mode only; src/pantry.ts) ---
+/** Raw rice: 1 sho weighs 1.5 kg; the rice shop's sack is 10 kg (about 6.7 sho). */
+export const RICE_KG_PER_SHO = 1.5;
+export const RICE_SACK_KG = 10;
+/** Shari from 1 sho of raw rice (cooked to about 2.1 times its weight, the awasezu in): about 170 nigiri at 19 g. */
+export const SHARI_PER_SHO_GRAMS = 3300;
+/** A hosomaki's shari and an inari's (the owner, 2026-11-11: 90 g a roll, 30 g a piece). */
+export const HOSOMAKI_SHARI_GRAMS = 90;
+export const INARI_SHARI_GRAMS = 30;
+/** A sheet of nori cuts into this many gunkan strips (the user's shop: 六切り, a sixth each; a roll takes a half sheet); the rice shop's nori comes 10 sheets at a time. */
+export const GUNKAN_STRIPS_PER_SHEET = 6;
+export const NORI_PER_PACK = 10;
+/** A new shop's first stock: sacks of rice, sheets of nori. */
+export const START_RICE_SACKS = 1;
+export const START_NORI_SHEETS = 30;
+/** Warnings: the ohitsu yellow at this many nigiri left and red at this; the sack under this (sho); the nori tin under this (sheets). */
+export const TUB_LOW_PIECES = 40;
+export const TUB_OUT_PIECES = 10;
+export const RICE_LOW_SHO = 1;
+export const NORI_LOW_SHEETS = 10;
 /** The broth and water start warm (°C); each flame level's heating, °C a second (low settles at its own level). */
 export const POT_START_TEMP = 60;
 export const HEAT_RATE: readonly number[] = [-0.6, 1.5, 2.5, 4];
@@ -326,6 +360,10 @@ export const BOARD_DIRT_PER_NIGIRI = 0.35;
 /** Rub distance (total palm travel) needed for each cleaning action. */
 export const RUB_WASH_HANDS = 0.5;
 export const RUB_WASH_CLOTH = 0.4;
+/** The other hand's scrubbing travel (m) that washes one of the fish shop's inserts held under the tap (one insert at a time). */
+export const RUB_WASH_NAKAGO = 0.3;
+/** The cloth hand's travel (m) over a washed insert that dries it (the owner: used, washed and the water off is clean). */
+export const RUB_DRY_NAKAGO = 0.25;
 export const RUB_WIPE_BOARD = 0.4;
 export const RUB_WIPE_KNIFE = 0.08;
 
@@ -389,3 +427,14 @@ export const MASTER_WORD_SECONDS = 3;
 export const MASTER_LEARNED_COUNT = 3;
 /** Where the master stands: beside the chef on the left, inside the counter. */
 export const MASTER_POSITION: [number, number, number] = [-0.72, 0, -0.02];
+
+/**
+ * The knife's edge (包丁研ぎ): how much each cut wears it (1 = freshly
+ * sharpened), below what it marks the pieces it cuts, how far the blade
+ * travels on the stone to restore it, and how long the blade is rinsed.
+ */
+export const KNIFE_WEAR_PER_CUT = 1 / 45;
+export const KNIFE_DULL = 0.35;
+export const KNIFE_SHARP_ENOUGH = 0.9;
+export const RUB_SHARPEN = 1.2;
+export const RINSE_BLADE_SECONDS = 0.5;

@@ -71,6 +71,7 @@ const DEFS: readonly TagDef[] = [
   { name: 'BottleRicevinegar', label: 'Rice vinegar', group: 'office' },
   { name: 'JarSalt', label: 'Salt', group: 'office' },
   { name: 'JarSugar', label: 'Sugar', group: 'office' },
+  { name: 'JarOil', label: 'Oil', group: 'office' },
   { name: 'RiceSack', label: 'Rice', group: 'office' },
 ];
 

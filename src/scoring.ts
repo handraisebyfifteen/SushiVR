@@ -21,6 +21,8 @@ export interface PieceResult {
   boardDirty: boolean;
   soapDuringService: boolean;
   knifeUnwiped: boolean;
+  /** Cut with a worn edge (the knife not sharpened). */
+  knifeDull: boolean;
 }
 
 export interface Score {
@@ -77,6 +79,11 @@ export function scorePiece(r: PieceResult): Score {
   if (r.knifeUnwiped) {
     hygiene -= 5;
     penalties.push('knife');
+  }
+  if (r.knifeDull) {
+    // A worn edge tears the cut face.
+    score -= 10;
+    if (!penalties.includes('knife')) penalties.push('knife');
   }
   score += hygiene;
   score = Math.max(0, Math.round(score));

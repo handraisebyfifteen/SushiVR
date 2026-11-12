@@ -4,7 +4,21 @@ import { debugLines } from './debug.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { type BurnerView, chef, prep, range, type Side } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
-import { MANAITA_TOP, MANAITA_Z, NET_HOOK_Y, NET_HOOK_Z, RANGE_HEIGHT, ROOM_END_X, SINK_UNIT_Z, STOVE_X, WALL_THICKNESS } from './layout.js';
+import {
+  BACK_ROW_DEPTH,
+  MANAITA_TOP,
+  MANAITA_Z,
+  NET_HOOK_Y,
+  NET_HOOK_Z,
+  RANGE_HEIGHT,
+  ROOM_END_X,
+  SINK_SHELF_Y,
+  SINK_UNIT_X,
+  SINK_UNIT_Z,
+  SINK_WIDTH,
+  STOVE_X,
+  WALL_THICKNESS,
+} from './layout.js';
 import { NETA, type NetaId } from './menu.js';
 import { prepApi, rangeApi, tamagoApi } from './prep-api.js';
 import type { PrepId } from './prep.js';
@@ -50,6 +64,7 @@ import {
   SEAR_SKIN_SECONDS,
   SKEWER_DISTANCE,
 } from './tuning.js';
+import { cupboardApi } from './cupboard-system.js';
 import { display } from './display-settings.js';
 
 /** On the range (range-local x, z): the eel's wide pan back right and the gourd strips front right (seen facing it), the abalone back left, the octopus front left. */
@@ -101,9 +116,20 @@ interface Burner {
   centre: Vector3;
   knob: Vector3;
   view: BurnerView;
+  /** Its pot is in the cupboard under the sink. */
+  stored: boolean;
 }
 
-type Carried = { kind: 'ing'; b: Burner } | { kind: 'net' } | { kind: 'belly' };
+type Carried = { kind: 'ing'; b: Burner } | { kind: 'net' } | { kind: 'belly' } | { kind: 'pot'; b: Burner };
+
+/** Each pot's place in the cupboard under the sink (its right half; world): the two tall ones on the shelf, the wide pan and the small one on the floor. */
+const STORED: Record<PotId, Vector3> = {
+  Octopus: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 - 0.1, SINK_SHELF_Y, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.17),
+  Abalone: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 + 0.105, SINK_SHELF_Y, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.17),
+  SeaEel: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 - 0.075, 0.09, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.2),
+  Kanpyo: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 + 0.13, 0.09, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.16),
+};
+const POT_PICK = 0.1;
 
 /**
  * The gas range in the morning prep (stage 3), from putting things in the
@@ -188,7 +214,7 @@ export class RangeSystem extends createSystem({
   private buildBurner(id: PotId): Burner {
     const { bx, bz, knob } = LAYOUT[id];
     const pot = createPot(id);
-    pot.position.set(STOVE_X + bx, GRATE_Y, SINK_UNIT_Z + bz);
+    pot.position.copy(STORED[id]);
     this.world.createTransformEntity(pot);
     const flame = createFlame();
     flame.position.set(STOVE_X + bx, RANGE_HEIGHT + 0.03, SINK_UNIT_Z + bz);
@@ -203,13 +229,13 @@ export class RangeSystem extends createSystem({
     this.world.createTransformEntity(label);
     const centre = new Vector3(STOVE_X + bx, GRATE_Y + POT_SPECS[id].depth, SINK_UNIT_Z + bz);
     const knobAt = new Vector3(STOVE_X + knob, KNOB_Y, KNOB_Z);
-    const view: BurnerView = { id, level: 0, temp: POT_START_TEMP, liquid: 1, state: 'empty', net: false, pan: false, want: '', target: 0, at: centre.clone(), knobAt: knobAt.clone() };
+    const view: BurnerView = { id, level: 0, temp: POT_START_TEMP, liquid: 1, state: 'empty', stored: true, potAt: new Vector3(), net: false, pan: false, want: '', target: 0, at: centre.clone(), knobAt: knobAt.clone() };
     return {
       id, pot, flame, mark, label, labelText: '',
       liquidMesh: pot.getObjectByName('Liquid') as Mesh,
       bubbles: pot.getObjectByName('Bubbles')!,
       level: 0, temp: POT_START_TEMP, liquid: 1, state: 'empty', ing: null, tints: [], progress: 0, over: 0,
-      centre, knob: knobAt, view,
+      centre, knob: knobAt, view, stored: true,
     };
   }
 
@@ -241,8 +267,13 @@ export class RangeSystem extends createSystem({
 
   // ---- the ingredients into their pots ------------------------------------------------
 
-  /** A prepared ingredient let go: into its own pot when over it and the pot is waiting. */
+  /** A prepared ingredient let go: into its own pot when over it and the pot is waiting (out of the cupboard, on its burner). */
   private putIn(id: PrepId, root: Object3D, at: Vector3): boolean {
+    const own = this.burners.find((b) => b.id === id);
+    if (own?.stored) {
+      console.log(`[Range] ${this.possessive(own)} pot is still in the cupboard under the sink`);
+      return false;
+    }
     const b = this.burners.find((x) => x.id === id);
     if (!b) return false;
     if (b.state !== 'empty' || !this.overPot(b, at, 0.06)) {
@@ -397,6 +428,14 @@ export class RangeSystem extends createSystem({
       return;
     }
     if (this.belly && this.pickBelly(side, g)) return;
+    // A pot from the cupboard under the sink (its right half open): by its middle.
+    if (cupboardApi.openness('right') > 0.8) {
+      for (const b of this.burners) {
+        if (!b.stored || b.state !== 'empty' || g.distanceTo(this.tmp.copy(b.pot.position).add(this.tmp2.set(0, POT_SPECS[b.id].height, 0))) > POT_PICK) continue;
+        this.hold(side, { kind: 'pot', b }, b.pot.position);
+        return;
+      }
+    }
     // What is done comes out of its pot, with the flame off.
     for (const b of this.burners) {
       if (b.state !== 'done' || !b.ing) continue;
@@ -455,6 +494,7 @@ export class RangeSystem extends createSystem({
       range.caseNeta = c.b.id;
     }
     if (c.kind === 'belly') range.caseNeta = 'BonitoBelly';
+    if (c.kind === 'pot') range.potHeld = true;
     this.caseItems.get(range.caseNeta as NetaId)?.object3D?.getWorldPosition(range.caseAt);
     chef.hands[side].holding = c.kind === 'net' ? Held.Net : Held.Saku;
     this.offset[side].copy(at).sub(hands.all[side].grasp);
@@ -506,6 +546,7 @@ export class RangeSystem extends createSystem({
     const at = this.tmp.copy(hand.grasp).add(this.offset[side]);
     if (hand.tracked) {
       if (c.kind === 'ing') c.b.ing!.position.copy(at);
+      else if (c.kind === 'pot') c.b.pot.position.copy(at);
       else if (c.kind === 'net') {
         this.net.position.copy(at);
         this.net.rotation.set(0, 0, 0);
@@ -516,8 +557,10 @@ export class RangeSystem extends createSystem({
     chef.hands[side].holding = Held.None;
     range.netHeld = this.carried.some((x) => x?.kind === 'net');
     range.ingHeld = this.carried.some((x) => x?.kind === 'ing');
+    range.potHeld = this.carried.some((x) => x?.kind === 'pot');
     const g = hand.grasp;
     if (c.kind === 'ing') this.releaseIngredient(c.b, g);
+    else if (c.kind === 'pot') this.releasePot(c.b, g);
     else if (c.kind === 'net') this.releaseNet(g);
     else {
       range.bellyHeld = false;
@@ -550,10 +593,27 @@ export class RangeSystem extends createSystem({
     return overStation(at, StationKind.NetaCase) || (at.distanceTo(range.caseAt) < 0.1 && at.y > range.caseAt.y - 0.03);
   }
 
-  /** Its pot is done with: put away, the burner free (for the net). */
+  /** A pot let go: onto its own burner (free of the net and the pan) it stands there; elsewhere it goes back into the cupboard. */
+  private releasePot(b: Burner, at: Vector3): void {
+    const free = !b.view.net && !b.view.pan;
+    if (free && Math.hypot(at.x - b.centre.x, at.z - b.centre.z) < 0.15 && at.y < GRATE_Y + 0.4) {
+      b.pot.position.set(b.centre.x, GRATE_Y, b.centre.z);
+      b.stored = false;
+      cupboardApi.open('none');
+      playPut();
+      coach.done('potFromCupboard');
+      console.log(`[Range] ${this.possessive(b)} pot is on its burner`);
+      return;
+    }
+    b.pot.position.copy(STORED[b.id]);
+    playPut();
+  }
+
+  /** Its pot is done with: back into the cupboard under the sink, the burner free (for the net). */
   private putAway(b: Burner): void {
     b.state = 'out';
-    b.pot.visible = false;
+    b.pot.position.copy(STORED[b.id]);
+    b.stored = true;
     b.label.visible = false;
     b.labelText = '';
   }
@@ -791,6 +851,8 @@ export class RangeSystem extends createSystem({
       else if (b.state === 'empty') want = 'put';
       else if (b.state === 'done') want = 'take';
       const v = b.view;
+      v.stored = b.stored;
+      v.potAt.copy(b.pot.position).add(this.tmp.set(0, POT_SPECS[b.id].height, 0));
       v.level = b.level;
       v.temp = b.temp;
       v.liquid = b.liquid;
@@ -815,7 +877,8 @@ export class RangeSystem extends createSystem({
     this.cleared = true;
     for (const b of this.burners) {
       b.level = 0;
-      for (const o of [b.pot, b.flame, b.label]) o.visible = false;
+      for (const o of [b.flame, b.label]) o.visible = false;
+      b.pot.visible = b.stored || b.state === 'out';
       if (b.ing) b.ing.visible = false;
     }
     if (this.net) this.net.visible = false;

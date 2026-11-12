@@ -33,6 +33,7 @@ const STATION_LABELS: Record<Kind, string> = {
   Wasabi: 'Wasabi',
   RiceTub: 'Rice tub (ohitsu)',
   Sink: 'Sink',
+  Whetstone: 'Whetstone',
   Soap: 'Hand soap',
   Towel: 'Hand towel',
   NoriBox: 'Nori',

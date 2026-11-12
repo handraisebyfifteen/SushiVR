@@ -15,10 +15,13 @@ import { chef, holdingAnything, prep, staff } from './game-state.js';
 import { handedness, setLeftHanded } from './handedness.js';
 import { hands } from './hands.js';
 import { officeApi } from './office-system.js';
+import { canAskCookRice, noriSheetsLeft, orderWords, pantry, pantryOn, riceText } from './pantry.js';
+import { pantryApi } from './pantry-system.js';
 import { phoneApi } from './phone-system.js';
 import { playPress } from './sfx.js';
 import { stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
+import { NORI_PER_PACK, RICE_SACK_KG } from './tuning.js';
 
 /**
  * The play mode as the phone's Settings shows it. The mode system fills
@@ -42,8 +45,30 @@ export const playModeSource = {
   canChange: (): boolean => fishOrderApi.canSwitch(),
 };
 
-type Page = 'lines' | 'settings' | 'display';
-export type PhoneRowId = 'fish' | 'greengrocer' | 'cook' | 'partTimer' | 'settings' | 'hangUp' | 'playMode' | 'hands' | 'display' | 'back' | DisplayKey;
+type Page = 'lines' | 'settings' | 'display' | 'rice' | 'cookRice';
+export type PhoneRowId =
+  | 'fish'
+  | 'greengrocer'
+  | 'riceShop'
+  | 'cook'
+  | 'cookRice'
+  | 'partTimer'
+  | 'settings'
+  | 'hangUp'
+  | 'playMode'
+  | 'hands'
+  | 'display'
+  | 'back'
+  | 'riceSacks'
+  | 'noriPacks'
+  | 'riceCall'
+  | 'cook1'
+  | 'cook15'
+  | DisplayKey;
+
+/** The most the card orders at once: sacks of rice, packs of nori. */
+const MAX_SACKS = 3;
+const MAX_PACKS = 5;
 
 interface Row {
   id: PhoneRowId;
@@ -84,9 +109,10 @@ export const phoneBookApi = {
  * lifts the handset (src/office-system.ts, src/phone-system.ts), and this
  * card comes up within reach over the board. A pinch on a line calls it:
  * the fish shop and the greengrocer (the morning, before their orders; the
- * greengrocer only on the full difficulty), the cook and the
- * part-timer (called in or let off; they took the wall's call buttons'
- * place), the settings (the play mode and the hands, in the morning; the
+ * greengrocer only on the full difficulty), the rice shop (its rice and
+ * nori, full only, any time: src/pantry.ts), the cook and the part-timer
+ * (called in or let off; they took the wall's call buttons' place; during
+ * service on full the cook is asked to cook more rice instead), the settings (the play mode and the hands, in the morning; the
  * display, any time) and hanging up. Lines that cannot be used now are faded.
  */
 export class PhoneBookSystem extends createSystem({}) {
@@ -187,7 +213,13 @@ export class PhoneBookSystem extends createSystem({}) {
     if (this.page === 'lines') {
       rows.push({ id: 'fish', label: 'Fish shop', value: this.shopValue('fish'), enabled: phoneApi.canDial('fish') });
       rows.push({ id: 'greengrocer', label: 'Greengrocer', value: this.shopValue('greengrocer'), enabled: phoneApi.canDial('greengrocer') });
-      rows.push({ id: 'cook', label: 'Cook', value: staff.cook ? 'IN: let off' : 'call in', enabled: officeApi.canAsk('cook') });
+      rows.push({ id: 'riceShop', label: 'Rice shop (rice, nori)', value: pantryOn() ? (pantry.comingIn > 0 ? 'on its way' : '>') : 'comes as usual', enabled: pantryOn() });
+      if (pantryOn() && chef.open) {
+        const s = Math.ceil(pantry.cookLeft);
+        rows.push({ id: 'cookRice', label: 'Cook: more rice', value: pantry.cookLeft > 0 ? `cooking ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '>', enabled: pantry.cookLeft <= 0 });
+      } else {
+        rows.push({ id: 'cook', label: 'Cook', value: staff.cook ? 'IN: let off' : 'call in', enabled: officeApi.canAsk('cook') });
+      }
       rows.push({ id: 'partTimer', label: 'Part-timer', value: staff.partTimer ? 'IN: let off' : 'call in', enabled: officeApi.canAsk('partTimer') });
       rows.push({ id: 'settings', label: 'Settings', value: '>', enabled: true });
       rows.push({ id: 'hangUp', label: 'Hang up', value: '', enabled: true });
@@ -197,6 +229,16 @@ export class PhoneBookSystem extends createSystem({}) {
       rows.push({ id: 'playMode', label: 'Play mode', value: mode?.label ?? current, enabled: playModeSource.canChange() });
       rows.push({ id: 'hands', label: 'Hands', value: handedness.left ? 'Left-handed' : 'Right-handed', enabled: this.canChangeHands() });
       rows.push({ id: 'display', label: 'Display', value: '>', enabled: true });
+      rows.push({ id: 'back', label: 'Back', value: '', enabled: true });
+    } else if (this.page === 'rice') {
+      const coming = pantry.comingIn > 0;
+      rows.push({ id: 'riceSacks', label: `Rice (${RICE_SACK_KG} kg sack)`, value: `x${pantry.wantSacks}`, enabled: !coming });
+      rows.push({ id: 'noriPacks', label: `Nori (${NORI_PER_PACK} sheets)`, value: `x${pantry.wantPacks}`, enabled: !coming });
+      rows.push({ id: 'riceCall', label: 'Call and order', value: coming ? 'on its way' : '', enabled: phoneApi.canDialRice() });
+      rows.push({ id: 'back', label: 'Back', value: '', enabled: true });
+    } else if (this.page === 'cookRice') {
+      rows.push({ id: 'cook1', label: '1 sho', value: '', enabled: canAskCookRice(1) });
+      rows.push({ id: 'cook15', label: '1.5 sho', value: '', enabled: canAskCookRice(1.5) });
       rows.push({ id: 'back', label: 'Back', value: '', enabled: true });
     } else {
       for (const r of DISPLAY_ROWS) rows.push({ id: r.key, label: r.label, value: displayValueText(r.key), enabled: true });
@@ -230,6 +272,29 @@ export class PhoneBookSystem extends createSystem({}) {
       case 'partTimer':
         officeApi.ask(row.id);
         return;
+      case 'riceShop':
+        this.page = 'rice';
+        return;
+      case 'riceSacks':
+        pantry.wantSacks = (pantry.wantSacks + 1) % (MAX_SACKS + 1);
+        pantry.version++;
+        return;
+      case 'noriPacks':
+        pantry.wantPacks = (pantry.wantPacks + 1) % (MAX_PACKS + 1);
+        pantry.version++;
+        return;
+      case 'riceCall':
+        console.log(`[Phone] dialling the rice shop: ${orderWords(pantry.wantSacks, pantry.wantPacks)}`);
+        phoneApi.dialRice();
+        return;
+      case 'cookRice':
+        this.page = 'cookRice';
+        return;
+      case 'cook1':
+      case 'cook15':
+        pantryApi.askCook(row.id === 'cook1' ? 1 : 1.5);
+        phoneApi.hangUp();
+        return;
       case 'settings':
         this.page = 'settings';
         return;
@@ -258,9 +323,16 @@ export class PhoneBookSystem extends createSystem({}) {
     }
   }
 
+  /** The header's small note: what is in stock, on the rice pages. */
+  private note(): string {
+    if (this.page === 'rice') return `have: rice ${riceText()}, nori ${noriSheetsLeft()}`;
+    if (this.page === 'cookRice') return `rice in the sack: ${riceText()}`;
+    return 'pinch a line';
+  }
+
   /** Redrawn only when a line or the lit line changes. */
   private draw(): void {
-    let key = `${this.page}|${this.hover}|${display.version}`;
+    let key = `${this.page}|${this.hover}|${display.version}|${this.note()}`;
     for (const r of this.rows) key += `|${r.value}${r.enabled ? 1 : 0}`;
     if (key === this.drawn) return;
     this.drawn = key;
@@ -278,12 +350,12 @@ export class PhoneBookSystem extends createSystem({}) {
     ctx.fillStyle = INK;
     ctx.font = 'bold 50px sans-serif';
     ctx.textAlign = 'left';
-    const title = this.page === 'lines' ? 'Telephone' : this.page === 'settings' ? 'Settings' : 'Settings: display';
+    const title = { lines: 'Telephone', settings: 'Settings', display: 'Settings: display', rice: 'Rice shop', cookRice: 'Cook: rice' }[this.page];
     ctx.fillText(title, 22, (HEADER / 2) * px);
     ctx.font = '28px sans-serif';
     ctx.textAlign = 'right';
     ctx.fillStyle = FADED;
-    ctx.fillText('pinch a line', cw - 22, (HEADER / 2) * px + 4);
+    ctx.fillText(this.note(), cw - 22, (HEADER / 2) * px + 4);
     for (let i = 0; i < this.rows.length; i++) {
       const r = this.rows[i];
       const top = (HEADER + i * ROW_H) * px;
