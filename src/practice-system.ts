@@ -384,6 +384,16 @@ export class PracticeSystem extends createSystem({
       }
       return;
     }
+    if (e.code === 'KeyD' && e.shiftKey) {
+      // Shift+D: the edge worn down to nearly nothing, to try a dull knife (test).
+      if (down && !e.repeat) {
+        chef.knifeSharp = 0.1;
+        chef.knifeDull = true;
+        this.status = 'The edge worn down (test): strokes may catch';
+        console.log('[Practice] the edge worn down to 0.10 (test)');
+      }
+      return;
+    }
     if (e.code === 'KeyT') {
       // The headset turns round on the stool; the keyboard blinks and turns the bar half round.
       if (down && !e.repeat) {
@@ -675,20 +685,39 @@ export class PracticeSystem extends createSystem({
       ]);
       return;
     }
-    // A gunkan is made on the board: the strip goes round the shari there.
+    // A gunkan is made on the board, the strip two-point wrapped (二点留め):
+    // its end to the shari's near side, the rice hand's index finger on it,
+    // the strip once round and on over it, a small pull out, let go.
     if (!progress.shariDown) return this.say('Shari on the board first (J, hold L, Space to squeeze, H to set it down)');
+    const rice = chef.riceSide;
+    if (this.driver[rice].busy || chef.hands[rice].holding !== Held.None) return this.say('Rice hand is busy');
     const shari = progress.pieceAt.clone();
-    this.run(side, 'A nori strip round the shari (then Y for wasabi, 4 for the topping)', [
+    const s = sideX(-1);
+    const a0 = Math.atan2(s, 1);
+    const round = Math.PI * 2 * 1.45;
+    const steps = [
       move(box, v(0, 0.1, 0.02), 'grasp', 0.35),
       move(box, v(0, 0.02, 0), 'grasp', 0.2),
       pinch(1),
       wait(0.12),
       move(box, v(0, 0.1, 0), 'grasp', 0.2),
-      move(shari, v(0, 0.08, 0), 'grasp', 0.35),
-      move(shari, v(0, 0.03, 0), 'grasp', 0.15),
-      pinch(0),
-      wait(0.1),
-      this.rest(side),
+      move(shari, v(s * 0.03, 0.08, 0.03), 'grasp', 0.35),
+      move(shari, v(s * 0.03, 0.02, 0.03), 'grasp', 0.15),
+      wait(0.6),
+    ];
+    for (let i = 1; i <= 14; i++) {
+      const t = a0 + (i / 14) * round;
+      steps.push(move(shari, v(Math.sin(t) * 0.045, 0.02, Math.cos(t) * 0.045), 'grasp', 0.1));
+    }
+    steps.push(move(shari, v(Math.sin(a0 + round) * 0.065, 0.02, Math.cos(a0 + round) * 0.065), 'grasp', 0.12), wait(0.1), pinch(0), wait(0.1), this.rest(side));
+    this.run(side, 'Nori: end on the shari, round, a small pull (then Y for wasabi, 4 for the topping)', steps);
+    // The rice hand's index finger holds the end until the strip is most of the way round.
+    this.run(rice, 'A finger on the nori\'s end', [
+      wait(1.25),
+      move(shari, v(s * 0.017, 0.018, 0.017), 'tip', 0.25),
+      wait(1.6),
+      move(shari, v(sideX(0.06), 0.1, 0.08), 'tip', 0.2),
+      this.rest(rice),
     ]);
   }
 
@@ -2422,7 +2451,7 @@ export class PracticeSystem extends createSystem({
     ]);
   }
 
-  /** H for a gunkan: the shaped shari down on the board, on the rice hand's side (made there, not in the palm). */
+  /** H for a gunkan: the shaped shari down on the board's near half, on the rice hand's side (made there, not in the palm). */
   private setShari(): void {
     const side = chef.riceSide;
     if (!progress.hasRice) return this.say('Take rice first (J, then hold L)');
@@ -2431,10 +2460,10 @@ export class PracticeSystem extends createSystem({
     const board = this.reachable(StationKind.CuttingBoard);
     if (!board) return;
     this.run(side, 'Shari on the board (then Z: nori round it)', [
-      move(board, v(sideX(0.12), 0.1, 0.02), 'palm', 0.3),
-      move(board, v(sideX(0.12), 0.025, 0.02), 'palm', 0.2),
+      move(board, v(sideX(0.12), 0.1, 0.06), 'palm', 0.3),
+      move(board, v(sideX(0.12), 0.025, 0.06), 'palm', 0.2),
       wait(0.1),
-      move(board, v(sideX(0.12), 0.1, 0.02), 'palm', 0.2),
+      move(board, v(sideX(0.12), 0.1, 0.06), 'palm', 0.2),
       this.rest(side),
     ]);
   }

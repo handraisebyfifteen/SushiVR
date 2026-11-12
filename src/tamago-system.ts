@@ -143,6 +143,8 @@ export class TamagoSystem extends createSystem({
   private egg!: EggParts;
   private label!: Sprite;
   private labelText = '';
+  /** A green "Ready" over the pan once it is hot enough (in the shop a drop from the chopsticks tells; here a sign). */
+  private readySign!: Sprite;
   private holder!: Group;
   private readonly hookPos = new Vector3(-ROOM_END_X + WALL_THICKNESS / 2 + 0.006, NET_HOOK_Y - 0.06, NET_HOOK_Z + 0.22);
   /** On the hook: the open side to the room, the handle up. */
@@ -273,6 +275,9 @@ export class TamagoSystem extends createSystem({
     this.label = makeTextSprite(' ', { width: 0.24 });
     this.label.visible = false;
     this.world.createTransformEntity(this.label);
+    this.readySign = makeTextSprite('Ready', { width: 0.09, background: '#2E8B57' });
+    this.readySign.visible = false;
+    this.world.createTransformEntity(this.readySign);
     debugLines.push(() =>
       this.wanted && prep.active
         ? `Tamago: ${this.mix} ground ${this.ground.toFixed(2)} mixed ${this.whisked.toFixed(2)} | ${this.state} on ${this.onBurner} ${Math.round(this.progress * 100)}% brown ${this.brown.map((b) => b.toFixed(2)).join('/')} | next ${tamago.next ?? '-'}`
@@ -315,6 +320,7 @@ export class TamagoSystem extends createSystem({
     this.animate(delta);
     this.placeLid();
     this.updateLabel();
+    this.updateReady();
     this.publish();
   }
 
@@ -1172,6 +1178,23 @@ export class TamagoSystem extends createSystem({
     else this.label.position.copy(this.pan.position).add(this.tmp2.set(0, 0.2, 0.06));
   }
 
+  /**
+   * The pan on a lit burner, hot enough for the oil (then for the batter)
+   * and the batter not in yet: "Ready" over it, with a ping as it comes.
+   * Shown whatever the display settings: it stands in for the chef's own
+   * test of the heat.
+   */
+  private updateReady(): void {
+    const lit = this.onBurner >= 0 && (range.burners[this.onBurner]?.level ?? 0) > 0;
+    const want = this.wanted && lit && this.state === 'none' && this.panHeat >= (this.oiled ? TAMAGO_POUR_HEAT : TAMAGO_OIL_HEAT);
+    if (want && !this.readySign.visible) {
+      playDone();
+      console.log(`[Tamago] the pan is hot: ready for the ${this.oiled ? 'batter' : 'oil'}`);
+    }
+    this.readySign.visible = want;
+    if (want) this.readySign.position.copy(this.pan.position).add(this.tmp2.set(0, 0.11, 0));
+  }
+
   private publish(): void {
     tamago.panHeld = this.panHand !== null;
     tamago.eggHeld = this.eggHand !== null;
@@ -1254,6 +1277,7 @@ export class TamagoSystem extends createSystem({
   /** The bar opens: the pan back on its hook, what was in it gone. */
   private clearAway(): void {
     this.cleared = true;
+    this.readySign.visible = false;
     for (const side of [this.panHand, this.liftHand?.side ?? null, this.eggHand, this.pestleHand, this.sticksHand, this.bowlHand, this.jarHand, this.oilHand, this.lidHand, this.flipSticksHand]) if (side !== null) chef.hands[side].holding = Held.None;
     this.panHand = this.eggHand = null;
     this.oilHand = this.lidHand = this.flipSticksHand = null;

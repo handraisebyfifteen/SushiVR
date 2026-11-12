@@ -1,4 +1,5 @@
 import { fishOrder } from './fish-order.js';
+import { chef, day, prep, shari } from './game-state.js';
 import type { PieceKind } from './menu.js';
 import {
   DELIVERY_SECONDS,
@@ -23,8 +24,10 @@ import {
  * brings more when it is called (src/phone-book-system.ts). No prices.
  *  - A cook is 1 or 1.5 sho (1 sho = 1.5 kg of raw rice). A day takes 1 to
  *    3 sho: 1 is a very slow day, 3 a very busy one. In the morning the chef
- *    cooks (src/shari-system.ts); during service the cook can be asked to
- *    cook more (src/pantry-system.ts).
+ *    cooks (src/shari-system.ts). During service more is cooked by the
+ *    chef's choice: by himself at the work table, the morning's steps again
+ *    (src/shari-system.ts), or by the cook, asked on the phone
+ *    (src/pantry-system.ts). There is one cooker: one batch at a time.
  *  - A nigiri or a gunkan takes SHARI_GRAMS of shari, a hosomaki 90 g, an
  *    inari 30 g; a gunkan a strip of nori (a sixth of a sheet), a roll a
  *    half sheet.
@@ -196,7 +199,17 @@ export function riceText(): string {
 
 // ---- the cook's rice (service) ----------------------------------------------------
 
-/** The cook can be asked to cook this much now: the full mode, not cooking already, and the rice in the sack. */
+/** The cook can be asked to cook this much now: the full mode, the cooker free (the cook not cooking, nor the chef), and the rice in the sack. */
 export function canAskCookRice(sho: number): boolean {
-  return pantryOn() && pantry.cookLeft <= 0 && pantry.riceSho >= sho - 1e-6;
+  return pantryOn() && pantry.cookLeft <= 0 && shari.step === 'done' && pantry.riceSho >= sho - 1e-6;
+}
+
+/**
+ * The chef may cook a batch himself in service (full): the bar open and the
+ * cooker free, or his batch already on (until the ohitsu is back on its
+ * stand). The work table is then in reach from the stool.
+ */
+export function chefRiceInService(): boolean {
+  if (!pantryOn() || prep.active || !chef.open || day.closed) return false;
+  return shari.step !== 'done' || pantry.cookLeft <= 0;
 }

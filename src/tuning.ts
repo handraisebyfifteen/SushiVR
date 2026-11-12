@@ -438,3 +438,11 @@ export const KNIFE_DULL = 0.35;
 export const KNIFE_SHARP_ENOUGH = 0.9;
 export const RUB_SHARPEN = 1.2;
 export const RINSE_BLADE_SECONDS = 0.5;
+/**
+ * A dull edge (below KNIFE_DULL) catches in the flesh at random: the stroke
+ * does not take the slice off and the blade is drawn again (the owner,
+ * 2026-11-12: 「切れ味悪くなるとランダムで一回で切り身取れなくなるとか」). The chance
+ * per stroke, at the dull line and with the edge gone; never twice on one cut.
+ */
+export const DULL_CATCH_MIN = 0.25;
+export const DULL_CATCH_MAX = 0.6;

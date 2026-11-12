@@ -67,9 +67,10 @@ const STEP_WORDS: Record<StepKey, string> = {
   place: 'Geta: on the diagonal',
   serve: 'Hold a fist',
   shapeShari: 'Squeeze the rice',
-  setShari: 'Rice on the board',
+  setShari: 'Rice on the board, near side',
   takeNori: 'Take a nori strip',
-  wrapNori: 'Nori round the rice',
+  pinNori: 'Nori end on the rice, a finger on it',
+  wrapNori: 'Round it, pull a little, let go',
   spoonTopping: 'Spoon it on',
   takeAge: 'Take an inari pouch',
   stuffAge: 'Hands together: fill it',
@@ -168,11 +169,12 @@ const MISTAKE_WORDS: Record<MistakeKey, string> = {
   wrongItem: 'Not that one',
   wrongHand: 'Other hand',
   knifeUnwiped: 'Wipe the blade',
+  dullEdge: 'The edge caught: draw it again',
 };
 
 /** Steps that happen on the piece in the chef's hands: words go above the piece. */
 const PIECE_STEPS = new Set<StepKey>([
-  'join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi', 'wrapNori', 'stuffAge', 'closeAge',
+  'join', 'touch1', 'flip', 'touch2', 'rotate', 'touch3', 'wasabi', 'pinNori', 'wrapNori', 'stuffAge', 'closeAge',
   'spreadRice', 'rollMaki', 'squeezeRoll',
 ]);
 const TURN_STEPS = new Set<StepKey>(['turnBack', 'turnFront']);
@@ -837,7 +839,8 @@ export class MasterSystem extends createSystem({
         if (!progress.hasRice) return chef.hands[chef.riceSide].wet ? 'rice' : 'tezu';
         return progress.shaped ? 'setShari' : 'shapeShari';
       }
-      return progress.noriHeld ? 'wrapNori' : 'takeNori';
+      // The strip's end on the shari, a finger on it, then round (二点留め).
+      return !progress.noriHeld ? 'takeNori' : progress.noriPinned ? 'wrapNori' : 'pinNori';
     }
     if (service.order?.wasabi && progress.wasabi !== 'neta') return 'wasabi';
     return progress.topped ? null : 'spoonTopping';
@@ -1676,17 +1679,33 @@ export class MasterSystem extends createSystem({
         const board = this.stationPos(StationKind.CuttingBoard);
         if (!board) return false;
         a.set(0.3 * hs, 0.92, -0.2);
-        b.copy(board).add(off.set(0.12 * hs, 0.03, 0.02));
+        b.copy(board).add(off.set(0.12 * hs, 0.03, 0.06));
         rice.pose(this.there(this.phase(1.8), a, b), yaw, 0.1, 0);
         return true;
       }
+      case 'pinNori': {
+        // The strip's end down to the shari's near side (the neta hand's side),
+        // then the rice hand's index finger on it (the tip ~11 cm ahead of the palm).
+        const k = this.phase(2);
+        a.copy(progress.pieceAt).add(off.set(-0.035 * hs, 0.08, 0.03));
+        b.copy(progress.pieceAt).add(off.set(-0.035 * hs, 0.02, 0.03));
+        neta.pose(this.go(Math.min(1, k / 0.35), a, b), yaw, 0, 1);
+        a.set(0.3 * hs, 0.92, -0.2);
+        c.copy(progress.pieceAt).add(off.set(-0.017 * hs + 0.027 * hs, 0.03, 0.015 + 0.11));
+        rice.pose(this.go(Math.max(0, Math.min(1, (k - 0.35) / 0.35)), a, c), yaw, 1, 0, true);
+        return true;
+      }
       case 'wrapNori': {
-        // The strip down to the shari, once round it ("kururi"), let go.
-        const k = this.phase(1.8);
-        const turn = Math.min(1, k / 0.7) * Math.PI * 2;
-        const drop = k < 0.15 ? (0.15 - k) * 0.2 : 0;
-        a.copy(progress.pieceAt).add(off.set(Math.sin(turn) * 0.03, 0.03 + drop, Math.cos(turn) * 0.03));
-        neta.pose(a, yaw, 0, k < 0.75 ? 1 : 0);
+        // The finger holds the end while the strip goes once round and on
+        // over it, then the last end a small pull out ("ピン"), let go.
+        const k = this.phase(2.4);
+        const start = Math.atan2(-hs, 1);
+        const turn = start + Math.min(1, k / 0.7) * Math.PI * 2 * 1.42;
+        const r = 0.045 + (k > 0.72 ? Math.min(1, (k - 0.72) / 0.08) * 0.02 : 0);
+        a.copy(progress.pieceAt).add(off.set(Math.sin(turn) * r, 0.02, Math.cos(turn) * r));
+        neta.pose(a, yaw, 0, k < 0.86 ? 1 : 0);
+        c.copy(progress.pieceAt).add(off.set(-0.017 * hs + 0.027 * hs, 0.03 + (k > 0.4 ? 0.05 : 0), 0.015 + 0.11));
+        rice.pose(c, yaw, 1, 0, true);
         return true;
       }
       case 'spoonTopping': {

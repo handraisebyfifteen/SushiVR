@@ -228,7 +228,8 @@ and the pots go on first, the fish is cut while they cook.
      is hot, oil it (油返し): the oil pot stands on the food shelf with the
      seasonings; let it go over the hot pan and the oil goes round it, the
      rest back into the pot. Pinch the suribachi's front rim and let go over
-     the pan to pour it: a hot, oiled pan sizzles (a cold or dry one makes
+     the pan to pour it (a green "Ready" floats over the pan once it is hot
+     enough, until the batter is in): a hot, oiled pan sizzles (a cold or dry one makes
      the tamago stick). Turn the flame down low (higher bakes faster but
      scorches the face down). When the first side is set, toss it over like
      fried rice: the chopsticks (left on the pan's rim) in one hand, the
@@ -356,7 +357,11 @@ and the pots go on first, the fish is cut while they cook.
    and forth along the stone (the blade point over the stone), then dip the
    blade in the basin to rinse off the slurry, turn back and wipe it, and put
    it down. The edge wears with every cut (about 45 cuts from fresh to none);
-   a piece cut with a dull knife loses points. Finally point at the noren hanging inside the shop's entrance (beyond the
+   a piece cut with a dull knife loses points, and a dull edge catches in the
+   flesh at random: the stroke does not take the slice off and you draw the
+   blade again (the owner: a dull knife should hurt a little). Sharpening
+   between the prep and the service is a must; an evening sharpening before
+   closing is up to you. Finally point at the noren hanging inside the shop's entrance (beyond the
    customer's seat) and pinch: it is hung outside, the bar is open and the
    first customer walks in.
 
@@ -449,10 +454,17 @@ the palm:
 
 1. Right hand: tezu and rice as for a nigiri (steps 4), then make a fist
    once to shape it.
-2. Lower the right hand onto the cutting board: the shaped shari is set
-   down there (loose rice is not; squeeze it first).
-3. Left hand: pinch a nori strip from the nori tin and let go at the shari:
-   the nori goes round it.
+2. Lower the right hand onto the near half of the cutting board (your side):
+   the shaped shari is set down there (loose rice is not; squeeze it
+   first, and not on the far half).
+3. The nori, two-point wrapped (二点留め). Left hand: pinch a nori strip
+   (6切り: a sheet cut in six, 3.5 x 19 cm) from the nori tin and bring it
+   down to the shari: its end goes against the rice. Put the right index
+   finger on that end to hold it. Take the left hand once round the shari:
+   the strip wraps round and on over its start. Lift the finger only when
+   it is most of the way round (sooner, the strip springs off). At the
+   end, pull the last end a little outward (taut, ping), then let go. Let
+   go loose, the band sags round the rice and the piece scores lower.
 4. If wasabi is ordered: the right index finger to the wasabi dish, then onto
    the rice.
 5. Right hand: reach to the case's right end and pinch the tool (the
@@ -585,7 +597,7 @@ ingredient into its pot or out to the case, the net, the bonito belly),
 each stepping there and turning as needed; / steps to where you look (the
 work table, the range, the sink, or back to the board), and Tab does
 whatever the master is asking for (the whole fish's work too: the scaler,
-turning it over, the deba, rinsing, the tweezers). For a gunkan, Space squeezes the rice, H sets it on the board, Z wraps a nori strip round it, and 4
+turning it over, the deba, rinsing, the tweezers). For a gunkan, Space squeezes the rice, H sets it on the board, Z wraps a nori strip round it (the right index finger holding its end), and 4
 on a sea urchin or salmon roe order puts the topping on. For an inari, 4
 takes a pouch, H fills it and Space folds it shut on the beat. For a roll,
 Z lays the nori on the mat, U spreads the rice, 4 lays the next filling, I
@@ -598,7 +610,8 @@ turn a carried piece 45 degrees. Press P again to hand control back to the
 emulator. The \` key turns on shaky hands (Shift+\` with another seed): the
 hands wobble and now and then the headset loses one for a moment, more often
 with the hands together, to try the game against hand tracking without a
-headset.
+headset. Shift+D wears the edge down to nearly nothing, to try a dull knife
+(strokes catch at random; draw again).
 
 **Hand tracking**: Meta's hand design guides set the tolerances. A hand the
 headset loses for under 0.4 s keeps its pose and grip (`LOST_GRACE_MS` in

@@ -15,7 +15,7 @@ import { coach, type Grade } from './coach.js';
 import { knifeApi } from './cutting-system.js';
 import { debugLines } from './debug.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
-import { chef, prep, type Side, staff, wearKnife } from './game-state.js';
+import { chef, edgeCatches, prep, type Side, staff, wearKnife } from './game-state.js';
 import { handedness, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { ledger, wageYen, yen } from './ledger.js';
@@ -226,6 +226,8 @@ export class PrepCutSystem extends createSystem({
   private readonly carried: [Carried | null, Carried | null] = [null, null];
   private readonly grabOffset = [new Vector3(), new Vector3()];
   private cutStart: number | null = null;
+  /** The dull edge caught on this line: the next stroke cuts it. */
+  private caught = false;
   private offSum = 0;
   private offCount = 0;
   private netaGrip = false;
@@ -974,12 +976,28 @@ export class PrepCutSystem extends createSystem({
       this.cutStart = pos;
       this.offSum = this.offCount = 0;
     }
+    // Drawn back the other way (after a catch, the blade is taken back for another stroke): the stroke starts over from there.
+    const towardChef = Math.cos(m.root.rotation.y) < 0 ? -1 : 1;
+    if (!across && (pos - this.cutStart) * towardChef < -0.005) {
+      this.cutStart = pos;
+      this.offSum = this.offCount = 0;
+    }
     this.offSum += off;
     this.offCount++;
     // Toward the chef along the line (who stands at -Z of the wash board, at +Z of the manaita); across, either way.
     const toward = Math.cos(m.root.rotation.y) < 0 ? -1 : 1;
     const travel = across ? Math.abs(pos - this.cutStart) : (pos - this.cutStart) * toward;
     if (travel < CUT_STROKE) return;
+    if (!debaHeld && !this.caught && edgeCatches()) {
+      // The yanagiba's dull edge caught in the flesh: the line is not cut; draw it again.
+      this.caught = true;
+      this.cutStart = null;
+      feedback.flash(m.state === 'wash' ? StationKind.Sink : StationKind.CuttingBoard, COLOR_WARN);
+      coach.mistake('dullEdge', StationKind.Knife);
+      console.log(`[Prep] the dull edge caught in the flesh (edge ${chef.knifeSharp.toFixed(2)}): draw it again`);
+      return;
+    }
+    this.caught = false;
     this.cutStart = null;
     const mean = this.offSum / Math.max(1, this.offCount);
     const grade: Grade = mean < PREP_CUT_EXCELLENT ? 'Excellent' : mean < PREP_CUT_GOOD ? 'Good' : mean < PREP_CUT_POOR ? 'Poor' : 'Bad';

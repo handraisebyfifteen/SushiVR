@@ -1,7 +1,7 @@
 import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, orderKind, orderTakes, prep, progress, service, wearKnife } from './game-state.js';
+import { chef, edgeCatches, orderKind, orderTakes, prep, progress, service, wearKnife } from './game-state.js';
 import { homePose, type Pose, sideSign, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { NETA, type NetaId } from './menu.js';
@@ -59,6 +59,8 @@ export class CuttingSystem extends createSystem({
   private knifeHeld = false;
   private guide!: Mesh<BoxGeometry, MeshBasicMaterial>;
   private cutStartZ: number | null = null;
+  /** The dull edge caught on this slice: the next stroke takes it. */
+  private caught = false;
   private wipeRub = new RubTracker();
   private readonly blade = new Vector3();
   /** The saku on the board: its uncut end, its centre and its cut end (world). */
@@ -313,8 +315,20 @@ export class CuttingSystem extends createSystem({
         Math.abs(this.blade.z - this.sakuPos.z) < SAKU_HALF_DEPTH + CUT_STROKE + 0.04 &&
         this.blade.y < this.sakuPos.y + 0.1;
       if (holdingDown && overSaku) {
-        if (this.cutStartZ === null) this.cutStartZ = this.blade.z;
-        if (this.blade.z - this.cutStartZ >= CUT_STROKE) this.cut(saku);
+        // The stroke counts from the farthest the blade went back (after a catch it is drawn again from there).
+        this.cutStartZ = this.cutStartZ === null ? this.blade.z : Math.min(this.cutStartZ, this.blade.z);
+        if (this.blade.z - this.cutStartZ >= CUT_STROKE) {
+          if (!this.caught && edgeCatches()) {
+            // The dull edge caught in the flesh: the slice stays on; draw the blade again.
+            this.caught = true;
+            this.cutStartZ = null;
+            feedback.flash(StationKind.CuttingBoard, COLOR_WARN);
+            coach.mistake('dullEdge', StationKind.Knife);
+            console.log(`[Cutting] the dull edge caught in the flesh (edge ${chef.knifeSharp.toFixed(2)}): draw it again`);
+          } else {
+            this.cut(saku);
+          }
+        }
       } else {
         this.cutStartZ = null;
       }
@@ -372,6 +386,7 @@ export class CuttingSystem extends createSystem({
     wearKnife();
     chef.boardDirt = Math.min(1, chef.boardDirt + BOARD_DIRT_PER_CUT);
     this.cutStartZ = null;
+    this.caught = false;
     feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
     coach.done('cut');
     console.log(`[Cutting] cut one slice of ${neta}${skinRight ? '' : ' (skin on the wrong side)'}, ${saku.getValue(CaseItem, 'remaining')} left`);

@@ -38,6 +38,7 @@ export type StepKey =
   | 'shapeShari'
   | 'setShari'
   | 'takeNori'
+  | 'pinNori'
   | 'wrapNori'
   | 'spoonTopping'
   // inari
@@ -138,13 +139,17 @@ export type StepKey =
   | 'serveTea';
 
 /** Mistakes the master corrects with a word, whatever has been learned. */
-export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped';
+export type MistakeKey = 'needSoap' | 'soapInService' | 'washFirst' | 'wrongItem' | 'wrongHand' | 'knifeUnwiped' | 'dullEdge';
+
+/** The shop's stock running low (full mode, src/pantry-system.ts): the master says it once as it happens. */
+export type StockWarning = 'shariLow' | 'shariOut' | 'riceLow' | 'noriLow';
 
 export type Grade = 'Excellent' | 'Good' | 'Poor' | 'Bad';
 
 export const coach = {
   doneSteps: [] as StepKey[],
   mistakes: [] as Array<{ key: MistakeKey; at: Kind | null }>,
+  warnings: [] as Array<{ key: StockWarning; at: Kind | null }>,
   /** The player tried something that did nothing (e.g. rice with a dry hand). */
   nudged: false,
   servedGrade: null as Grade | null,
@@ -154,6 +159,9 @@ export const coach = {
   },
   mistake(key: MistakeKey, at: Kind | null = null): void {
     this.mistakes.push({ key, at });
+  },
+  warn(key: StockWarning, at: Kind | null = null): void {
+    this.warnings.push({ key, at });
   },
   nudge(): void {
     this.nudged = true;

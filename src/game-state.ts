@@ -1,6 +1,6 @@
 import { Vector3 } from '@iwsdk/core';
 import { CORE_FROM, MENU, type MenuId, NETA, type NetaId, type PieceKind } from './menu.js';
-import { KNIFE_DULL, KNIFE_WEAR_PER_CUT } from './tuning.js';
+import { DULL_CATCH_MAX, DULL_CATCH_MIN, KNIFE_DULL, KNIFE_WEAR_PER_CUT } from './tuning.js';
 import { Held, Judge } from './sushi-components.js';
 import { handedness, onHandsChanged } from './handedness.js';
 
@@ -122,6 +122,8 @@ export const progress = {
   shaped: false,
   shariDown: false,
   noriHeld: false,
+  /** The rice hand's finger holds the gunkan strip's end on the shari (two-point wrap). */
+  noriPinned: false,
   wrapped: false,
   topped: false,
   /** Inari: the pouch is on the neta hand, the rice is in it, its mouth is folded shut. */
@@ -481,6 +483,13 @@ export const day = {
 export function wearKnife(): void {
   chef.knifeSharp = Math.max(0, chef.knifeSharp - KNIFE_WEAR_PER_CUT);
   if (chef.knifeSharp < KNIFE_DULL) chef.knifeDull = true;
+}
+
+/** A stroke with a dull edge catches in the flesh (the slice stays on): at random, more often the duller the edge (the owner: a dull knife should hurt a little). */
+export function edgeCatches(): boolean {
+  if (chef.knifeSharp >= KNIFE_DULL) return false;
+  const dullness = 1 - chef.knifeSharp / KNIFE_DULL;
+  return Math.random() < DULL_CATCH_MIN + (DULL_CATCH_MAX - DULL_CATCH_MIN) * dullness;
 }
 
 /** The whetstone at the sink (包丁研ぎ, src/sharpen-system.ts). */

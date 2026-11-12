@@ -22,6 +22,7 @@ import {
   TABLE_SPOT_X,
   WORKTABLE_X,
 } from './layout.js';
+import { chefRiceInService } from './pantry.js';
 import { playPress } from './sfx.js';
 import { stations } from './station-system.js';
 import { StationKind } from './sushi-components.js';
@@ -69,6 +70,7 @@ export class PlaceSystem extends createSystem({}) {
     board: { id: 'board', at: new Vector3(0, MANAITA_TOP + 0.03, MANAITA_Z), radius: 0.4 },
   };
   private enabled: FarTarget<Where>[] = [];
+  private readonly service: FarTarget<Where>[] = [];
   private glowing: Where | null = null;
   private objects: Partial<Record<Where, Object3D>> = {};
   private turn: TurnSystem | undefined;
@@ -80,8 +82,8 @@ export class PlaceSystem extends createSystem({}) {
 
   update(delta: number): void {
     this.turn ??= this.world.getSystem(TurnSystem);
-    // The bar is open: back on the stool.
-    if (!prep.active && chef.at !== 'seat') this.go('seat');
+    // The bar is open: back on the stool (unless cooking a batch of rice himself, full: src/shari-system.ts).
+    if (!prep.active && chef.at !== 'seat' && !chefRiceInService()) this.go('seat');
     this.enabled = this.targetsNow();
     this.player.head.getWorldPosition(this.headNow);
     const chosen = this.enabled.length ? this.chooser.update(delta, this.player, this.headNow, this.enabled) : null;
@@ -100,7 +102,7 @@ export class PlaceSystem extends createSystem({}) {
 
   /** Turned round, the work table and the range; back at the bar from the back row, the board (to sit down). */
   private targetsNow(): FarTarget<Where>[] {
-    if (!prep.active) return [];
+    if (!prep.active) return this.serviceTargets();
     const out: FarTarget<Where>[] = [];
     if (chef.facingBack) {
       if (chef.at !== 'table') out.push(this.all.table);
@@ -119,6 +121,18 @@ export class PlaceSystem extends createSystem({}) {
       out.push(this.all.board);
     }
     return out;
+  }
+
+  /** In service (full) the work table, for a batch of rice the chef cooks himself; from there, back to the stool by the board. */
+  private serviceTargets(): FarTarget<Where>[] {
+    this.service.length = 0;
+    if (!chefRiceInService()) return this.service;
+    if (chef.facingBack) {
+      if (chef.at !== 'table' && !chef.hands.some((h) => h.needsWash)) this.service.push(this.all.table);
+    } else if (chef.at !== 'seat') {
+      this.service.push(this.all.board);
+    }
+    return this.service;
   }
 
   private go(place: Place): boolean {

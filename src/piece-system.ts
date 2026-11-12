@@ -271,9 +271,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     // Reaching down to the rice tub on the rice hand's side: by zone, or by leaving the camera's view there.
     const lowRight = hand.tracked && hand.palm.y < TUB_MAX_Y && hand.palm.x * sideSign() > TUB_MIN_X && hand.palm.z > TUB_MIN_Z;
     const inZone = hand.tracked && overStation(hand.palm, StationKind.RiceTub);
-    // On full the ohitsu can run out (src/pantry.ts): an empty one gives nothing.
-    const riceIn = (shari.inTub || !prep.active) && canTakeRice();
-    if (!riceIn && free && !this.hasRice && inZone && !this.toldEmpty && (shari.inTub || !prep.active)) {
+    // On full the ohitsu can run out (src/pantry.ts): an empty one gives nothing; nor one fetched off its stand for a batch in service (src/shari-system.ts).
+    const tubHome = shari.inTub || (!prep.active && shari.step === 'done');
+    const riceIn = tubHome && canTakeRice();
+    if (!riceIn && free && !this.hasRice && inZone && !this.toldEmpty && tubHome) {
       this.toldEmpty = true;
       feedback.flash(StationKind.RiceTub, COLOR_WARN);
       console.log('[Piece] the ohitsu is empty: no rice');
