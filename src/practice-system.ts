@@ -18,12 +18,11 @@ import { placeApi } from './place-system.js';
 import { KNOB_HOLD, KNOB_STEP } from './range-system.js';
 import { CASE_ORDER, CORE_FROM, MENU, type MenuId, menuFor, NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
-import { fishOrder, orderOf, orderRoom, priceOf, resetShop, sizesOf, supplierOf } from './fish-order.js';
+import { fishOrder, orderOf, resetShop, sizesOf, supplierOf } from './fish-order.js';
 import { fishOrderApi } from './fish-order-system.js';
 import { type Kind, stations } from './station-system.js';
 import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
-import { ledger, yen } from './ledger.js';
 import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, SHARI_SCOOPS } from './tuning.js';
 import { chefRiceInService, pantry } from './pantry.js';
 import { phoneBookApi, type PhoneRowId } from './phone-book-system.js';
@@ -153,8 +152,6 @@ const WORK = v(-0.06, 1.0, -0.27);
 const KNIFE_READY = v(0.22, 0.93, -0.18);
 /** A carried piece is let go here, from the geta's surface: above the case's glass, over its far half (inside the geta's zone, short of the geta itself). */
 const GETA_LET_GO = v(0, 0.32, 0.11);
-/** Shift+9: the shop's money (full) set this low, to try the order and staff limits. */
-const PRACTICE_LOW_FUNDS = 10_000;
 /** The rice tub, low on the right (world, facing the bar): down in it, and back up out of it. */
 const TUB_DOWN = v(0.4, 0.55, 0.02);
 const TUB_WAY = v(0.36, 0.8, -0.06);
@@ -440,14 +437,7 @@ export class PracticeSystem extends createSystem({
         caseApi.restockAll();
         this.say('Case restocked');
       },
-      Digit9: () => {
-        if (e.shiftKey) {
-          // The full difficulty's money runs low, at once: for trying the no-borrowing limits.
-          fishOrder.morningFunds = PRACTICE_LOW_FUNDS - ledger.profit();
-          return this.say(`Full: the shop's money is ${yen(PRACTICE_LOW_FUNDS)}`);
-        }
-        this.prepCarry();
-      },
+      Digit9: () => this.prepCarry(),
       Digit0: () => this.pullPrep(),
       Minus: () => (e.shiftKey ? this.phoneLine(['greengrocer'], 'Phone: the greengrocer') : this.paperWipe()),
       Equal: () => (e.shiftKey ? this.phoneLine(['settings', 'playMode'], 'Phone: settings, play mode') : this.callFishShop()),
@@ -455,7 +445,6 @@ export class PracticeSystem extends createSystem({
       BracketRight: () => (e.shiftKey ? this.phoneLine(['cookRice', 'cook1'], 'Phone: the cook, 1 sho of rice') : this.hangNoren()),
       Semicolon: () => (e.shiftKey ? this.phoneLine(['settings', 'hands'], 'Phone: settings, hands') : this.askStaff('cook')),
       Quote: () => (e.shiftKey ? this.phoneLine(['settings', 'display', 'frontNames'], 'Phone: tool names, counter') : this.askStaff('partTimer')),
-      Backslash: () => this.check(),
       Comma: () => (e.shiftKey ? this.askTea() : this.pourTea()),
       Period: () => this.serveTea(),
       KeyA: () => this.shariKey(),
@@ -2009,8 +1998,8 @@ export class PracticeSystem extends createSystem({
 
   /**
    * Tab while the fish shop is on the line (full): each case item under half
-   * is pinched until its order is the full amount (as far as the shop's
-   * money goes); then a point at the phone ends the call.
+   * is pinched until its order is the full amount; then a point at the
+   * phone ends the call.
    */
   private orderFish(): void {
     const want = this.orderWanted();
@@ -2049,9 +2038,6 @@ export class PracticeSystem extends createSystem({
       const sizes = sizesOf(id);
       const at = fishOrder.lines.get(id);
       if (at === sizes.length - 1) continue;
-      // No borrowing: a step the shop's money does not cover is left out.
-      const more = priceOf(id, sizes[at === undefined ? 0 : at + 1]) - (at === undefined ? 0 : priceOf(id, sizes[at]));
-      if (more > orderRoom()) continue;
       return neta;
     }
     return null;
@@ -2109,12 +2095,6 @@ export class PracticeSystem extends createSystem({
   /** ; and ': the cook's or the part-timer's line on the phone book, to call them in or let them off (a press a step). */
   private askStaff(who: 'cook' | 'partTimer'): void {
     this.phoneLine([who], `Phone: the ${who === 'cook' ? 'cook' : 'part-timer'}`);
-  }
-
-  /** Backslash: the customer says "Check, please": point at them and pinch. */
-  private check(): void {
-    if (!service.check) return this.say('Nobody is asking for the check');
-    this.pointAt(service.customerAt, 'Pointing at the customer: the check');
   }
 
   /** Shift+, (practice only): the seated customer asks for tea now. */
@@ -2948,7 +2928,7 @@ export class PracticeSystem extends createSystem({
       "Phone (a press a step): = fish shop  Shift+- greengrocer  ; cook  ' part-timer",
       "  Shift+= play mode  Shift+; hands  Shift+' tool names  ] noren in: close",
       '  Shift+[ rice shop (rice, nori)  Shift+] cook: 1 sho more (service, full)',
-      '\\ the check   , tea urn (Shift: ask for tea)   . tea to the tsukedai',
+      ', tea urn (Shift: ask for tea)   . tea to the tsukedai',
       "Back row: A shari  Enter range  / step  Tab: the master's step",
       `L ${left}  R ${right}  ${chef.open ? 'Open' : 'Closed'}  ${progress.stage}${heading}${shaky}`,
     ];

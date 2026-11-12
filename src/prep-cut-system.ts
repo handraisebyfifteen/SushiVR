@@ -18,7 +18,6 @@ import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { chef, edgeCatches, prep, type Side, staff, wearKnife } from './game-state.js';
 import { handedness, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
-import { ledger, wageYen, yen } from './ledger.js';
 import { cureApi, nakagoApi, prepApi, rangeApi, tamagoApi } from './prep-api.js';
 import { NAKAGO_FLOOR } from './scene-assets/lib/nakago-look.js';
 import { NETA, type NetaId } from './menu.js';
@@ -48,7 +47,7 @@ import {
   WASH_BOARD_Z,
   FISH_STAND_HEIGHT,
 } from './layout.js';
-import { canAfford, fractionOf, kohadaScale, noteAdded, todaysMaterials, todaysTaskCount } from './fish-order.js';
+import { fractionOf, kohadaScale, noteAdded, todaysMaterials, todaysTaskCount } from './fish-order.js';
 import { NAKAGO_IDS, PREP, type PrepId, prepTasks } from './prep.js';
 import {
   createDeba,
@@ -68,10 +67,8 @@ import { CaseItem, Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 import {
   BOARD_DIRT_PER_CUT,
-  COOK_MINUTES,
   COOK_SECONDS,
   CUT_STROKE,
-  FISH_SHOP_PRICE,
   PREP_CUT_EXCELLENT,
   PREP_CUT_GOOD,
   PREP_CUT_POOR,
@@ -211,10 +208,9 @@ const usedPaper = new MeshStandardMaterial({ color: '#D9D2C2', roughness: 0.95 }
  *  - Each saku is let go over the case (it fills its item), the bonito belly
  *    over the ice (it waits for the range). Scraps stay on the board until
  *    they are dropped in the trash bin at the chef's left foot.
- *  - Money: the fish shop bills every material it delivers. A crooked cut
- *    wastes flesh, so the saku gives fewer slices to sell. With the cook in
- *    (the plaque by the phone) the fish still in the ice box go to the back
- *    and come out as full saku, for wages; on the easy difficulty the cook
+ *  - A crooked cut wastes flesh, so the saku gives fewer slices to serve.
+ *    With the cook in (called on the phone) the fish still in the ice box go
+ *    to the back and come out as full saku; on the easy difficulty the cook
  *    has readied every case item the chef does not prep.
  */
 export class PrepCutSystem extends createSystem({
@@ -328,7 +324,6 @@ export class PrepCutSystem extends createSystem({
     const box = stations.get(StationKind.IceBox)!;
     // The fish box on its low stand at the sink's foot, lying long along X.
     const fishBox = new Vector3(FISH_BOX_X, FISH_STAND_HEIGHT, FISH_BOX_Z);
-    let bill = 0;
     // Everything on easy; what was ordered on full.
     nakagoApi.clear();
     for (const id of todaysMaterials()) {
@@ -365,15 +360,12 @@ export class PrepCutSystem extends createSystem({
       this.world.createTransformEntity(root);
       const frac = fractionOf(id);
       this.materials.push({ id, look, root, slot, state: 'box', home: 'box', boxYaw, baseY: slot.y, frac, step: 0, parts, centres, grades: [], loose: [] });
-      const yen = Math.round(((FISH_SHOP_PRICE[id] ?? 0) * frac) / 100) * 100;
-      ledger.fishShop(yen);
-      bill += yen;
     }
     if (this.materials.some((m) => this.fromFishBox(m))) this.buildSink(fishBox);
     this.built = true;
     // Today's tasks: what came, the work that comes with it, and the shari. Done already if nothing came.
     prep.tasksTotal = todaysTaskCount() + 1;
-    console.log(`[Prep] the delivery is in the ice box: ${this.materials.length} material(s) (fish shop ¥${bill})`);
+    console.log(`[Prep] the delivery is in the ice box: ${this.materials.length} material(s)`);
     this.checkDone();
   }
 
@@ -1266,13 +1258,7 @@ export class PrepCutSystem extends createSystem({
     staff.boxLeft = this.materials.filter((x) => x.state === 'box').length;
     if (!this.cooking && staff.cook && staff.cookReady) {
       const m = this.materials.filter((x) => x.state === 'box').sort((a, b) => b.slot.y - a.slot.y)[0];
-      // No borrowing (full): the cook does not take a fish the shop cannot pay him for.
-      const minutes = m ? (COOK_MINUTES[m.id] ?? 0) + (m.look.products.some((p) => p.dest === 'ice') ? (COOK_MINUTES.BonitoBelly ?? 0) : 0) : 0;
-      if (m && !canAfford(wageYen('cook', minutes))) {
-        staff.cook = false;
-        staff.unpaid = 'cook';
-        console.log(`[Staff] the cook stops: the shop cannot pay for the ${PREP[m.id].name.toLowerCase()} (${yen(wageYen('cook', minutes))})`);
-      } else if (m) {
+      if (m) {
         staff.cookReady = false;
         m.state = 'cook';
         m.root.visible = false;
@@ -1294,7 +1280,6 @@ export class PrepCutSystem extends createSystem({
       if (product.dest === 'ice' && PREP_STAGE >= 3) {
         // The belly too: seared in the back.
         this.stock(product.neta, NETA[product.neta].stock);
-        ledger.wage('cook', 'searing the bonito belly', COOK_MINUTES.BonitoBelly ?? 0);
         rangeApi.bellyByCook();
         this.completeTask();
         continue;
@@ -1303,7 +1288,6 @@ export class PrepCutSystem extends createSystem({
       if (product.dest !== 'case' && product.dest !== 'cure') continue;
       this.stock(product.neta, this.shareOf(m, product));
     }
-    ledger.wage('cook', PREP[m.id].kind === 'simmer' ? 'simmering' : 'saku-taking', COOK_MINUTES[m.id] ?? 0);
     feedback.flash(StationKind.NetaCase, COLOR_DONE);
     console.log(`[Prep] the cook has put the ${PREP[m.id].name.toLowerCase()} saku in the case`);
     this.finish(m);

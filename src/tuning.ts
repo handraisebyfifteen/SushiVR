@@ -4,8 +4,7 @@
  */
 
 import type { Grade } from './coach.js';
-import type { MenuId, NetaId, PieceKind } from './menu.js';
-import type { PrepId } from './prep.js';
+import type { NetaId, PieceKind } from './menu.js';
 
 // --- menu ---
 /** Kinds of piece the customers order. */
@@ -13,8 +12,8 @@ export const ENABLED_KINDS: readonly PieceKind[] = ['nigiri', 'gunkan', 'inari',
 
 // --- prep (仕込み), before service ---
 /**
- * The difficulty a new player starts on (chosen on the books board in the
- * office corner each morning, before the call; remembered). 'easy': the fish
+ * The difficulty a new player starts on (chosen in the phone's settings
+ * each morning, before the call; remembered). 'easy': the fish
  * shop brings the usual and the cook fills every case item that is not
  * prepped. 'full' (本格): the case keeps what is left from day to day, and
  * the chef checks it and orders by item and amount (src/fish-order.ts).
@@ -108,98 +107,7 @@ export const TAMAGO_TURN_READY = 0.8;
 /** Seconds the turned-out tamago cools on its lid before it goes into the case. */
 export const TAMAGO_COOL_SECONDS = 15;
 
-// --- money (yen) ---
-/**
- * What the customer pays per order: one nigiri, gunkan or inari, or one
- * roll. Agreed with the shop owner (a town sushi bar, a la carte). A bonito
- * order with no part named is two pieces, back and belly, each paid as one.
- */
-export const PRICE: Record<MenuId, number> = {
-  LeanTunaNigiri: 350,
-  MediumFattyTunaNigiri: 600,
-  FattyTunaNigiri: 800,
-  BonitoPair: 600,
-  BonitoNigiri: 300,
-  BonitoBellyNigiri: 300,
-  FlounderNigiri: 400,
-  EngawaNigiri: 450,
-  StripedJackNigiri: 500,
-  YellowtailNigiri: 350,
-  CuredMackerelNigiri: 300,
-  KohadaNigiri: 300,
-  HorseMackerelNigiri: 300,
-  SquidNigiri: 300,
-  GesoNigiri: 200,
-  OctopusNigiri: 300,
-  PrawnNigiri: 600,
-  SweetShrimpNigiri: 350,
-  AbaloneNigiri: 900,
-  ArkShellNigiri: 500,
-  ScallopNigiri: 400,
-  CockleNigiri: 450,
-  SeaEelNigiri: 450,
-  TamagoNigiri: 150,
-  UniGunkan: 1500,
-  IkuraGunkan: 1200,
-  Inari: 150,
-  KanpyoRoll: 500,
-  TunaRoll: 900,
-  CucumberRoll: 400,
-  PickleRoll: 400,
-  UmeShisoRoll: 450,
-  UmeCucumberRoll: 450,
-};
-/**
- * The fish shop's bill for each material it delivers (everything delivered
- * is paid for, sold or not). The owner's prices (2026-11-10): the tuna belly
- * is an eighth, about 12 kg at about ¥600 a kilo (a sixteenth is half); the
- * hamachi a half, eight kohada, one saba; the tamago is its eggs and scallops.
- */
-export const FISH_SHOP_PRICE: Partial<Record<PrepId, number>> = {
-  TunaBelly: 7200,
-  BonitoHalf: 1500,
-  Squid: 1500,
-  Octopus: 1500,
-  SeaEel: 1200,
-  Abalone: 5000,
-  Kanpyo: 500,
-  StripedJack: 2000,
-  Flounder: 2500,
-  Yellowtail: 2500,
-  Kohada: 1600,
-  Saba: 800,
-  Tamago: 1200,
-};
-/**
- * The full difficulty: what the fish shop (or, for the greengrocer's items,
- * the greengrocer) charges for a case item it brings ready to serve, for a
- * full case of it (a half is half). The owner (2026-11-10): a full case is
- * what this price buys, four servings ("全部4人前用でこの値段"): four prawns,
- * four of each shell; the inari pouches a set of twelve; sweet shrimp one
- * sheet, eighteen (six by three), nine pieces of two. Scallops (the owner,
- * 2026-11-11) come nine to a pack, one a piece, and are the cheapest of the
- * shellfish now that farming works: about ¥150 each, ¥250 at most. The
- * menu's case stocks follow (src/menu.ts).
- */
-export const READY_PRICE: Partial<Record<NetaId, number>> = {
-  Tamago: 500,
-  Kohada: 900,
-  HorseMackerel: 700,
-  CuredMackerel: 900,
-  Prawn: 1500,
-  SweetShrimp: 800,
-  Scallop: 1350,
-  ArkShell: 1200,
-  Cockle: 1100,
-  InariAge: 400,
-  Uni: 3000,
-  Ikura: 2000,
-  TunaStick: 1800,
-  Cucumber: 200,
-  Takuan: 300,
-  UmePaste: 400,
-  Shiso: 200,
-};
+// --- the full difficulty's case, the greengrocer, the staff (the game has no money) ---
 /**
  * The full difficulty, where the case carries over. The owner: only tuna and
  * cooked things (anago, tamago, octopus...) may be kept from day to day;
@@ -217,15 +125,6 @@ export const KEPT_OVERNIGHT: readonly NetaId[] = [
  */
 export const KEEP_DAYS: Partial<Record<NetaId, number>> = { Uni: 2, Ikura: 2, Cucumber: 3, Shiso: 3, Takuan: 3, UmePaste: 3 };
 /**
- * The full difficulty's shop money (営業モード): it starts at this and
- * carries over from day to day. There is no borrowing: the fish shop takes
- * no more than the shop can pay, and staff are not called in when their
- * wages cannot be paid (the owner, 2026-11-10).
- */
-export const START_FUNDS = 500_000;
-/** Below this the books warn: about one morning's order. */
-export const LOW_FUNDS = 40_000;
-/**
  * The garnish vegetables and pickles (ツマもの) come straight from the
  * greengrocer (the owner), not with the fish shop's order: on the full
  * difficulty the greengrocer is called on its own line of the phone book
@@ -233,32 +132,6 @@ export const LOW_FUNDS = 40_000;
  * come as usual each morning.
  */
 export const GREENGROCER: readonly NetaId[] = ['Cucumber', 'Shiso', 'Takuan', 'UmePaste'];
-/** Hourly wages: the cook (prep) and the part-timer (cleaning). */
-export const WAGE_COOK = 2000;
-export const WAGE_PART_TIMER = 1300;
-/**
- * Shop minutes each job takes when it is left to someone else (paid by the
- * hour; the game runs these faster). On the easy difficulty the cook readies
- * every case item the chef does not prep.
- */
-export const COOK_MINUTES_PER_CASE_ITEM = 3;
-export const COOK_MINUTES: Partial<Record<PrepId, number>> = {
-  TunaBelly: 20,
-  BonitoHalf: 20,
-  Squid: 15,
-  Octopus: 20,
-  SeaEel: 40,
-  Abalone: 60,
-  Kanpyo: 30,
-  BonitoBelly: 15,
-  StripedJack: 30,
-  Flounder: 35,
-  Yellowtail: 15,
-  Kohada: 80,
-  Saba: 40,
-  Tamago: 60,
-};
-export const CLEANUP_MINUTES = 30;
 /** Real seconds the cook takes over one material, and the part-timer over the cleaning. */
 export const COOK_SECONDS = 10;
 export const CLEANUP_SECONDS = 8;
@@ -330,8 +203,8 @@ export const CLOSE_AFTER_SECONDS = 5;
 export const LEFT_HANDED_CUSTOMER_RATIO = 0.3;
 /**
  * Orders a customer comes in with, and at most: an Excellent piece brings one
- * more order, a Poor one or a wrong item one fewer, a Bad one and they ask
- * for the bill. (A bonito order of back and belly counts as one order.)
+ * more order, a Poor one or a wrong item one fewer, after a Bad one they
+ * order no more. (A bonito order of back and belly counts as one order.)
  */
 export const ORDERS_PER_CUSTOMER = 3;
 export const MAX_ORDERS_PER_CUSTOMER = 6;
@@ -340,16 +213,13 @@ export const RESULT_SECONDS = 4;
 /** Walking pace (m/s) of the customer and the staff. */
 export const WALK_PACE = 0.9;
 
-// --- customer care: the tea and the check ---
+// --- customer care: the tea ---
 /** How often a customer asks for tea (お茶), once they have eaten their first piece. */
 export const TEA_REQUEST_RATIO = 0.5;
 /** How long they wait for it: unserved by then, they order one fewer. */
 export const TEA_PATIENCE_SECONDS = 45;
 /** Pouring a cup at the urn (the chef's or the part-timer's). */
 export const TEA_POUR_SECONDS = 2;
-/** The part-timer's minutes, for wages: a cup of tea, showing a customer to the seat. */
-export const TEA_MINUTES = 3;
-export const SEAT_MINUTES = 1;
 
 // --- hygiene ---
 /** Pieces made before the hands need washing (dirt reaches 1). */

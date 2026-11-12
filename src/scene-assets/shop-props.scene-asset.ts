@@ -24,8 +24,9 @@ import { createOilPot } from './lib/tamago-look.js';
  * Small shop props for the morning prep and the opening: the trash bin with
  * its lid, the kitchen-paper box, the black dial telephone, the food shelf,
  * the shop entrance with its noren, and the office corner's phone shelf,
- * books board and staff call buttons. Each origin is at floor (or counter)
- * contact; each front faces -Z unless noted. Moving parts are named groups
+ * the day's results board (asset id books-board) and staff call buttons.
+ * Each origin is at floor (or counter) contact; each front faces -Z unless
+ * noted. Moving parts are named groups
  * (Lid, Handset, NorenInside, NorenOutside) that the systems animate.
  */
 
@@ -349,15 +350,15 @@ export function createPhoneShelf(): Group {
   return root;
 }
 
-/** The books board's paper: where the system writes the day's books. */
+/** The results board's paper: where the system writes the day's results. */
 export const BOOKS_SHEET_WIDTH = 0.26;
 export const BOOKS_SHEET_HEIGHT = 0.34;
 
 /**
- * The day's books (帳簿) hung on the wall over the phone: a wooden board
- * with a sheet of paper ('BooksSheet') under a clip. The system writes the
- * takings, the fish shop's bill and the wages on it. Origin: wall contact at
- * the board's middle; front -Z; 0.3 x 0.4.
+ * The day's results hung on the wall over the phone: a wooden board with a
+ * sheet of paper ('BooksSheet') under a clip. The system writes the pieces
+ * served and their grades on it (src/office-system.ts; the game has no
+ * money). Origin: wall contact at the board's middle; front -Z; 0.3 x 0.4.
  */
 export function createBooksBoard(): Group {
   const root = new Group();

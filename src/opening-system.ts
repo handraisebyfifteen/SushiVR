@@ -5,7 +5,6 @@ import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { chef, day, nakago, prep, prepCleaned, prepReady, type Side, staff } from './game-state.js';
 import { hands, RubTracker } from './hands.js';
 import { BACK_ROW_Z, MANAITA_DEPTH, MANAITA_THICKNESS, MANAITA_WIDTH, SINK_TOP } from './layout.js';
-import { ledger } from './ledger.js';
 import { GAZE_CONE_DEG, gazeOff, GazePinch } from './gaze.js';
 import { heldOut, POINT_LATCH_SECONDS, pointsAt } from './pointing.js';
 
@@ -13,7 +12,7 @@ import { heldOut, POINT_LATCH_SECONDS, pointsAt } from './pointing.js';
 const NOREN_LOOK_RADIUS = 0.3;
 import { overStation, stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
-import { BOARD_DRY_SECONDS, CLEANUP_MINUTES, CLEANUP_SECONDS, CLOSE_AFTER_SECONDS, RUB_WASH_CLOTH } from './tuning.js';
+import { BOARD_DRY_SECONDS, CLEANUP_SECONDS, CLOSE_AFTER_SECONDS, RUB_WASH_CLOTH } from './tuning.js';
 import { playPress } from './sfx.js';
 
 /** How the part-timer clears the scraps off the board (set by src/prep-cut-system.ts). */
@@ -46,7 +45,7 @@ const ON_BOARD = [StationKind.NoriBox, StationKind.Wasabi, StationKind.Tezu, Sta
  *    after that wash (src/hygiene-system.ts) the noren may be hung out:
  *    point at it at the entrance and pinch. The bar opens.
  *  - with the part-timer in (src/staff-system.ts), the scraps and the board
- *    are seen to once the prep is done, for wages;
+ *    are seen to once the prep is done;
  *  - at the end of the day the noren is taken in the same way: last orders.
  */
 export class OpeningSystem extends createSystem({}) {
@@ -73,7 +72,6 @@ export class OpeningSystem extends createSystem({}) {
   private readonly gazePinch = new GazePinch<true>();
   private time = 0;
   private cleanLeft = 0;
-  private cleanupPaid = false;
   private readonly head = new Vector3();
 
   update(delta: number): void {
@@ -301,10 +299,6 @@ export class OpeningSystem extends createSystem({}) {
     chef.boardDirt = 0;
     staff.cleaning = false;
     feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
-    if (!this.cleanupPaid) {
-      this.cleanupPaid = true;
-      ledger.wage('partTimer', 'cleaning', CLEANUP_MINUTES);
-    }
     console.log('[Opening] the part-timer has cleared the scraps and washed the board');
   }
 

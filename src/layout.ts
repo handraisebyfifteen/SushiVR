@@ -368,7 +368,7 @@ export const PAPER_BOX_X = -0.2;
  * The office corner (帳場) on the aisle's right end wall (seen from the bar;
  * the left wall seen from the customers), out of the customers' way: the
  * food shelf toward the front, and toward the back, by the dish cabinet, the
- * day's books on the wall over the black telephone on its shelf. All face
+ * day's results board on the wall over the black telephone on its shelf. All face
  * the aisle (-X); the phone is out of reach from the seat: it is pointed at.
  */
 export const END_WALL_X = ROOM_END_X - WALL_THICKNESS / 2;
@@ -377,7 +377,7 @@ export const FOOD_SHELF_Z = AISLE_CENTER_Z - 0.1;
 /** Where the chef stands for the food shelf (the salt and sugar for the tamago; full difficulty): in the aisle before it, facing the back row, the shelf at the right hand. */
 export const SHELF_SPOT_X = FOOD_SHELF_X - 0.42;
 export const SHELF_SPOT_Z = FOOD_SHELF_Z;
-/** The phone and the books, between the food shelf and the dish cabinet. */
+/** The phone and the day's results board, between the food shelf and the dish cabinet. */
 export const OFFICE_BACK_Z = AISLE_CENTER_Z + 0.5;
 export const PHONE_SHELF_Y = 1.0;
 export const BOOKS_BOARD_Y = 1.5;

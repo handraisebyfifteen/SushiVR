@@ -134,7 +134,6 @@ export type StepKey =
   | 'pullPins'
   | 'putTool'
   // customer care
-  | 'check'
   | 'makeTea'
   | 'serveTea';
 

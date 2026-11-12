@@ -14,8 +14,8 @@ const MAX_SIZE = 76;
 
 /**
  * Writes the menu board (お品書き): each plaque's name in Japanese, top
- * down, in black on the wood. No prices on the plaques (the user's choice,
- * as in many bars; the prices stay in src/tuning.ts). Short names are spaced
+ * down, in black on the wood. No prices on the plaques: the game has no
+ * money (the check is the cashier's, off-screen). Short names are spaced
  * out down the plaque. The lettering uses the device's own Japanese serif
  * font (no font file is shipped); it is one canvas over all the plaques,
  * drawn once.

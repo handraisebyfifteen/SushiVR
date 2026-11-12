@@ -1,14 +1,12 @@
 import { CASE_ORDER, NETA, type NetaId } from './menu.js';
 import { FISH_BOX_ORDER, ICE_BOX_ORDER, PREP, type PrepId, type PrepTask } from './prep.js';
-import { prep } from './game-state.js';
-import { ledger } from './ledger.js';
-import { FISH_SHOP_PRICE, GREENGROCER, KEEP_DAYS, KEPT_OVERNIGHT, KOHADA_SALT_MINUTES, KOHADA_SIZE_MINUTES, PREP_STAGE, READY_PRICE, START_DIFFICULTY, START_FUNDS } from './tuning.js';
+import { GREENGROCER, KEEP_DAYS, KEPT_OVERNIGHT, KOHADA_SALT_MINUTES, KOHADA_SIZE_MINUTES, PREP_STAGE, START_DIFFICULTY } from './tuning.js';
 
 /**
  * The difficulty, the fish shop's order and the case from day to day.
  *
  * Easy: the phone call is "the usual" (お任せ): every prep material comes,
- * and the cook fills the case items the chef does not prep (wages). Each day
+ * and the cook fills the case items the chef does not prep. Each day
  * starts afresh.
  *
  * Full (本格, the owner's real way): the case keeps what is left, day to
@@ -16,25 +14,24 @@ import { FISH_SHOP_PRICE, GREENGROCER, KEEP_DAYS, KEPT_OVERNIGHT, KOHADA_SALT_MI
  * checks it, then calls the fish shop and orders by item and amount: while
  * the shop is on the line, a pinch on a case item cycles its order (a prep
  * material for the items it makes, or the item itself, ready to serve), and
- * a point at the phone again ends the call. Only what was ordered comes, and
- * all of it is billed. Only tuna and cooked things keep overnight (opened uni
- * and ikura two days); the rest of yesterday's is out in the morning. The
- * garnishes and pickles (ツマ) are the greengrocer's: a call of their own
- * on the phone book (the owner, 2026-11-10), ordered the same way and
- * delivered and billed apart. The shop's money carries over too, from
- * START_FUNDS: there is no borrowing, so an order stops at what the shop
- * can pay (with what is ordered and not yet delivered set aside) and staff
- * are not called in when their wages cannot be paid.
+ * a point at the phone again ends the call. Only what was ordered comes.
+ * Only tuna and cooked things keep overnight (opened uni and ikura two
+ * days); the rest of yesterday's is out in the morning. The garnishes and
+ * pickles (ツマ) are the greengrocer's: a call of their own on the phone
+ * book (the owner, 2026-11-10), ordered the same way and delivered apart.
+ * There is no money in the game (the owner, 2026-11-12): no prices, no
+ * bills, no funds; an order is limited only by the amounts each thing comes
+ * in.
  *
  * The order is kept in plain functions (startOrder, setLine, cycleOrder,
- * orderTotal) so that something other than the chef's pinches (an order
+ * orderNames) so that something other than the chef's pinches (an order
  * placed for the chef) can fill it too.
  */
 
 export type Difficulty = 'easy' | 'full';
 /** What is ordered: a prep material, or a case item ready as it comes. */
 export type OrderId = PrepId | NetaId;
-/** Who sells it: the fish shop, or the greengrocer (the garnishes and pickles). */
+/** Who brings it: the fish shop, or the greengrocer (the garnishes and pickles). */
 export type Supplier = 'fish' | 'greengrocer';
 export const SUPPLIER_NAME: Record<Supplier, string> = { fish: 'Fish shop', greengrocer: 'Greengrocer' };
 
@@ -83,7 +80,7 @@ export function fromGreengrocer(neta: NetaId): boolean {
   return GREENGROCER.includes(neta);
 }
 
-/** Who sells this. */
+/** Who brings this. */
 export function supplierOf(id: OrderId): Supplier {
   return GREENGROCER.includes(id as NetaId) ? 'greengrocer' : 'fish';
 }
@@ -126,12 +123,6 @@ export function sizesOf(id: OrderId): readonly OrderSize[] {
   return SIZES.get(id) ?? [];
 }
 
-/** The fish shop's price for that much of it (to the nearest ¥100). */
-export function priceOf(id: OrderId, size: OrderSize): number {
-  const full = isMaterial(id) ? (FISH_SHOP_PRICE[id] ?? 0) : (READY_PRICE[id as NetaId] ?? 0);
-  return Math.round((full * size.frac) / 100) * 100;
-}
-
 function read(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -168,8 +159,6 @@ export const fishOrder = {
   added: new Map<NetaId, number>(),
   /** The day's kohada: -1 small, 0 middling, +1 large (their salt time follows). */
   kohadaSize: 0,
-  /** The shop's money this morning (full). */
-  morningFunds: START_FUNDS,
   /** The greengrocer has been called today, and has delivered (full). */
   greensOrdered: false,
   greensDelivered: false,
@@ -199,13 +188,6 @@ export function cycleOrder(id: OrderId): OrderSize | null {
 export function orderedSize(id: OrderId): OrderSize | null {
   const at = fishOrder.lines.get(id);
   return at === undefined ? null : (sizesOf(id)[at] ?? null);
-}
-
-/** The order's price: one shop's lines, or both. */
-export function orderTotal(supplier?: Supplier): number {
-  let sum = 0;
-  for (const [id, at] of fishOrder.lines) if (!supplier || supplierOf(id) === supplier) sum += priceOf(id, sizesOf(id)[at]);
-  return sum;
 }
 
 /** One shop's lines, as said on the phone and on the slip. */
@@ -255,11 +237,10 @@ export function noteAdded(neta: NetaId, n: number): void {
   if (n > 0) fishOrder.added.set(neta, (fishOrder.added.get(neta) ?? 0) + n);
 }
 
+/** A shop saved while the game still had money also has a `funds` field: it is ignored. */
 interface SavedShop {
   day: number;
   lots: Partial<Record<NetaId, Lot[]>>;
-  /** The shop's money at the close (missing in a shop saved before money carried over). */
-  funds?: number;
 }
 
 function loadShop(): SavedShop | null {
@@ -277,7 +258,6 @@ function loadShop(): SavedShop | null {
 export function startDay(): void {
   const saved = loadShop();
   fishOrder.day = saved ? saved.day + 1 : 1;
-  fishOrder.morningFunds = saved?.funds ?? START_FUNDS;
   fishOrder.lots.clear();
   fishOrder.spoiled.length = 0;
   fishOrder.added.clear();
@@ -326,30 +306,7 @@ export function closeDay(left: (neta: NetaId) => number): void {
     const kept = list.filter((l) => l.count > 0);
     if (kept.length) lots[neta] = kept;
   }
-  write(SHOP_KEY, JSON.stringify({ day: fishOrder.day, lots, funds: fundsNow() } satisfies SavedShop));
-}
-
-// ---- the shop's money (full) --------------------------------------------------------
-
-/** The money carries over only on the full difficulty; easy keeps the day's books alone. */
-export function fundsTracked(): boolean {
-  return fishOrder.difficulty === 'full';
-}
-
-/** The shop's money now: this morning's, and the day's books so far. */
-export function fundsNow(): number {
-  return fishOrder.morningFunds + ledger.profit();
-}
-
-/** Spoken for: what is ordered (on the phone or on its way) and not yet delivered, billed when it comes. */
-export function owed(): number {
-  if (!fundsTracked()) return 0;
-  return (prep.delivered ? 0 : orderTotal('fish')) + (fishOrder.greensDelivered ? 0 : orderTotal('greengrocer'));
-}
-
-/** Whether the shop can pay this out now, the order not yet billed set aside (always on easy). */
-export function canAfford(yen: number): boolean {
-  return !fundsTracked() || fundsNow() - owed() >= yen;
+  write(SHOP_KEY, JSON.stringify({ day: fishOrder.day, lots } satisfies SavedShop));
 }
 
 /** A shop's call begins (full): that shop is on the line, its part of the order empty. */
@@ -359,28 +316,7 @@ export function startOrder(supplier: Supplier): void {
   fishOrder.version++;
 }
 
-/** What an order may still spend: the money, less all that is ordered and not yet delivered. */
-export function orderRoom(): number {
-  return fundsNow() - owed();
-}
-
-/** What one case item cost the shop, piece by piece: its share of the material it came in, or of a ready batch. */
-export function unitCost(neta: NetaId): number {
-  const id = orderOf(neta);
-  if (!isMaterial(id)) return (READY_PRICE[neta] ?? 0) / NETA[neta].stock;
-  let pieces = 0;
-  for (const n of Object.keys(NETA) as NetaId[]) if (orderOf(n) === id) pieces += NETA[n].stock;
-  return pieces ? (FISH_SHOP_PRICE[id] ?? 0) / pieces : 0;
-}
-
-/** This morning's waste in yen: already paid for on its day, shown on the books for reference. */
-export function spoiledYen(): number {
-  let sum = 0;
-  for (const s of fishOrder.spoiled) sum += s.count * unitCost(s.neta);
-  return Math.round(sum / 10) * 10;
-}
-
-/** Starts the full difficulty's shop again from day 1 (an empty case, the starting money). */
+/** Starts the full difficulty's shop again from day 1 (an empty case). */
 export function resetShop(): void {
   write(SHOP_KEY, null);
 }

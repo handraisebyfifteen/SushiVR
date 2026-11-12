@@ -66,12 +66,12 @@ grill net hung on the end wall beside it; on the sink's left a glass-door
 dish cabinet against the back wall.
 High on the back wall over the sink and the range hangs the menu board, a
 row of wooden plaques with each item's name in Japanese (the one place
-with Japanese text; no prices on the plaques). The office corner, out of
+with Japanese text). The office corner, out of
 the customers' way, is on the aisle's right end wall: an open food shelf
 (the seasonings out where they can be told apart, labelled: soy sauce,
 mirin, sake, rice vinegar, salt, sugar) with the staff call board over it (two round buttons, the cook and the
 part-timer), and between it and the dish cabinet a black dial telephone on
-a small shelf under the day's books. Beside it, at the bar's right end, the
+a small shelf under the board of the day's results. Beside it, at the bar's right end, the
 passage to the customer room hangs a long indigo noren, so the office shows
 only a little from the seats. The shop's entrance, a lattice door with its
 noren, is beyond the customer's seat. The kitchen doorway, with its long
@@ -126,7 +126,7 @@ the call buttons) until you call the fish shop; point at it and pinch to
 change it (it is remembered):
 
 - **Easy**: the case items you prep start empty, the rest full (the cook
-  readied them, for wages). Every day starts afresh.
+  readied them). Every day starts afresh.
 - **Full** (本格): the case keeps what is left from day to day (saved in
   the browser when the day closes; day 1 starts empty). You check the case
   and order what it needs. Only tuna and cooked things (anago, tamago,
@@ -134,20 +134,15 @@ change it (it is remembered):
   uni and ikura two business days, the garnishes three; the rest of
   yesterday's is out of the case in the morning, with a word over the case.
   The garnishes and pickles (cucumber, shiso, pickled radish, plum paste)
-  come from the greengrocer with the delivery, topped up and billed apart:
-  they are not ordered on the phone. The shop's money carries over too: it
-  starts at ¥500,000 (`START_FUNDS` in `src/tuning.ts`), sales come in,
-  the fish shop, the greengrocer and wages go out. There is no borrowing:
-  the fish shop takes no more than the shop can pay (the order slip shows
-  what is left to spend, the greengrocer's top-up set aside), and the cook
-  and the part-timer are not called in without an hour's wage in hand;
-  the part-timer goes home, and the cook stops before a fish, when the
-  money no longer covers the next job. A ready-made item's full case is
-  what its price buys: four servings (four prawns, four ark shells, four
-  cockles), the scallops a pack of nine (one a piece; farmed, so the
-  cheapest shellfish, about ¥150 each, and bought by the pack only), the
-  inari pouches a set of twelve, the sweet shrimp a sheet of eighteen
-  (six by three, nine pieces of two).
+  come from the greengrocer with the delivery, topped up apart:
+  they are not ordered on the phone. There is no money in the game:
+  nothing has a price and nothing is paid, so an order is limited only by
+  the amounts each thing comes in, and the cook and the part-timer are
+  simply called in or not. A ready-made item's full case is four servings
+  (four prawns, four ark shells, four cockles), the scallops a pack of
+  nine (one a piece, ordered by the pack only), the inari pouches a set of
+  twelve, the sweet shrimp a sheet of eighteen (six by three, nine pieces
+  of two).
 
 Time runs faster than in a shop, and the work runs side by side: the rice
 and the pots go on first, the fish is cut while they cook.
@@ -160,15 +155,15 @@ and the pots go on first, the fish is cut while they cook.
    next amount and then back to none. A prep item orders its material (any
    tuna orders a tuna belly, 1/16 or 1/8; the hamachi comes as a quarter or
    a half; the rest one each), the others come ready to serve, half or a
-   full case. The slip over the case's left end lists the order and its
-   price. Point at the phone again to end the call. Only what was ordered
-   comes (ready items go straight into the case), and it is all billed
-   (`src/fish-order.ts`). A few seconds later its styrofoam box is on
+   full case. The slip over the case's left end lists the order. Point
+   at the phone again to end the call. Only what was ordered comes (ready
+   items go straight into the case; `src/fish-order.ts`). A few seconds
+   later its styrofoam box is on
    the counter left of the board (once everything in it is prepped, the
    empty box is put away). Turn round to the sink behind you and wash
    your hands meanwhile: the fish is not touched with unwashed hands.
    Anything far away (the phone, the call buttons, the tea urn, the noren,
-   the customer for the check, the work table and the range) is pointed at
+   the work table and the range) is pointed at
    with the hand held out and the other fingers curled, then a pinch. A
    hand held out like that passes over the neta case without opening its
    doors or taking from it.
@@ -366,7 +361,7 @@ and the pots go on first, the fish is cut while they cook.
    first customer walks in.
 
 Your cuts are graded (how close to the line): a crooked cut wastes flesh,
-so the saku gives fewer slices to sell. What comes off the range is graded
+so the saku gives fewer slices to serve. What comes off the range is graded
 too (a tough octopus, a broken eel, scorched gourd strips, a belly burnt or
 seared on one side only give fewer pieces). When the prep is done, the
 pieces it gave show over the board (no grade words: shops differ in their
@@ -375,16 +370,15 @@ prep).
 **Staff** (plain figures, in the kitchen until called): nobody works unless
 called. During the prep, point at a button on the office's call board and
 pinch to call that one in (again to let them off); its lamp stays lit while
-they are on. The cook (white coat,
-¥2,000 an hour) walks to the ice box, takes each fish still in it into the
+they are on. The cook (white coat)
+walks to the ice box, takes each fish still in it into the
 kitchen and brings it out as full saku in the case (the range's ingredients
 come out cooked, and the bonito belly of a half he cut comes out seared);
-the shari stays the chef's own. The part-timer (apron,
-¥1,300 an hour) comes to the board once the prep is done, throws out the
-scraps and washes the board. They are paid for the time each job takes (`COOK_MINUTES` and
-`CLEANUP_MINUTES` in `src/tuning.ts`). On the easy difficulty the cook has
-also readied every case item you do not prep, which is paid too: doing it
-all yourself costs nothing and earns the most.
+the shari stays the chef's own. The part-timer (apron)
+comes to the board once the prep is done, throws out the
+scraps and washes the board. There are no wages: they are simply called in
+or not. On the easy difficulty the cook has also readied every case item
+you do not prep.
 
 **Opening**: turn to the sink, pinch the soap pump, rub both hands under the
 faucet, then put both hands on the towel hanging under the sink and grip it
@@ -520,22 +514,21 @@ for a right-handed guest and mirrored for a left-handed one. A slice with a
 skin edge (bonito, striped jack, cured mackerel) shows it on the customer's
 right when cut at the guide line.
 
-**Money**: every piece goes on the customer's bill at the menu price
-(`PRICE` in `src/tuning.ts`; a roll is one order). Each piece is also graded Excellent /
+**Grades**: every piece served (a roll is one order) is graded Excellent /
 Good / Poor / Bad from the four timed beats, wasabi, orientation,
 hospitality (handedness), freshness since the cut, and hygiene (unwashed
-hands, a dirty board, soap during service, an unwiped knife); the price,
-the bill so far, the grade and small icons for what to improve appear
-above the customer. The grade decides how much more they order: a customer
-comes in with three orders in mind, an Excellent piece brings one more (up
-to six), a Poor one one fewer, and after a Bad one they ask for the bill. A
-piece that is not what was ordered is sent back, not billed, and made
-again. A bonito order with no part named is two pieces, back and belly, one
-after the other.
+hands, a dirty board, soap during service, an unwiped knife); the grade
+and small icons for what to improve appear above the customer. The grade
+decides how much more they order: a customer comes in with three orders in
+mind, an Excellent piece brings one more (up to six), a Poor one one fewer,
+and after a Bad one they order no more. A piece that is not what was
+ordered is sent back ("Not my order") and made again. A bonito order with
+no part named is two pieces, back and belly, one after the other.
 
-**The check** (お勘定): when they are done, the customer says "Check,
-please". Point at them and pinch: they pay the bill and walk out by the
-entrance, and the next customer comes in there.
+**No money**: this is a simulator, not a management game. There are no
+prices, bills or wages, and the check (お勘定) is done by a cashier,
+off-screen: when the customer has had the last piece they say "Thank you!"
+and walk out by the entrance, and the next customer comes in there.
 
 **Tea** (お茶): now and then a customer asks for tea after the first piece.
 It is powdered green tea from the hot-water urn on the low cabinet under
@@ -547,19 +540,16 @@ customer. Left waiting too long, they order one fewer.
 
 **The part-timer in service**: called in with their button, the part-timer
 keeps to the office corner behind the long noren and comes out through it to show each
-new customer in from the entrance and to bring the tea when it is asked for
-(paid for the minutes: a cup, a showing in). The check, the board and the
-cloth stay the chef's own: the chef's work and hygiene.
+new customer in from the entrance and to bring the tea when it is asked for.
+The board and the cloth stay the chef's own: the chef's work and hygiene.
 
 **Closing**: point at the noren outside the entrance and pinch to take it
-in. The seated customer's order is the last; once they have paid and left, the day's
-books on the board over the telephone are final (a word over the counter
-says so): sales, the fish shop's bill (everything it
-delivered, sold or not), the wages and the profit or loss. On full they
-also show the shop's money (and this morning's), a warning under ¥40,000,
-what was thrown out this morning (in yen, for reference: it was paid for on
-its day), and the pieces served by grade. Reload the page for a new day (on
-full, the next day, with what the case and the money kept).
+in. The seated customer's order is the last; once they have left, the day's
+results on the board over the telephone are final (a word over the counter
+says so): the pieces served and how many of each grade, and on full what
+was thrown out this morning (how many items and pieces were past their
+days). Reload the page for a new day (on full, the next day, with what the
+case kept).
 
 **Hygiene**: every piece leaves rice and fish oil on your hands; after five
 they need washing. Moving a dish also makes that hand need washing. Wipe the
@@ -593,7 +583,7 @@ scrap into the trash, 0 pulls off the wrapping, the legs or the skin, X
 (knife in hand) cuts along the line, - pats the squid dry with paper, [ does
 the next step with the board (lift, wash, stand, lift, put back; T turns
 around between), ] points at the noren and pinches (to open, and again to
-close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+9 sets its money to ¥10,000 at once (to try the limits), Shift+K changes hands (left- or right-handed; the morning, before the call); O skips the prep and opens the bar. At the back row, A does the
+close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+K changes hands (left- or right-handed; the morning, before the call); O skips the prep and opens the bar. At the back row, A does the
 next step of the shari (in service on full, with the cooker free, it
 lights another batch of 1 sho and goes on through its steps) and Enter the next thing at the range (a knob, an
 ingredient into its pot or out to the case, the net, the bonito belly),
@@ -624,8 +614,8 @@ down, press and result has a short synthesized sound (`src/sfx.ts`).
 
 **Eye tracking (Meta VR Glasses)**: on a device that tracks the eyes, what
 is pointed at can also be chosen by looking at it and pinching, with either
-empty hand: the telephone, the call buttons, the tea urn, the customer for
-the check and the noren. It glows while looked at, as when pointed at. A
+empty hand: the telephone, the call buttons, the tea urn and the noren.
+It glows while looked at, as when pointed at. A
 pinch that takes something up at hand (neta, the cup, fish from the ice box)
 is work, not a choice (`src/gaze.ts`). Quest 3 and 3S have no eye tracking:
 there, only pointing. The glasses' view is narrower (37° to each side, 25°
@@ -642,15 +632,15 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/index.ts` | App entry point: `World.create()` and system registration |
 | `src/menu.ts` | The menu and the neta case: every item, how it is prepared, which hand takes it, how many pieces a block or tray gives, its look, and the case order |
 | `src/prep.ts` | The morning prep: each task, what it is made from and which case items it fills |
-| `src/fish-order.ts` | The difficulty, the fish shop's order (amounts, prices) and the case kept from day to day |
+| `src/fish-order.ts` | The difficulty, the fish shop's order (amounts) and the case kept from day to day |
 | `src/fish-order-system.ts` | The morning's case stock, ordering from the case, the order slip, the difficulty sign, the day's close |
 | `src/place-system.ts` | Where the chef stands: the stool, or a step back at the work table or the range |
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
 | `src/range-system.ts` | The gas range: the pots, their knobs and heat, and the bonito belly on skewers |
 | `src/tamago-system.ts` | The full difficulty's tamago: the suribachi from the cupboard under the sink, the scallops ground in it, the eggs tapped in, mixed with chopsticks till frothy; the square pan from its hook onto a burner, heated and oiled, the batter poured, baked low, tossed once with the chopsticks, the lid pressed on and the tamago turned out onto it, cooled, into the case, the pan wiped with paper |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
-| `src/tuning.ts` | Every gameplay number: prices, wages, the fish shop's bill, timings, tolerances |
-| `src/ledger.ts` | The day's books: sales, the fish shop, wages and the pieces by grade (the shop's money across days is in `src/fish-order.ts`) |
+| `src/tuning.ts` | Every gameplay number: timings, tolerances, what keeps from day to day |
+| `src/day-tally.ts` | The day's results: the pieces served and how many of each grade (shown on the board by the telephone; there is no money) |
 | `src/layout.ts` | Every bar dimension (counter depths, aisle width, heights, the reach model); run `npm run layout` after editing |
 | `src/assets.ts` | Asset catalog shared by the runtime and the editor |
 | `src/components.ts` | Component catalog shared by the runtime and the editor |

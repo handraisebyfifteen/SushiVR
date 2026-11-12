@@ -5,8 +5,7 @@ import { prep, staff } from './game-state.js';
 import { stations } from './station-system.js';
 import { StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
-import { fishOrder, fundsNow, orderNames, orderTotal, pickKohadaSize, startOrder, type Supplier } from './fish-order.js';
-import { yen } from './ledger.js';
+import { fishOrder, orderNames, pickKohadaSize, startOrder, type Supplier } from './fish-order.js';
 import { canOrderPantry, placePantryOrder } from './pantry.js';
 import { DELIVERY_SECONDS } from './tuning.js';
 
@@ -152,7 +151,7 @@ export class PhoneSystem extends createSystem({}) {
       fishOrder.ordering = true;
       startOrder('fish');
       this.say('Fish shop: Morning! What will it be?', stations.get(StationKind.Phone)!.pos, 0.3);
-      console.log(`[Phone] called the fish shop: taking the order (funds ${yen(fundsNow())})`);
+      console.log('[Phone] called the fish shop: taking the order');
       return;
     }
     prep.ordered = true;
@@ -167,7 +166,7 @@ export class PhoneSystem extends createSystem({}) {
     fishOrder.ordering = true;
     startOrder('greengrocer');
     this.say('Greengrocer: Morning! What do you need?', stations.get(StationKind.Phone)!.pos, 0.3);
-    console.log(`[Phone] called the greengrocer: taking the order (funds ${yen(fundsNow())})`);
+    console.log('[Phone] called the greengrocer: taking the order');
   }
 
   /** The rice shop (full): the card's order is placed at once; it comes on its own timer (src/pantry-system.ts). */
@@ -187,15 +186,15 @@ export class PhoneSystem extends createSystem({}) {
       this.greensIn = DELIVERY_SECONDS;
       const names = orderNames('greengrocer');
       const n = names.length;
-      this.say(n ? `Greengrocer: ${n} item${n > 1 ? 's' : ''}, ${yen(orderTotal('greengrocer'))}. Right away!` : 'Greengrocer: Nothing today? All right.', stations.get(StationKind.Phone)!.pos, 0.3);
+      this.say(n ? `Greengrocer: ${n} item${n > 1 ? 's' : ''}. Right away!` : 'Greengrocer: Nothing today? All right.', stations.get(StationKind.Phone)!.pos, 0.3);
       feedback.flash(StationKind.Phone, COLOR_DONE);
-      console.log(`[Phone] the greengrocer's order: ${names.join(', ') || 'nothing'} (${yen(orderTotal('greengrocer'))})`);
+      console.log(`[Phone] the greengrocer's order: ${names.join(', ') || 'nothing'}`);
       return;
     }
     prep.ordered = true;
     this.deliverIn = DELIVERY_SECONDS;
     const n = orderNames('fish').length;
-    let words = n ? `Fish shop: ${n} item${n > 1 ? 's' : ''}, ${yen(orderTotal('fish'))}. Right away!` : 'Fish shop: Nothing today? All right.';
+    let words = n ? `Fish shop: ${n} item${n > 1 ? 's' : ''}. Right away!` : 'Fish shop: Nothing today? All right.';
     if (fishOrder.lines.has('Kohada')) {
       pickKohadaSize();
       words += ['', ' The kohada are small today.', ' The kohada are on the large side.'][fishOrder.kohadaSize === 0 ? 0 : fishOrder.kohadaSize < 0 ? 1 : 2];
@@ -203,7 +202,7 @@ export class PhoneSystem extends createSystem({}) {
     this.say(words, stations.get(StationKind.Phone)!.pos, 0.3);
     feedback.flash(StationKind.Phone, COLOR_DONE);
     coach.done('orderFish');
-    console.log(`[Phone] the order: ${orderNames('fish').join(', ') || 'nothing'} (${yen(orderTotal('fish'))})`);
+    console.log(`[Phone] the order: ${orderNames('fish').join(', ') || 'nothing'}`);
   }
 
   private deliver(): void {
@@ -215,7 +214,7 @@ export class PhoneSystem extends createSystem({}) {
     console.log('[Phone] the delivery has come');
   }
 
-  /** The greengrocer's things come (full): straight into the case (src/fish-order-system.ts), billed. */
+  /** The greengrocer's things come (full): straight into the case (src/fish-order-system.ts). */
   private deliverGreens(): void {
     fishOrder.greensDelivered = true;
     if (!orderNames('greengrocer').length) return;

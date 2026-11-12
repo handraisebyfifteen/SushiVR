@@ -16,10 +16,9 @@ import {
   TSUKEDAI_TOP,
   WORK_COUNTER_TOP,
 } from './layout.js';
-import { ledger } from './ledger.js';
 import { createYunomi } from './scene-assets/tea-station.scene-asset.js';
 import { Held } from './sushi-components.js';
-import { TEA_MINUTES, TEA_POUR_SECONDS } from './tuning.js';
+import { TEA_POUR_SECONDS } from './tuning.js';
 
 /** A pinch this close to the cup's middle takes it. */
 const TAKE_RADIUS = 0.08;
@@ -46,8 +45,7 @@ export const teaApi = {
  *    hand on the stainless strip right of the board. Pinch it, carry it over
  *    the case and let go above the tsukedai: it stands before the customer;
  *  - by the part-timer, when called in: poured at the office, brought out
- *    through the passage and set on the customer counter (paid by the cup,
- *    src/ledger.ts).
+ *    through the passage and set on the customer counter.
  * Customers ask for tea now and then (src/customer-system.ts); the cup goes
  * when they leave. One cup is reused, so nothing is made per serving.
  */
@@ -91,7 +89,6 @@ export class TeaSystem extends createSystem({}) {
       if (tea.cup !== 'partTimer') return;
       this.cup.position.copy(this.counterSpot);
       this.served();
-      ledger.wage('partTimer', 'tea', TEA_MINUTES);
     };
   }
 

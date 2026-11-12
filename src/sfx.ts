@@ -156,10 +156,3 @@ export function playDone(): void {
 export function playWarn(): void {
   glide(240, 190, 0.14, 0.06, 0, 'triangle');
 }
-
-/** The bill paid: three bright notes. */
-export function playCoin(): void {
-  glide(1319, 1319, 0.06, 0.05);
-  glide(1760, 1760, 0.06, 0.05, 0.07);
-  glide(2093, 2093, 0.12, 0.05, 0.14);
-}

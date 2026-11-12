@@ -10,12 +10,12 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { debugLines } from './debug.js';
-import { canAfford, fishOrder, fundsNow, fundsTracked, spoiledYen } from './fish-order.js';
+import { dayTally } from './day-tally.js';
+import { fishOrder } from './fish-order.js';
 import { COLOR_HINT, glowObject } from './feedback.js';
 import { chef, day, prep, type Side, staff, tea } from './game-state.js';
 import { hands } from './hands.js';
 import { CUSTOMER_SEAT_Z, TSUKEDAI_CHEF_Z } from './layout.js';
-import { ledger, wageYen, type Worker, yen } from './ledger.js';
 import { phoneApi } from './phone-system.js';
 import { GAZE_CONE_DEG, gazeOff, GazePinch } from './gaze.js';
 import { heldOut, POINT_ACROSS_DEG, POINT_LATCH_SECONDS, pointOff } from './pointing.js';
@@ -25,7 +25,6 @@ import { stations } from './station-system.js';
 import { teaApi } from './tea-system.js';
 import { Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
-import { CLEANUP_MINUTES, LOW_FUNDS, WAGE_COOK, WAGE_PART_TIMER } from './tuning.js';
 
 const SHEET_W = 512;
 const SHEET_H = Math.round((SHEET_W * BOOKS_SHEET_HEIGHT) / BOOKS_SHEET_WIDTH);
@@ -39,14 +38,18 @@ const TARGET_RADIUS: Record<Target, number> = { phone: 0.1, urn: 0.08 };
 /** A staff member's answer shows this far over the phone (they answer on it). */
 const WORD_OVER_PHONE = 0.32;
 
+/** Who can be called in: the cook (the prep) or the part-timer (the prep and the service). */
+export type Worker = 'cook' | 'partTimer';
+
 /** The staff, called in or let off from the phone book (src/phone-book-system.ts). */
 export const officeApi = {
   canAsk: (_who: Worker): boolean => false,
   ask: (_who: Worker): void => undefined,
 };
 
-/** The grades a served piece gets (src/scoring.ts), in the order the books list them. */
+/** The grades a served piece gets (src/scoring.ts), in the order the board lists them, and each one's ink. */
 const GRADES = ['Excellent', 'Good', 'Poor', 'Bad'] as const;
+const GRADE_INK: Record<(typeof GRADES)[number], string> = { Excellent: '#2E6B2E', Good: '#2B2118', Poor: '#2B2118', Bad: '#A3242E' };
 
 /** Draws one line of text, its font shrunk (down to 14 px) until it fits the width. */
 function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, width: number, px: number): void {
@@ -55,9 +58,22 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
   ctx.fillText(text, x, y);
 }
 
+/** One line of the results: its label on the left, its number on the right in `ink`. */
+function figureRow(ctx: CanvasRenderingContext2D, label: string, n: number, ink: string, y: number, px: number): void {
+  const value = String(n);
+  ctx.textAlign = 'right';
+  ctx.font = `bold ${px}px sans-serif`;
+  ctx.fillStyle = ink;
+  ctx.fillText(value, SHEET_W - 24, y);
+  // The label shrinks to fit beside the figure.
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#2B2118';
+  fitText(ctx, label, 24, y, SHEET_W - 48 - ctx.measureText(value).width - 16, px);
+}
+
 /**
  * The office corner (帳場) on the aisle's right end wall, out of the
- * customers' way: the black telephone on its shelf and the day's books.
+ * customers' way: the black telephone on its shelf and the day's results.
  * Both are out of reach from the seat: point at one with the index finger
  * and pinch.
  *  - The phone (any time): the handset comes up with the phone book
@@ -65,16 +81,17 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
  *    staff and the settings are all called from it.
  *  - The staff, on the phone: the cook (during the prep) or the part-timer
  *    (the prep and the service) is called in, or let off; they answer on
- *    the phone. Nobody works unless called: the hardest way is to call
- *    nobody and pay no wages.
+ *    the phone. Nobody works unless called (there are no wages: the game
+ *    has no money): the hardest way is to call nobody.
  *  - The hot-water urn under the phone (during service, when a customer asks
  *    for tea and the part-timer is not on): a cup is poured, out of the
  *    customers' sight, and set down at hand (src/tea-system.ts).
- *  - The books on the wall over the phone keep the day's takings, the fish
- *    shop's bill and the wages up to date; when the last customer has left
- *    they are the day's final books, and a word over the counter says so.
- *    They show the difficulty (easy or full, src/fish-order.ts), chosen in
- *    the phone's settings.
+ *  - The board on the wall over the phone keeps the day's results up to
+ *    date: the pieces served and how many of each grade, and (full) what
+ *    was thrown out this morning; when the last customer has left they are
+ *    the day's final results, and a word over the counter says so. It shows
+ *    the difficulty (easy or full, src/fish-order.ts), chosen in the
+ *    phone's settings.
  */
 export class OfficeSystem extends createSystem({}) {
   private time = 0;
@@ -92,7 +109,7 @@ export class OfficeSystem extends createSystem({}) {
   private readonly head = new Vector3();
 
   init(): void {
-    this.notice = makeTextSprite('Closed: the books are by the phone', { width: 0.6 });
+    this.notice = makeTextSprite("Closed: the day's results are by the phone", { width: 0.6 });
     this.notice.name = 'ClosedNotice';
     this.notice.visible = false;
     this.notice.position.set(0, 1.45, (TSUKEDAI_CHEF_Z + CUSTOMER_SEAT_Z) / 2);
@@ -108,8 +125,7 @@ export class OfficeSystem extends createSystem({}) {
     debugLines.push(() => {
       const state = day.closed ? 'closed' : day.closing ? 'last orders' : chef.open ? 'open' : 'prep';
       const crew = [staff.cook ? 'cook' : '', staff.partTimer ? 'part-timer' : ''].filter(Boolean).join('+') || 'nobody';
-      const funds = fundsTracked() ? ` funds ${yen(fundsNow())}` : '';
-      return `Money: sales ${yen(ledger.sales)} (${ledger.paid}) costs ${yen(ledger.costTotal())} profit ${yen(ledger.profit())}${funds} | asked ${crew} | ${state}`;
+      return `Day: served ${dayTally.served} | asked ${crew} | ${state}`;
     });
   }
 
@@ -125,8 +141,7 @@ export class OfficeSystem extends createSystem({}) {
       this.wordTime -= delta;
       if (this.wordTime <= 0) this.word.visible = false;
     }
-    this.updateBooks();
-    this.checkWages();
+    this.updateResults();
     this.updatePointing();
   }
 
@@ -223,23 +238,6 @@ export class OfficeSystem extends createSystem({}) {
     if (object) glowObject(object, on ? COLOR_HINT : null);
   }
 
-  /**
-   * No borrowing (full): an hour's wage must be there to call someone in.
-   * The part-timer goes home when the money no longer covers their longest
-   * job (the cleaning), so the shop never owes; the cook is stopped before
-   * a fish he cannot be paid for (src/prep-cut-system.ts).
-   */
-  private checkWages(): void {
-    if (staff.partTimer && !canAfford(wageYen('partTimer', CLEANUP_MINUTES))) {
-      staff.partTimer = false;
-      staff.unpaid = 'partTimer';
-      console.log(`[Staff] the part-timer goes home: the shop cannot pay (funds ${yen(fundsNow())})`);
-    }
-    if (!staff.unpaid) return;
-    this.tell(staff.unpaid === 'cook' ? "Cook: The shop can't pay me for more. I'll stop here" : "Part-timer: The shop can't pay me. I'll go home");
-    staff.unpaid = '';
-  }
-
   /** A staff member's answer, over the phone (they answer on it). */
   private tell(words: string): void {
     setSpriteText(this.word, words);
@@ -252,21 +250,15 @@ export class OfficeSystem extends createSystem({}) {
   /** A staff line chosen on the phone: called in for the jobs of the day, or let off. */
   private ask(who: Worker): void {
     const on = !staff[who];
-    if (on && !canAfford(wageYen(who, 60))) {
-      this.tell(`${who === 'cook' ? 'Cook' : 'Part-timer'}: The shop can't pay me today`);
-      console.log(`[Staff] ${who === 'cook' ? 'the cook' : 'the part-timer'} is not called in: the shop cannot pay an hour (funds ${yen(fundsNow())})`);
-      return;
-    }
     staff[who] = on;
     const cook = who === 'cook';
     const job = cook ? 'Cook: leave the fish to me' : chef.open ? 'Part-timer: I will see to the customers' : 'Part-timer: I will clean up';
     this.tell(on ? job : cook ? 'Cook: all right' : 'Part-timer: all right');
-    const wage = cook ? WAGE_COOK : WAGE_PART_TIMER;
     const work = cook ? 'takes the fish left in the ice box' : chef.open ? 'shows customers in and brings tea' : 'cleans up after the prep';
-    console.log(`[Staff] ${cook ? 'the cook' : 'the part-timer'} ${on ? `is called in (${yen(wage)}/h): ${work}` : 'is let off'}`);
+    console.log(`[Staff] ${cook ? 'the cook' : 'the part-timer'} ${on ? `is called in: ${work}` : 'is let off'}`);
   }
 
-  /** The books board comes with the scene: give its sheet a page once it is there. */
+  /** The results board (the books-board asset) comes with the scene: give its sheet a page once it is there. */
   private find(): void {
     // A placed asset's root takes the scene node's name: find it by a part with its own name.
     const sheet = this.world.scene.getObjectByName('BooksSheet');
@@ -285,103 +277,60 @@ export class OfficeSystem extends createSystem({}) {
     this.sheet = { canvas, texture };
   }
 
-  // ---- the day's books ---------------------------------------------------------------
+  // ---- the day's results ------------------------------------------------------------
 
-  /** Redrawn only when a figure changes (a sale, a bill, a wage, a grade), and once more when the day is over. */
-  private updateBooks(): void {
+  /** Redrawn only when a figure changes (a piece served, the difficulty, the morning), and once more when the day is over. */
+  private updateResults(): void {
     if (!this.sheet) return;
-    const full = fundsTracked();
-    const key = `${ledger.sales}|${ledger.paid}|${ledger.costTotal()}|${ledger.costs.length}|${ledger.graded}|${day.closed}|${fishOrder.difficulty}|${fishOrder.day}|${fishOrder.morningFunds}`;
+    const full = fishOrder.difficulty === 'full';
+    const key = `${dayTally.served}|${day.closed}|${fishOrder.difficulty}|${fishOrder.day}|${fishOrder.spoiled.length}`;
     if (key === this.drawn) return;
     this.drawn = key;
     if (day.closed) {
       this.notice.visible = true;
       this.noticeTime = NOTICE_SECONDS;
-      console.log(`[Day] closed: sales ${yen(ledger.sales)}, costs ${yen(ledger.costTotal())}, profit ${yen(ledger.profit())}${full ? `, funds ${yen(fundsNow())}` : ''}`);
+      console.log(`[Day] closed: ${dayTally.served} served (${GRADES.map((g) => `${g} ${dayTally.grades[g]}`).join(', ')})`);
     }
-    const rows: Array<[string, number]> = [[`Sales (${ledger.paid} served)`, ledger.sales]];
-    // The fish shop's bill first, then the wages.
-    const costs = [...ledger.costs].sort((a, b) => Number(a.minutes > 0) - Number(b.minutes > 0));
-    for (const c of costs) rows.push([c.minutes ? `${c.label}, ${c.minutes} min` : c.label, -c.yen]);
-    // Under the profit: the shop's money (full), this morning's waste, the pieces by grade.
-    const funds = fundsNow();
-    const waste = full ? spoiledYen() : 0;
-    const grades = GRADES.filter((g) => ledger.grades[g]).map((g) => `${g} ${ledger.grades[g]}`).join('  ·  ');
-    const notes: Array<[string, string]> = [];
-    if (full) notes.push(funds < LOW_FUNDS ? [`Running low: under ${yen(LOW_FUNDS)}`, '#A3242E'] : [`This morning ${yen(fishOrder.morningFunds)}`, '#5B5348']);
-    if (waste) notes.push([`Thrown out this morning: ${yen(waste)} (paid on its day)`, '#5B5348']);
-    if (grades) notes.push([grades, '#2B2118']);
-    const bottom = SHEET_H - (day.closed ? 84 : 16);
-    const below = 44 + (full ? 44 : 0) + notes.length * 30;
-    const pitch = Math.max(26, Math.min(52, Math.floor((bottom - 120 - below) / rows.length)));
-    const rowPx = Math.min(28, Math.round(pitch * 0.56));
+    // This morning's waste (full): what was past its days, as a count.
+    let thrown = 0;
+    if (full) for (const s of fishOrder.spoiled) thrown += s.count;
+    const kinds = thrown ? new Set(fishOrder.spoiled.map((s) => s.neta)).size : 0;
 
     const ctx = this.sheet.canvas.getContext('2d')!;
     ctx.fillStyle = '#F7F3EA';
     ctx.fillRect(0, 0, SHEET_W, SHEET_H);
-    // Ruled lines, as in a ledger book.
-    ctx.strokeStyle = '#C9D4E0';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < rows.length; i++) {
-      const ly = 120 + i * pitch + pitch / 2;
-      ctx.beginPath();
-      ctx.moveTo(20, ly);
-      ctx.lineTo(SHEET_W - 20, ly);
-      ctx.stroke();
-    }
     ctx.fillStyle = '#2B2118';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     ctx.font = 'bold 40px sans-serif';
-    const title = full ? `Day ${fishOrder.day} books` : "Today's books";
+    const title = full ? `Day ${fishOrder.day} results` : "Today's results";
     ctx.fillText(day.closed ? `${title}: closed` : title, SHEET_W / 2, 50);
-    // The difficulty; in the morning before the call, pointing here changes it.
+    // The difficulty, chosen in the phone's settings.
     ctx.fillStyle = '#5B5348';
-    const mode = full ? 'Full: the case and the money carry over, you order' : 'Easy: the usual comes, the cook fills the rest';
-    fitText(ctx, mode, SHEET_W / 2, 88, SHEET_W - 40, 20);
-    let y = 120;
-    for (const [label, n] of rows) {
-      ctx.textAlign = 'right';
-      ctx.font = `bold ${rowPx}px sans-serif`;
-      ctx.fillStyle = n < 0 ? '#A3242E' : '#2B2118';
-      const value = yen(n);
-      ctx.fillText(value, SHEET_W - 24, y);
-      // The label shrinks to fit beside the figure.
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#2B2118';
-      fitText(ctx, label, 24, y, SHEET_W - 48 - ctx.measureText(value).width - 16, rowPx - 2);
-      y += pitch;
-    }
-    const profit = ledger.profit();
+    fitText(ctx, full ? 'Full: the case carries over, you order' : 'Easy: the usual comes, the cook fills the rest', SHEET_W / 2, 88, SHEET_W - 40, 20);
+    // The pieces served, underlined; then each grade on a ruled line.
+    let y = 150;
+    figureRow(ctx, 'Served', dayTally.served, '#2B2118', y, 34);
     ctx.fillStyle = '#2B2118';
-    ctx.fillRect(24, y - pitch / 2, SHEET_W - 48, 3);
-    y += 14;
-    ctx.font = 'bold 32px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(profit < 0 ? 'Loss' : 'Profit', 24, y);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = profit < 0 ? '#A3242E' : '#2E6B2E';
-    ctx.fillText(yen(profit), SHEET_W - 24, y);
-    if (full) {
-      // The shop's money: this morning's and the day's profit.
-      y += 44;
-      ctx.font = 'bold 32px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#2B2118';
-      ctx.fillText('Funds', 24, y);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = funds < LOW_FUNDS ? '#A3242E' : '#2B2118';
-      ctx.fillText(yen(funds), SHEET_W - 24, y);
+    ctx.fillRect(24, y + 28, SHEET_W - 48, 3);
+    y += 78;
+    ctx.strokeStyle = '#C9D4E0';
+    ctx.lineWidth = 2;
+    for (const g of GRADES) {
+      ctx.beginPath();
+      ctx.moveTo(20, y + 24);
+      ctx.lineTo(SHEET_W - 20, y + 24);
+      ctx.stroke();
+      figureRow(ctx, g, dayTally.grades[g], GRADE_INK[g], y, 28);
+      y += 50;
     }
     ctx.textAlign = 'center';
-    for (const [text, color] of notes) {
-      y += 30;
-      ctx.fillStyle = color;
-      fitText(ctx, text, SHEET_W / 2, y, SHEET_W - 40, 20);
+    ctx.fillStyle = '#5B5348';
+    if (thrown) {
+      fitText(ctx, `Thrown out this morning: ${kinds} item${kinds > 1 ? 's' : ''}, ${thrown} piece${thrown > 1 ? 's' : ''}`, SHEET_W / 2, y + 10, SHEET_W - 40, 22);
     }
     if (day.closed) {
-      ctx.fillStyle = '#5B5348';
-      fitText(ctx, full ? 'Thank you. The case and the money are kept.' : 'Thank you for today.', SHEET_W / 2, SHEET_H - 56, SHEET_W - 32, 22);
+      fitText(ctx, full ? 'Thank you. The case is kept.' : 'Thank you for today.', SHEET_W / 2, SHEET_H - 56, SHEET_W - 32, 22);
       fitText(ctx, full ? 'Reload for the next day.' : 'Reload for a new day.', SHEET_W / 2, SHEET_H - 26, SHEET_W - 32, 22);
     }
     this.sheet.texture.needsUpdate = true;

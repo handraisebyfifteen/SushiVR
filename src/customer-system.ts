@@ -9,21 +9,13 @@ import {
   type Sprite,
   Vector3,
 } from '@iwsdk/core';
-import { COLOR_HINT, glowObject } from './feedback.js';
-import { caseStock, chef, day, type Order, prep, service, type Side, staff, tea } from './game-state.js';
-import { hands } from './hands.js';
-import { ledger, yen } from './ledger.js';
-import { GAZE_CONE_DEG, gazeOff, GazePinch } from './gaze.js';
-import { heldOut, POINT_ACROSS_DEG, POINT_LATCH_SECONDS, pointOff } from './pointing.js';
-
-/** Looking at the customer: the head and shoulders (eye tracking). */
-const CHECK_LOOK_RADIUS = 0.18;
+import { caseStock, chef, day, type Order, prep, service, staff, tea } from './game-state.js';
+import { dayTally } from './day-tally.js';
 import { releasePiece } from './scene-assets/lib/nigiri-form.js';
-import { playCoin } from './sfx.js';
 import { MENU, type MenuId, NETA, pairRest } from './menu.js';
 import type { Score } from './scoring.js';
 import { stations } from './station-system.js';
-import { Bar, Customer, CustomerState, Held, StationKind } from './sushi-components.js';
+import { Bar, Customer, CustomerState, StationKind } from './sushi-components.js';
 import { makeOrderCard, redrawOrderCard } from './order-card.js';
 import { type IconKind, makeIconSprite, makeTextSprite, setSpriteText } from './text-sprites.js';
 import { CUSTOMER_SEAT_Z, ENTRANCE_X, ENTRANCE_Z, STEP_HEIGHT } from './layout.js';
@@ -32,7 +24,6 @@ import {
   LEFT_HANDED_CUSTOMER_RATIO,
   MAX_ORDERS_PER_CUSTOMER,
   ORDERS_PER_CUSTOMER,
-  PRICE,
   RESULT_SECONDS,
   TEA_PATIENCE_SECONDS,
   TEA_REQUEST_RATIO,
@@ -50,7 +41,6 @@ const DOOR = new Vector3(ENTRANCE_X + 0.25, -STEP_HEIGHT, ENTRANCE_Z + 0.35);
 const TURN = new Vector3(SEAT.x - 0.45, -STEP_HEIGHT, SEAT.z - 0.4);
 const FIRST_LEG = DOOR.distanceTo(TURN);
 const WAY_LENGTH = FIRST_LEG + TURN.distanceTo(SEAT);
-const NO_PENALTIES: readonly IconKind[] = [];
 const HAND_REST_X = 0.17;
 const ALL_ICONS: IconKind[] = ['rhythm', 'fish', 'wasabi', 'orientation', 'hand', 'fresh', 'hygiene', 'board', 'soap', 'knife'];
 
@@ -85,16 +75,16 @@ function pickOrder(): MenuId {
  * walk to the seat (shown in by the part-timer when called in). The order
  * shows above the head as a card: fish color plus a wasabi mark. When a
  * piece is served the customer reaches with the dominant hand (revealing
- * it), eats, and the result and the running bill appear above the head for
- * a few seconds. Each customer comes in with a few orders in mind: an
- * Excellent piece makes them order one more, a Poor one one fewer, a Bad one
- * and they want the bill. A piece that is not what they ordered is sent back,
- * not billed, and made again. Now and then they ask for tea (src/tea-system.ts);
- * left waiting too long, they order one fewer. When done they say "Check,
- * please": the chef points at them and pinches, they pay the bill and walk
- * out. Then the next customer comes, sometimes left-handed. Once the noren
- * is taken in, the seated customer's order is the last; when they have paid
- * and left, the day is over.
+ * it), eats, and the grade appears above the head for a few seconds. Each
+ * customer comes in with a few orders in mind: an Excellent piece makes them
+ * order one more, a Poor one one fewer, after a Bad one they order no more.
+ * A piece that is not what they ordered is sent back and made again. Now
+ * and then they ask for tea (src/tea-system.ts); left waiting too long, they
+ * order one fewer. When done they say "Thank you!" and walk out: there is
+ * no money in the game, the check is the cashier's, off-screen. Then the
+ * next customer comes, sometimes left-handed. Once the noren is taken in,
+ * the seated customer's order is the last; when they have left, the day is
+ * over.
  */
 export class CustomerSystem extends createSystem({}) {
   private entity!: Entity;
@@ -107,36 +97,28 @@ export class CustomerSystem extends createSystem({}) {
   /** The one order object shared through service.order (no allocation per frame). */
   private readonly order: Order = { item: 'LeanTunaNigiri', wasabi: false };
   private gradeSprites = new Map<string, Sprite>();
-  private moneySprite!: Sprite;
+  /** A line of words under the grade ("Not my order"). */
+  private resultSprite!: Sprite;
   /** The rest of a bonito pair, ordered next without counting as a new order. */
   private pairNext: MenuId | null = null;
   private icons = new Map<IconKind, Sprite>();
   private resultGroup!: Group;
   private resultTime = 0;
   /** 'closed' until the bar opens (the morning prep): nobody is seated. */
-  private phase: 'closed' | 'door' | 'entering' | 'waiting' | 'reaching' | 'returning' | 'paying' | 'leaving' = 'waiting';
+  private phase: 'closed' | 'door' | 'entering' | 'waiting' | 'reaching' | 'returning' | 'leaving' = 'waiting';
   private t = 0;
-  private clock = 0;
   /** How far along the way in they are (0 at the door). */
   private walkS = WAY_LENGTH;
-  /** What they have had, on the bill until they pay. */
-  private readonly tab: MenuId[] = [];
-  private bill = 0;
   /** This customer will ask for tea after the first piece; has asked; how long they have waited. */
   private teaPlanned = false;
   private teaAsked = false;
   private teaWait = 0;
-  /** A word over the head: "Tea, please", "Check, please", a thank-you. */
+  /** A word over the head: "Tea, please", a thank-you. */
   private words!: Sprite;
   private wordsText = '';
   private sayText = '';
   private sayColor = '#ffffff';
   private sayTime = 0;
-  private head!: Mesh;
-  private readonly lastPointed: [number, number] = [-10, -10];
-  private glowing = false;
-  private readonly gazePinch = new GazePinch<true>();
-  private readonly eye = new Vector3();
   private piece: Entity | null = null;
   private readonly getaPos = new Vector3();
   private readonly handRest = new Vector3();
@@ -149,7 +131,6 @@ export class CustomerSystem extends createSystem({}) {
     this.figure.name = 'Customer';
     const head = new Mesh(new SphereGeometry(0.1, 16, 12), skin);
     head.name = 'Head';
-    this.head = head;
     head.position.y = 1.2;
     const torso = new Mesh(new BoxGeometry(0.36, 0.4, 0.18), cloth);
     torso.name = 'Torso';
@@ -172,10 +153,11 @@ export class CustomerSystem extends createSystem({}) {
       this.resultGroup.add(sprite);
       this.gradeSprites.set(grade, sprite);
     }
-    this.moneySprite = makeTextSprite(' ', { width: 0.34 });
-    this.moneySprite.name = 'Money';
-    this.moneySprite.position.y = 0.075;
-    this.resultGroup.add(this.moneySprite);
+    this.resultSprite = makeTextSprite(' ', { width: 0.34 });
+    this.resultSprite.name = 'ResultWords';
+    this.resultSprite.position.y = 0.075;
+    this.resultSprite.visible = false;
+    this.resultGroup.add(this.resultSprite);
     for (const kind of ALL_ICONS) {
       const sprite = makeIconSprite(kind);
       sprite.visible = false;
@@ -186,6 +168,7 @@ export class CustomerSystem extends createSystem({}) {
     this.words = makeTextSprite(' ', { width: 0.3 });
     this.words.name = 'Words';
     this.words.visible = false;
+    this.words.position.set(0.3, 1.32, 0);
     this.figure.add(this.words);
 
     this.entity = this.world.createTransformEntity(this.figure);
@@ -212,9 +195,6 @@ export class CustomerSystem extends createSystem({}) {
     this.newOrder();
     service.customerHandKnown = false;
     service.eatenByCustomer = 0;
-    service.check = false;
-    this.tab.length = 0;
-    this.bill = 0;
     this.teaPlanned = Math.random() < TEA_REQUEST_RATIO;
     this.teaAsked = false;
     this.teaWait = 0;
@@ -274,7 +254,7 @@ export class CustomerSystem extends createSystem({}) {
     const done = e.getValue(Customer, 'ordersDone') ?? 0;
     const orders = e.getValue(Customer, 'orders') ?? ORDERS_PER_CUSTOMER;
     if (!item) {
-      // Not what was ordered: sent back unpaid, to be made again.
+      // Not what was ordered: sent back, to be made again.
       releasePiece(piece.object3D);
       piece.object3D?.removeFromParent();
       piece.dispose({ disposeResources: false });
@@ -283,10 +263,6 @@ export class CustomerSystem extends createSystem({}) {
       console.log(`[Customer] sent back: not ${MENU[this.order.item].name}`);
       return;
     }
-    // On the bill, paid at the check.
-    const price = PRICE[item];
-    this.tab.push(item);
-    this.bill += price;
     this.piece = piece;
     this.phase = 'reaching';
     this.t = 0;
@@ -296,7 +272,7 @@ export class CustomerSystem extends createSystem({}) {
     e.setValue(Customer, 'state', CustomerState.Reaching);
     // The other half of a bonito pair comes next, as the same order.
     this.pairNext = pairRest(this.order.item, item);
-    ledger.grade(score.grade);
+    dayTally.grade(score.grade);
     // How the piece was made decides how many more they order.
     const counted = done + (this.pairNext ? 0 : 1);
     let next = orders;
@@ -305,17 +281,18 @@ export class CustomerSystem extends createSystem({}) {
     else if (score.grade === 'Bad') next = counted;
     e.setValue(Customer, 'orders', next);
     if (score.grade === 'Bad') this.pairNext = null;
-    this.showResult(score.grade, score.penalties, `+${yen(price)}  bill ${yen(this.bill)}`, '#FFD86B');
+    this.showResult(score.grade, score.penalties);
     const bar = this.world.getSystem(TurnSystem)?.barEntity;
     if (bar) bar.setValue(Bar, 'served', (bar.getValue(Bar, 'served') ?? 0) + 1);
     console.log(
-      `[Customer] served ${MENU[item].name}: ${score.grade}, ${yen(price)} on the bill (${yen(this.bill)}); ${score.penalties.join(',') || 'nothing to improve'}; orders ${counted}/${next}`,
+      `[Customer] served ${MENU[item].name}: ${score.grade}; ${score.penalties.join(',') || 'nothing to improve'}; orders ${counted}/${next}`,
     );
   }
 
-  /** The grade (none for a piece sent back or the check), what to improve, and a line of money or words. */
-  private showResult(grade: string | null, penalties: readonly IconKind[], words: string, color: string, last = grade ?? 'Sent back'): void {
-    setSpriteText(this.moneySprite, words, { color });
+  /** The grade (none for a piece sent back), what to improve, and a line of words under it (none after a grade). */
+  private showResult(grade: string | null, penalties: readonly IconKind[], words = '', color = '#ffffff', last = grade ?? 'Sent back'): void {
+    this.resultSprite.visible = !!words;
+    if (words) setSpriteText(this.resultSprite, words, { color });
     for (const [g, sprite] of this.gradeSprites) sprite.visible = g === grade;
     let i = 0;
     const n = penalties.length;
@@ -354,68 +331,19 @@ export class CustomerSystem extends createSystem({}) {
     }
   }
 
-  /** Done: with something on the bill they ask for the check, otherwise they just go. */
+  /** Done: a thank-you, and they go (the check is the cashier's, off-screen). */
   private finish(): void {
     tea.wanted = false;
-    if (!this.tab.length) return this.leave();
-    this.phase = 'paying';
-    this.entity.setValue(Customer, 'state', CustomerState.Paying);
-    service.check = true;
-    console.log(`[Customer] check, please: ${yen(this.bill)}`);
-  }
-
-  /** The chef pointed at them and pinched: the bill is paid. */
-  private checkout(): void {
-    let total = 0;
-    for (const item of this.tab) total += ledger.sale(item);
-    playCoin();
-    this.tab.length = 0;
-    this.bill = 0;
-    this.showResult(null, NO_PENALTIES, `Paid ${yen(total)}  today ${yen(ledger.sales)}`, '#FFD86B', 'Paid');
-    const bar = this.world.getSystem(TurnSystem)?.barEntity;
-    if (bar) bar.setValue(Bar, 'sales', ledger.sales);
-    console.log(`[Customer] paid the check: ${yen(total)} (today ${yen(ledger.sales)})`);
+    this.say('Thank you!', '#FFD86B');
+    console.log('[Customer] thank you: leaving');
     this.leave();
   }
 
   private leave(): void {
-    service.check = false;
     this.phase = 'leaving';
     this.t = 0;
     this.walkS = WAY_LENGTH;
     this.entity.setValue(Customer, 'state', CustomerState.Leaving);
-  }
-
-  /** Point at the customer waiting for the check and pinch (the pinch bends the finger: a point just before counts). */
-  private updateCheck(): boolean {
-    this.player.head.getWorldPosition(this.eye);
-    let pointing = false;
-    let paid = false;
-    for (const side of [chef.netaSide, chef.riceSide] as Side[]) {
-      const hand = hands.all[side];
-      if (!hand.tracked || chef.hands[side].holding !== Held.None) continue;
-      if (!heldOut(hand, this.eye)) {
-        if (hand.pinchStart) this.lastPointed[side] = -10;
-        continue;
-      }
-      if (pointOff(hand, service.customerAt) < POINT_ACROSS_DEG) {
-        pointing = true;
-        this.lastPointed[side] = this.clock;
-      }
-      if (hand.pinchStart && this.clock - this.lastPointed[side] <= POINT_LATCH_SECONDS) paid = true;
-    }
-    // Eye tracking (the glasses): look at the customer and pinch with an empty hand.
-    const seen = gazeOff(this.player, service.customerAt, CHECK_LOOK_RADIUS) < GAZE_CONE_DEG;
-    if (paid) this.gazePinch.cancel();
-    else if (this.gazePinch.update(seen ? true : null)) paid = true;
-    this.glow((pointing || seen) && !paid);
-    return paid;
-  }
-
-  private glow(on: boolean): void {
-    if (on === this.glowing) return;
-    this.glowing = on;
-    glowObject(this.figure, on ? COLOR_HINT : null);
   }
 
   /** The tea: thanked for when it comes; given up on after a while, with one order fewer. */
@@ -445,10 +373,7 @@ export class CustomerSystem extends createSystem({}) {
     if (this.sayTime > 0) this.sayTime -= delta;
     let text = '';
     let color = '#ffffff';
-    if (this.phase === 'paying') {
-      text = 'Check, please';
-      color = '#FFD86B';
-    } else if (this.sayTime > 0) {
+    if (this.sayTime > 0) {
       text = this.sayText;
       color = this.sayColor;
     } else if (tea.wanted) {
@@ -459,9 +384,6 @@ export class CustomerSystem extends createSystem({}) {
     this.words.visible = !!text;
     if (!text) return;
     setSpriteText(this.words, text, { color });
-    // The check where the order card was; the tea beside it.
-    if (this.phase === 'paying') this.words.position.set(0, 1.45, 0);
-    else this.words.position.set(0.3, 1.32, 0);
   }
 
   private dominantHand(): Mesh {
@@ -469,17 +391,14 @@ export class CustomerSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
-    this.clock += delta;
     if (this.phase === 'closed') {
       service.order = null;
-      service.check = false;
       staff.guestAtDoor = false;
       if (!chef.open || day.closing) return;
       // Open: the first customer comes in at the entrance.
       this.newCustomer(false);
     }
     this.syncOrder();
-    this.head.getWorldPosition(service.customerAt);
     if (this.resultTime > 0) {
       this.resultTime -= delta;
       if (this.resultTime <= 0) this.resultGroup.visible = false;
@@ -563,9 +482,6 @@ export class CustomerSystem extends createSystem({}) {
         }
         break;
       }
-      case 'paying':
-        if (this.updateCheck()) this.checkout();
-        break;
       case 'leaving': {
         this.walkS = Math.max(0, this.walkS - WALK_PACE * delta);
         this.placeOnWay(this.walkS, -1);
@@ -581,13 +497,12 @@ export class CustomerSystem extends createSystem({}) {
     this.updateWords(delta);
   }
 
-  /** Out of the door for the day: the books are closed. */
+  /** Out of the door for the day: the day's results are final. */
   private closeDay(why: string): void {
     this.phase = 'closed';
     this.figure.visible = false;
     this.resultGroup.visible = false;
     staff.guestAtDoor = false;
-    service.check = false;
     tea.wanted = false;
     tea.clear = true;
     day.closed = true;

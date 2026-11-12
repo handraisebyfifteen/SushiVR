@@ -14,8 +14,7 @@ import type { NetaId } from './menu.js';
  * the striped jack in three pieces (三枚おろし) and the flounder in five
  * (五枚おろし, its engawa served too). Big fish are bought as only what the
  * case takes: the hamachi comes as a half (its form will follow the season
- * later: big in winter, semi-big in summer). Stage 2 turned the score into
- * money.
+ * later: big in winter, semi-big in summer).
  */
 export type PrepKind = 'block' | 'squid' | 'fillet3' | 'fillet5' | 'half' | 'simmer' | 'kohada';
 

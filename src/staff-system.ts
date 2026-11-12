@@ -13,9 +13,8 @@ import {
   TSUKEDAI_CUSTOMER_Z,
   WALL_THICKNESS,
 } from './layout.js';
-import { ledger } from './ledger.js';
 import { teaApi } from './tea-system.js';
-import { SEAT_MINUTES, TEA_POUR_SECONDS, WALK_PACE } from './tuning.js';
+import { TEA_POUR_SECONDS, WALK_PACE } from './tuning.js';
 
 type Who = 'cook' | 'partTimer';
 
@@ -90,7 +89,8 @@ const skin = new MeshStandardMaterial({ color: '#E8C9A8', roughness: 0.8 });
  *    noren of the passage at the bar's right end, and comes out through it:
  *    to the entrance to show each new customer in, and with a cup of tea
  *    when a customer asks for one (src/tea-system.ts).
- * Each is paid for the minutes of work done (src/ledger.ts).
+ * They are simply called in or not: there are no wages (the game has no
+ * money).
  */
 export class StaffSystem extends createSystem({}) {
   private figures: Figure[] = [];
@@ -216,7 +216,6 @@ export class StaffSystem extends createSystem({}) {
         break;
       case 'lead':
         if (this.walk(f, delta, f.way.length)) {
-          ledger.wage('partTimer', 'showing in', SEAT_MINUTES);
           console.log('[Staff] the part-timer has shown the customer in');
           this.job = 'back';
           f.way = TEA_WAY;

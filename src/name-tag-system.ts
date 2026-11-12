@@ -62,7 +62,7 @@ const DEFS: readonly TagDef[] = [
   { name: 'FishBox', label: 'Fish box', group: 'back' },
   // The office corner and the food shelf (pointed at from the stool).
   { name: 'Telephone', label: 'Telephone', group: 'office' },
-  { name: "Day's Books Board", label: "Day's books", group: 'office' },
+  { name: "Day's Books Board", label: "Day's results", group: 'office' },
   { name: 'Tea Station (urn, powdered tea, cups)', label: 'Hot water, tea', group: 'office' },
   { name: 'Dish Cabinet (glass doors)', label: 'Dish cabinet', group: 'office', surface: true },
   { name: 'BottleSoysauce', label: 'Soy sauce', group: 'office' },

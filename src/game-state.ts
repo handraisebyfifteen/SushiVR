@@ -68,10 +68,6 @@ export const service = {
   customerHandKnown: false,
   /** Pieces already eaten by the seated customer. */
   eatenByCustomer: 0,
-  /** The customer has finished and waits for the check (お勘定): point at them and pinch. */
-  check: false,
-  /** The seated customer's head (world), to point at. */
-  customerAt: new Vector3(),
 };
 
 /**
@@ -446,7 +442,8 @@ export const tamago = {
  * on the office wall (src/office-system.ts), and they come out of the
  * kitchen for the job and go back when it is done. The cook takes the fish
  * still in the ice box, the part-timer does the cleaning once the prep is
- * done. Each is paid for the minutes of work done (src/ledger.ts).
+ * done. They are simply called in or not: there are no wages (the game has
+ * no money).
  */
 export const staff = {
   /** Asked to work today. */
@@ -467,8 +464,6 @@ export const staff = {
   /** A customer waits at the entrance to be shown in; the part-timer has come to the door for them. */
   guestAtDoor: false,
   guideReady: false,
-  /** Let off because the shop cannot pay the next job (full; the office says so, then clears it). */
-  unpaid: '' as '' | 'cook' | 'partTimer',
 };
 
 /** The end of the day: the noren taken in (last orders), then the last customer gone. */

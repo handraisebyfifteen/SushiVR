@@ -357,8 +357,8 @@ export function menuFor(kind: PieceKind, neta: readonly NetaId[]): MenuId | null
 /**
  * The menu board (お品書き) high on the back wall, read right to left: one
  * wooden plaque per item, its name in Japanese (the one place with Japanese
- * text, the shop owner's choice) over its price from src/tuning.ts. The
- * bonito's plaque shows the price of one piece, back or belly.
+ * text, the shop owner's choice); no prices (the game has no money). The
+ * bonito's one plaque stands for back and belly alike.
  */
 export const MENU_BOARD: ReadonlyArray<{ ja: string; item: MenuId }> = [
   { ja: '大とろ', item: 'FattyTunaNigiri' },

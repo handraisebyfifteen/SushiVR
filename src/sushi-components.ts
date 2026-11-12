@@ -74,8 +74,6 @@ export const Bar = createComponent('Bar', {
   /** True once the opening hand wash (with soap) is done and service starts. */
   open: { type: Types.Boolean, default: false },
   served: { type: Types.Int32, default: 0 },
-  /** Yen taken today. */
-  sales: { type: Types.Int32, default: 0 },
 });
 
 export const Held = {
@@ -149,8 +147,6 @@ export const CustomerState = {
   Waiting: 'Waiting',
   Reaching: 'Reaching',
   Eating: 'Eating',
-  /** Done, waiting for the check. */
-  Paying: 'Paying',
   Leaving: 'Leaving',
 } as const;
 

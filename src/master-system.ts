@@ -157,7 +157,6 @@ const STEP_WORDS: Record<StepKey, string> = {
   bellyBoard: 'Belly onto the board',
   bellyNet: 'Onto the net, skin down',
   toCase: 'Into the case',
-  check: 'The check: point at them, pinch',
   makeTea: 'Tea: point at the urn, pinch',
   serveTea: 'Tea: onto the tsukedai',
 };
@@ -523,10 +522,9 @@ export class MasterSystem extends createSystem({
     if (prep.active) return this.prepStep(back);
     if (batch) return batch;
     if (!chef.open || back) return null;
-    // Customer care between pieces: the check, and the tea when the part-timer is not there to make it.
+    // Customer care between pieces: the tea, when the part-timer is not there to make it.
     if (chef.hands.some((h) => h.holding === Held.Tea)) return 'serveTea';
     if (progress.kind === null && !progress.sakuOnBoard && !progress.knifeHeld && !progress.hasNeta && !progress.hasRice) {
-      if (service.check) return 'check';
       if (tea.cup === 'atHand') return 'serveTea';
       if (tea.wanted && tea.cup === 'none' && !staff.partTimer) return 'makeTea';
     }
@@ -1308,9 +1306,6 @@ export class MasterSystem extends createSystem({
         return;
       case 'hangNoren':
         out.copy(prep.norenAt).add(this.tmp.set(0, 0.5, 0));
-        return;
-      case 'check':
-        out.copy(service.customerAt).add(this.tmp.set(0, 0.42, 0));
         return;
       case 'makeTea':
         out.copy(tea.urnAt).add(this.tmp.set(0, 0.2, 0));
