@@ -25,6 +25,7 @@ import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sus
 import { TurnSystem } from './turn-system.js';
 import { ledger, yen } from './ledger.js';
 import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, SHARI_SCOOPS } from './tuning.js';
+import { chefRiceInService, pantry } from './pantry.js';
 import { phoneBookApi, type PhoneRowId } from './phone-book-system.js';
 import { phoneApi } from './phone-system.js';
 
@@ -1511,7 +1512,12 @@ export class PracticeSystem extends createSystem({
 
   /** A : the next step of the shari, at the work table (stepping there and back, and turning, as needed). */
   private shariKey(): void {
-    if (!prep.active || shari.step === 'done') return this.say('The shari is in the ohitsu');
+    if (shari.step === 'done') {
+      // In service (full) the chef may cook another batch himself: to the work table, then point at the cooker (1 sho).
+      if (!chefRiceInService()) return this.say(pantry.cookLeft > 0 ? 'The cook is cooking the rice' : 'The shari is in the ohitsu');
+      if (!this.reachPlace('table', 'back')) return;
+      return this.pointAt(shari.cookerAt.clone(), 'Light the rice cooker: 1 sho more');
+    }
     const tub = this.handWith(Held.Ohitsu);
     if (tub !== null) {
       const other = (1 - tub) as 0 | 1;

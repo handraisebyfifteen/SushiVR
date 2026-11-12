@@ -592,7 +592,8 @@ scrap into the trash, 0 pulls off the wrapping, the legs or the skin, X
 the next step with the board (lift, wash, stand, lift, put back; T turns
 around between), ] points at the noren and pinches (to open, and again to
 close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+9 sets its money to ¥10,000 at once (to try the limits), Shift+K changes hands (left- or right-handed; the morning, before the call); O skips the prep and opens the bar. At the back row, A does the
-next step of the shari and Enter the next thing at the range (a knob, an
+next step of the shari (in service on full, with the cooker free, it
+lights another batch of 1 sho and goes on through its steps) and Enter the next thing at the range (a knob, an
 ingredient into its pot or out to the case, the net, the bonito belly),
 each stepping there and turning as needed; / steps to where you look (the
 work table, the range, the sink, or back to the board), and Tab does

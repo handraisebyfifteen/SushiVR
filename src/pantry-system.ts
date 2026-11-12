@@ -1,4 +1,5 @@
 import { createSystem, type Sprite, Vector3 } from '@iwsdk/core';
+import { coach } from './coach.js';
 import { debugLines } from './debug.js';
 import { COLOR_DONE, feedback } from './feedback.js';
 import { fishOrder } from './fish-order.js';
@@ -45,7 +46,9 @@ interface Word {
  * stock is loaded and the evening's saved, the rice shop's delivery comes,
  * the cook's rice is cooked during service, and the warnings stand over
  * the ohitsu (its shari, the sack's rice) and the nori tin when they run
- * low: yellow early, red when the ohitsu is nearly out.
+ * low: yellow early, red when the ohitsu is nearly out. The master says
+ * each once as it happens (src/master-system.ts); not the ohitsu's while
+ * more rice is already cooking (the cook's, or the chef's own batch).
  */
 export class PantrySystem extends createSystem({}) {
   private mode = '';
@@ -56,6 +59,10 @@ export class PantrySystem extends createSystem({}) {
   private noriWord!: Word;
   private said!: Sprite;
   private saidTime = 0;
+  /** What the master was last told of: the ohitsu's level (0 fine, 1 low, 2 nearly out), the sack low, the nori low. */
+  private toldTub = 0;
+  private toldRice = false;
+  private toldNori = false;
   private readonly tmp = new Vector3();
 
   init(): void {
@@ -155,12 +162,17 @@ export class PantrySystem extends createSystem({}) {
 
   private warnings(): void {
     const working = !day.closed && (prep.active || chef.open);
+    const left = shariPieces();
+    // A batch of the chef's own is on in service (src/shari-system.ts).
+    const chefBatch = !prep.active && shari.step !== 'done';
     // The ohitsu: once the day's shari is in it.
     let tub = '';
     let tubColor = WHITE;
     if (working && shari.inTub) {
-      const left = shariPieces();
-      if (pantry.cookLeft > 0 && left <= TUB_LOW_PIECES) {
+      if (chefBatch && left <= TUB_LOW_PIECES) {
+        tub = `Shari: ${left} left. Your rice is on`;
+        tubColor = left <= TUB_OUT_PIECES ? RED : YELLOW;
+      } else if (pantry.cookLeft > 0 && left <= TUB_LOW_PIECES) {
         const s = Math.ceil(pantry.cookLeft);
         tub = `Shari: ${left} left. Cook's rice in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
         tubColor = left <= TUB_OUT_PIECES ? RED : YELLOW;
@@ -173,13 +185,23 @@ export class PantrySystem extends createSystem({}) {
       }
     }
     let rice = '';
-    if (working && pantry.riceSho < RICE_LOW_SHO - 1e-6) {
-      rice = pantry.comingIn > 0 && pantry.comingSacks > 0 ? `Rice: ${riceText()}. The rice shop is coming` : `Rice: ${riceText()} left. Call the rice shop`;
-    }
+    const riceComing = pantry.comingIn > 0 && pantry.comingSacks > 0;
+    const riceLow = working && pantry.riceSho < RICE_LOW_SHO - 1e-6;
+    if (riceLow) rice = riceComing ? `Rice: ${riceText()}. The rice shop is coming` : `Rice: ${riceText()} left. Call the rice shop`;
     let nori = '';
-    if (working && pantry.noriSheets < NORI_LOW_SHEETS - 1e-6) {
-      nori = pantry.comingIn > 0 && pantry.comingPacks > 0 ? `Nori: ${noriSheetsLeft()}. Coming` : `Nori: ${noriSheetsLeft()} left. Call the rice shop`;
-    }
+    const noriComing = pantry.comingIn > 0 && pantry.comingPacks > 0;
+    const noriLow = working && pantry.noriSheets < NORI_LOW_SHEETS - 1e-6;
+    if (noriLow) nori = noriComing ? `Nori: ${noriSheetsLeft()}. Coming` : `Nori: ${noriSheetsLeft()} left. Call the rice shop`;
+    // The master's word, once as each runs low (again only after it has been made good).
+    const level = working && shari.inTub && pantry.cookLeft <= 0 && !chefBatch ? (left <= TUB_OUT_PIECES ? 2 : left <= TUB_LOW_PIECES ? 1 : 0) : 0;
+    if (level > this.toldTub) coach.warn(level === 2 ? 'shariOut' : 'shariLow', StationKind.RiceTub);
+    this.toldTub = level;
+    const riceWarn = riceLow && !riceComing;
+    if (riceWarn && !this.toldRice) coach.warn('riceLow', StationKind.RiceTub);
+    this.toldRice = riceWarn;
+    const noriWarn = noriLow && !noriComing;
+    if (noriWarn && !this.toldNori) coach.warn('noriLow', StationKind.NoriBox);
+    this.toldNori = noriWarn;
     const tubAt = stations.get(StationKind.RiceTub)?.pos;
     const tinAt = stations.get(StationKind.NoriBox)?.pos;
     this.show(this.tubWord, tub, tubColor, tubAt, 0.3);

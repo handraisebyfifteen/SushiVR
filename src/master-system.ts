@@ -14,7 +14,7 @@ import {
   type Sprite,
   Vector3,
 } from '@iwsdk/core';
-import { coach, type Grade, type MistakeKey, type StepKey } from './coach.js';
+import { coach, type Grade, type MistakeKey, type StepKey, type StockWarning } from './coach.js';
 import { debugLines } from './debug.js';
 import { fishOrder } from './fish-order.js';
 import { chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, sharpenWanted, staff, tamago, tea } from './game-state.js';
@@ -170,6 +170,14 @@ const MISTAKE_WORDS: Record<MistakeKey, string> = {
   wrongHand: 'Other hand',
   knifeUnwiped: 'Wipe the blade',
   dullEdge: 'The edge caught: draw it again',
+};
+
+/** The stock running low (full mode, src/pantry-system.ts): said once as it happens, over the ohitsu or the nori tin. */
+const WARNING_WORDS: Record<StockWarning, string> = {
+  shariLow: 'The shari is getting low',
+  shariOut: 'Shari nearly out: cook more',
+  riceLow: 'Rice is low: call the rice shop',
+  noriLow: 'Nori is low: call the rice shop',
 };
 
 /** Steps that happen on the piece in the chef's hands: words go above the piece. */
@@ -455,6 +463,14 @@ export class MasterSystem extends createSystem({
     }
     coach.mistakes.length = 0;
 
+    // The stock running low: his word only if the player wants it (no gesture).
+    for (const w of coach.warnings) {
+      if (!display.masterWords) continue;
+      this.anchorAtStation(w.at);
+      this.say(WARNING_WORDS[w.key], false);
+    }
+    coach.warnings.length = 0;
+
     if (coach.servedGrade) {
       this.react(coach.servedGrade);
       coach.servedGrade = null;
@@ -490,6 +506,8 @@ export class MasterSystem extends createSystem({
     // The morning prep starts with the call to the fish shop (the phone in the office corner, pointed at).
     if (prep.active && fishOrder.ordering) return 'orderFish';
     if (prep.active && !prep.ordered && !holdingAnything()) return 'callFishShop';
+    // In service, a batch of rice the chef cooks himself (full; src/shari-system.ts): its steps till the ohitsu is back on its stand.
+    const batch = !prep.active && shari.step !== 'done' ? this.serviceShariStep(back) : null;
     if (!holdingAnything()) {
       if ((L.needsWash || R.needsWash || L.needsTowel || R.needsTowel) && chef.at !== 'seat') return this.goTo('seat', 'back', back, 'turnBack');
       if (L.needsWash || R.needsWash) {
@@ -499,10 +517,11 @@ export class MasterSystem extends createSystem({
       if (L.needsTowel || R.needsTowel) return back ? 'towel' : 'turnBack';
       if (chef.clothDirty) return back ? 'turnFront' : 'takeCloth';
       // In the prep, prepStep says which way to face (the back row has its own work).
-      if (back && !prep.active) return 'turnFront';
+      if (back && !prep.active && !batch) return 'turnFront';
     }
     // The morning prep, before the bar opens.
     if (prep.active) return this.prepStep(back);
+    if (batch) return batch;
     if (!chef.open || back) return null;
     // Customer care between pieces: the check, and the tea when the part-timer is not there to make it.
     if (chef.hands.some((h) => h.holding === Held.Tea)) return 'serveTea';
@@ -731,12 +750,8 @@ export class MasterSystem extends createSystem({
     // A flame wanting a turn comes first (the eel near the boil, a pot done): one free hand will do.
     const handFree = chef.hands.some((h) => h.holding === Held.None);
     if (handFree && range.burners.some((b) => b.want === 'knob')) return this.goTo('range', 'back', back, 'turnKnob');
-    if (shari.tubHeld) return shari.step === 'return' || shari.step === 'done' ? this.goTo('seat', 'front', back, 'returnTub') : this.goTo('table', 'back', back, 'bringTub');
-    if (shari.shamojiHeld) {
-      if (shari.step === 'cut') return this.goTo('table', 'back', back, 'cutShari');
-      if (shari.step === 'scoop') return this.goTo('table', 'back', back, shari.tubOnTable ? 'scoopShari' : 'bringTub');
-    }
-    if (shari.awasezuHeld && shari.step === 'vinegar') return this.goTo('table', 'back', back, 'pourAwasezu');
+    const shariHeld = this.shariHeldStep(back);
+    if (shariHeld) return shariHeld;
     // The tamago's scallops go to the suribachi on the work table; the rest to their pots on the range.
     if (prep.next === 'pot') return this.goTo(prep.onBoard === 'Tamago' ? 'table' : 'range', 'back', back, 'potIn');
     if (tamago.panHeld) return this.goTo('range', 'back', back, 'panOn');
@@ -792,6 +807,22 @@ export class MasterSystem extends createSystem({
     }
     if (prep.next === 'take' && prep.takeToPot) return this.atIceBox(back, 'takeMaterial');
     if (range.burners.some((b) => b.want === 'take')) return this.goTo('range', 'back', back, 'potOut');
+    return this.shariWorkStep(back);
+  }
+
+  /** The shari's tools in a hand: the ohitsu, the paddle, the awasezu. */
+  private shariHeldStep(back: boolean): StepKey | null {
+    if (shari.tubHeld) return shari.step === 'return' || shari.step === 'done' ? this.goTo('seat', 'front', back, 'returnTub') : this.goTo('table', 'back', back, 'bringTub');
+    if (shari.shamojiHeld) {
+      if (shari.step === 'cut') return this.goTo('table', 'back', back, 'cutShari');
+      if (shari.step === 'scoop') return this.goTo('table', 'back', back, shari.tubOnTable ? 'scoopShari' : 'bringTub');
+    }
+    if (shari.awasezuHeld && shari.step === 'vinegar') return this.goTo('table', 'back', back, 'pourAwasezu');
+    return null;
+  }
+
+  /** The shari's next step after the rice is turned out: the awasezu, the cutting, the scooping, the ohitsu back. */
+  private shariWorkStep(back: boolean): StepKey | null {
     switch (shari.step) {
       case 'vinegar':
         return this.goTo('table', 'back', back, 'pourAwasezu');
@@ -803,6 +834,17 @@ export class MasterSystem extends createSystem({
         return this.goTo('table', 'back', back, 'returnTub');
     }
     return null;
+  }
+
+  /** A batch of rice the chef cooks himself in service (full): the morning's shari steps; while it cooks and steams, the bar. */
+  private serviceShariStep(back: boolean): StepKey | null {
+    const held = this.shariHeldStep(back);
+    if (held) return held;
+    if (holdingAnything()) return null;
+    if (shari.step === 'turnOut') return this.goTo('table', 'back', back, 'turnOutRice');
+    const work = this.shariWorkStep(back);
+    if (work) return work;
+    return chef.at !== 'seat' ? (back ? 'turnFront' : 'stepSeat') : null;
   }
 
   /** The bonito belly after the saku-taking: skewers on the board, the net, the ice, paper, the case. */

@@ -11,7 +11,7 @@ import {
 import { cycleDisplay, display, DISPLAY_ROWS, type DisplayKey, displayValueText } from './display-settings.js';
 import { fishOrder, type Supplier } from './fish-order.js';
 import { fishOrderApi } from './fish-order-system.js';
-import { chef, holdingAnything, prep, staff } from './game-state.js';
+import { chef, holdingAnything, prep, shari, staff } from './game-state.js';
 import { handedness, setLeftHanded } from './handedness.js';
 import { hands } from './hands.js';
 import { officeApi } from './office-system.js';
@@ -237,8 +237,10 @@ export class PhoneBookSystem extends createSystem({}) {
       rows.push({ id: 'riceCall', label: 'Call and order', value: coming ? 'on its way' : '', enabled: phoneApi.canDialRice() });
       rows.push({ id: 'back', label: 'Back', value: '', enabled: true });
     } else if (this.page === 'cookRice') {
-      rows.push({ id: 'cook1', label: '1 sho', value: '', enabled: canAskCookRice(1) });
-      rows.push({ id: 'cook15', label: '1.5 sho', value: '', enabled: canAskCookRice(1.5) });
+      // One cooker: busy with the cook's rice, or with the chef's own batch (src/shari-system.ts).
+      const busy = pantry.cookLeft > 0 ? 'cooking' : shari.step !== 'done' ? 'cooker in use' : '';
+      rows.push({ id: 'cook1', label: '1 sho', value: busy, enabled: canAskCookRice(1) });
+      rows.push({ id: 'cook15', label: '1.5 sho', value: busy, enabled: canAskCookRice(1.5) });
       rows.push({ id: 'back', label: 'Back', value: '', enabled: true });
     } else {
       for (const r of DISPLAY_ROWS) rows.push({ id: r.key, label: r.label, value: displayValueText(r.key), enabled: true });
