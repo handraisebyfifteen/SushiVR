@@ -8,7 +8,7 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { type BurnerView, chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, staff, tamago, tea, tsume } from './game-state.js';
+import { type BurnerView, chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, prawn, service, shari, sharpen, staff, tamago, tea, tsume } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { handedness, setLeftHanded, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
@@ -16,7 +16,7 @@ import { SEATED_EYE_HEIGHT, SINK_TOP } from './layout.js';
 import { masterApi } from './master-system.js';
 import { placeApi } from './place-system.js';
 import { KNOB_HOLD, KNOB_STEP } from './range-system.js';
-import { CASE_ORDER, CORE_FROM, MENU, type MenuId, menuFor, NETA, type NetaId } from './menu.js';
+import { CASE_ORDER, CORE_FROM, FROM_CASE, MENU, type MenuId, menuFor, NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
 import { fishOrder, orderOf, resetShop, sizesOf, supplierOf } from './fish-order.js';
 import { fishOrderApi } from './fish-order-system.js';
@@ -804,13 +804,18 @@ export class PracticeSystem extends createSystem({
     const prep = NETA[neta].prep;
     // A roll filling orders the roll that starts with it (shiso: ume-shiso, plum: ume-kyu).
     const roll = (Object.keys(MENU) as MenuId[]).find((id) => MENU[id].kind === 'maki' && MENU[id].neta[0] === neta);
-    const item = prep === 'filling' ? (roll ?? null) : menuFor(prep === 'scoop' ? 'gunkan' : prep === 'age' ? 'inari' : 'nigiri', [neta]);
+    // The live kuruma-ebi: boiled and raw by turns.
+    const worked = (Object.keys(FROM_CASE) as NetaId[]).filter((n) => FROM_CASE[n] === neta);
+    if (worked.length) this.workedTurn++;
+    const topping = worked.length ? worked[this.workedTurn % worked.length] : neta;
+    const item = prep === 'filling' ? (roll ?? null) : menuFor(prep === 'scoop' ? 'gunkan' : prep === 'age' ? 'inari' : 'nigiri', [topping]);
     const customer = this.queries.customer.entities.values().next().value;
     if (!item || !customer) return;
     customer.setValue(Customer, 'item', item);
     customer.setValue(Customer, 'wasabi', NETA[neta].prep === 'saku' && neta !== 'Tamago');
-    this.say(`Ordered: ${NETA[neta].name}`);
+    this.say(`Ordered: ${NETA[topping].name}`);
   }
+  private workedTurn = 1;
 
   private stockOf(neta: NetaId): number {
     for (const entity of this.queries.items.entities) {
@@ -1330,6 +1335,15 @@ export class PracticeSystem extends createSystem({
         return this.tsumeBrush();
       case 'tsumePiece':
         return this.tsumeOnPiece();
+      case 'prawnBoard':
+      case 'skewerPrawn':
+      case 'prawnPot':
+      case 'prawnBoil':
+      case 'prawnOut':
+      case 'prawnUnskewer':
+      case 'peelPrawn':
+      case 'prawnFingers':
+        return this.prawnKey();
       case 'holdKnife':
       case 'putKnife':
         return this.knife();
@@ -2626,6 +2640,49 @@ export class PracticeSystem extends createSystem({
       wait(0.1),
       this.rest(side),
     ]);
+  }
+
+  /** Tab on the kuruma-ebi at the board (src/prawn-system.ts): its next step, boiled or raw. */
+  private prawnKey(): void {
+    const neta = chef.netaSide;
+    const rice = chef.riceSide;
+    const grip = prawn.skewerAt.clone();
+    const pot = prawn.potAt.clone();
+    const board = prawn.boardAt.clone();
+    const body = prawn.at.clone();
+    const head = prawn.headAt.clone();
+    // Take a part in the fingers: down onto it, pinch.
+    const take = (at: Vector3): Step[] => [move(at, v(0, 0.03, 0), 'grasp', 0.35), move(at, v(0, 0, 0), 'grasp', 0.15), wait(0.15), pinch(1), wait(0.1)];
+    switch (prawn.next) {
+      case 'board': {
+        const side = chef.hands[neta].holding === Held.Saku ? neta : rice;
+        return this.run(side, 'The prawn onto the board', [move(board, v(0, 0.06, 0), 'grasp', 0.45), pinch(0), wait(0.1), this.rest(side)]);
+      }
+      case 'skewer':
+        if (!this.ready(rice, Held.None)) return;
+        return this.run(rice, 'Skewering it', [...take(grip), move(grip, v(0, 0, -0.11), 'grasp', 0.6), pinch(0), wait(0.1), this.rest(rice)]);
+      case 'pot': {
+        if (chef.hands[neta].holding === Held.Saku) return this.run(neta, 'Into the pot', [move(pot, v(0, 0.08, 0.06), 'grasp', 0.5), pinch(0), wait(0.1), this.rest(neta)]);
+        if (!this.ready(neta, Held.None)) return;
+        return this.run(neta, 'Into the pot', [...take(grip), move(pot, v(0, 0.12, 0.08), 'grasp', 0.6), move(pot, v(0, 0.05, 0.08), 'grasp', 0.2), pinch(0), wait(0.1), this.rest(neta)]);
+      }
+      case 'boil':
+        return this.say(`Boiling: ${prawn.boilT.toFixed(0)} of about 10 s`);
+      case 'out':
+        if (!this.ready(neta, Held.None)) return;
+        return this.run(neta, 'Out of the pot', [...take(grip), move(board, v(0, 0.08, 0.1), 'grasp', 0.6), move(board, v(0, 0.04, 0.1), 'grasp', 0.2), pinch(0), wait(0.1), this.rest(neta)]);
+      case 'unskewer':
+        if (!this.ready(rice, Held.None)) return;
+        return this.run(rice, 'The skewer out', [...take(grip), move(grip, v(0, 0.01, 0.09), 'grasp', 0.5), pinch(0), wait(0.1), this.rest(rice)]);
+      case 'peel':
+        if (!this.ready(neta, Held.None) || !this.ready(rice, Held.None)) return;
+        this.run(neta, 'Holding the prawn', [...take(body), wait(1.6), pinch(0), wait(0.1), this.rest(neta)]);
+        this.run(rice, 'Peeling it', [wait(0.7), ...take(head), move(head, v(0, 0.03, -0.1), 'grasp', 0.45), pinch(0), wait(0.1), this.rest(rice)]);
+        return;
+      case 'hand':
+        if (!this.ready(neta, Held.None)) return;
+        return this.run(neta, 'Onto the fingers', [...take(body), pinch(0), wait(0.1), this.rest(neta)]);
+    }
   }
 
   /** S: hold a fist over the geta for a moment to serve. */

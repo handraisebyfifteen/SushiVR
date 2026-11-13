@@ -21,7 +21,7 @@ import { coach, type Grade } from './coach.js';
 import { customerApi } from './customer-system.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { canTakeRice } from './pantry.js';
-import { chef, type JudgeKind, prep, progress, service, shari } from './game-state.js';
+import { chef, type JudgeKind, prawn, prep, progress, service, shari } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { sideSign } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
@@ -415,6 +415,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       served: null,
       wasabiOk: !!order && order.wasabi === (this.wasabi === 'neta'),
       tsumeOk: (this.kind === 'nigiri' && TSUME_NETA.includes(this.netaId)) === this.tsumed,
+      prawnBoil: this.kind === 'nigiri' && this.netaId === 'BoiledPrawn' ? prawn.lastBoil : null,
       headOk: true,
       angleOk: true,
       skinOk: true,

@@ -32,7 +32,12 @@ export const Neta = {
   Kohada: 'Kohada',
   HorseMackerel: 'HorseMackerel',
   CuredMackerel: 'CuredMackerel',
+  /** Live kuruma-ebi in the case, worked to order (src/prawn-system.ts). */
   Prawn: 'Prawn',
+  /** The kuruma-ebi boiled on a skewer and peeled (not in the case: its look on the rice). */
+  BoiledPrawn: 'BoiledPrawn',
+  /** The kuruma-ebi peeled raw (not in the case: its look on the rice). */
+  RawPrawn: 'RawPrawn',
   SweetShrimp: 'SweetShrimp',
   Scallop: 'Scallop',
   ArkShell: 'ArkShell',
@@ -72,6 +77,7 @@ export type CaseShape =
   | 'block'
   | 'fillets'
   | 'prawns'
+  | 'wholePrawns'
   | 'shrimps'
   | 'halves'
   | 'tongues'
@@ -173,7 +179,10 @@ export const NETA: Record<NetaId, NetaDef> = {
   Kohada: def('Gizzard shad', 'piece', 8, look('fillets', '#C9D3DB', '#2E3338', 'spots', 0.85, 0.04)),
   HorseMackerel: def('Horse mackerel', 'piece', 4, look('fillets', '#A9B9C6', '#E8B9AE', 'plain', 0.85, 0.04)),
   CuredMackerel: def('Cured mackerel', 'saku', 8, look('saku', '#E8C7BD', '#5E7488', 'mackerel', 0.6, 0.04), { skinEdge: true }),
-  Prawn: def('Prawn', 'piece', 4, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.042)),
+  // Live in the case (grey, dark-banded), boiled or peeled raw to order.
+  Prawn: def('Prawn', 'piece', 4, look('wholePrawns', '#A39C90', '#3F3A46', 'stripes', 0.5, 0.042)),
+  BoiledPrawn: def('Boiled prawn', 'piece', 4, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.042)),
+  RawPrawn: def('Raw prawn', 'piece', 4, look('prawns', '#E9DDD8', '#C2ADB8', 'stripes', 0.85, 0.042)),
   SweetShrimp: def('Sweet shrimp', 'piece', 18, look('shrimps', '#F6A48C', '#F8D3C6', 'plain', 0.85, 0.04), { perPiece: 2 }),
   // The owner: scallops come nine to a pack, one scallop a piece.
   Scallop: def('Scallop', 'piece', 9, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.042)),
@@ -254,6 +263,7 @@ export const Menu = {
   GesoNigiri: 'GesoNigiri',
   OctopusNigiri: 'OctopusNigiri',
   PrawnNigiri: 'PrawnNigiri',
+  RawPrawnNigiri: 'RawPrawnNigiri',
   SweetShrimpNigiri: 'SweetShrimpNigiri',
   AbaloneNigiri: 'AbaloneNigiri',
   ArkShellNigiri: 'ArkShellNigiri',
@@ -307,7 +317,9 @@ export const MENU: Record<MenuId, MenuDef> = {
   SquidNigiri: nigiri('Squid'),
   GesoNigiri: nigiri('Geso', 0.7),
   OctopusNigiri: nigiri('Octopus'),
-  PrawnNigiri: nigiri('Prawn'),
+  // The kuruma-ebi both ways (the user's shop): boiled on a skewer, or raw.
+  PrawnNigiri: nigiri('BoiledPrawn'),
+  RawPrawnNigiri: nigiri('RawPrawn', 0.6),
   SweetShrimpNigiri: nigiri('SweetShrimp'),
   AbaloneNigiri: nigiri('Abalone', 0.5),
   ArkShellNigiri: nigiri('ArkShell'),
@@ -349,6 +361,9 @@ export function pairRest(ordered: MenuId, served: MenuId): MenuId | null {
  * the trimmings). Keyed by the filling, valued by the saku it is cut from.
  */
 export const CORE_FROM: Partial<Record<NetaId, NetaId>> = { TunaStick: 'LeanTuna' };
+
+/** Toppings worked to order from another case item (the kuruma-ebi, boiled or raw, from the live ones). */
+export const FROM_CASE: Partial<Record<NetaId, NetaId>> = { BoiledPrawn: 'Prawn', RawPrawn: 'Prawn' };
 
 /** The filling a slice of this saku makes in a roll; the saku itself when it is no roll's core (a wrong one). */
 export function rollCore(saku: NetaId): NetaId {

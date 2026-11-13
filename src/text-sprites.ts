@@ -59,6 +59,7 @@ export type IconKind =
   | 'fish'
   | 'wasabi'
   | 'tsume'
+  | 'boil'
   | 'orientation'
   | 'hand'
   | 'fresh'
@@ -119,6 +120,20 @@ export function makeIconSprite(kind: IconKind): Sprite {
       ctx.arc(32, 40, 10, 0.2, Math.PI - 0.2);
       ctx.quadraticCurveTo(18, 34, 32, 14);
       ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(18, 18);
+      ctx.lineTo(46, 46);
+      ctx.stroke();
+      break;
+    case 'boil': // a pot with steam and a cross
+      ctx.fillRect(18, 34, 28, 14);
+      ctx.fillRect(14, 32, 36, 4);
+      ctx.beginPath();
+      for (const x of [24, 32, 40]) {
+        ctx.moveTo(x, 28);
+        ctx.quadraticCurveTo(x - 4, 22, x, 16);
+      }
+      ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(18, 18);
       ctx.lineTo(46, 46);

@@ -129,6 +129,15 @@ export type StepKey =
   | 'toCase'
   | 'clamsBoard'
   | 'tsumePiece'
+  // the kuruma-ebi to order (src/prawn-system.ts)
+  | 'prawnBoard'
+  | 'skewerPrawn'
+  | 'prawnPot'
+  | 'prawnBoil'
+  | 'prawnOut'
+  | 'prawnUnskewer'
+  | 'peelPrawn'
+  | 'prawnFingers'
   // stage 4: the whole fish
   | 'scaleFish'
   | 'turnFish'

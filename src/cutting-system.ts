@@ -1,12 +1,13 @@
 import { BoxGeometry, createSystem, type Entity, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, COLOR_WARN, feedback, glowObject } from './feedback.js';
-import { chef, edgeCatches, orderKind, orderTakes, prep, progress, service, wearKnife } from './game-state.js';
+import { chef, edgeCatches, orderKind, orderTakes, prep, progress, service, type Side, wearKnife } from './game-state.js';
 import { homePose, type Pose, sideSign, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
 import { NETA, type NetaId } from './menu.js';
 import { caseApi } from './neta-case-system.js';
 import { pieceApi } from './piece-system.js';
+import { prawnApi } from './prawn-system.js';
 import { blockLength } from './scene-assets/lib/neta-look.js';
 import { type Kind, overStation, stations } from './station-system.js';
 import { CaseItem, Held, StationKind } from './sushi-components.js';
@@ -165,7 +166,7 @@ export class CuttingSystem extends createSystem({
       }
       const neta = caseApi.neta(item);
       const def = NETA[neta];
-      if (def.prep === 'piece') return this.takePiece(item, neta);
+      if (def.prep === 'piece') return this.takePiece(item, neta, side);
       if (def.prep === 'age') return this.takeAge(item);
       if (def.prep !== 'saku') return;
       this.held = item;
@@ -206,8 +207,8 @@ export class CuttingSystem extends createSystem({
   }
 
   /** A ready-cut piece straight onto the neta hand's fingers, if it is what was ordered. */
-  private takePiece(item: Entity, neta: NetaId): void {
-    if (pieceApi.hasNeta()) return;
+  private takePiece(item: Entity, neta: NetaId, side: Side): void {
+    if (pieceApi.hasNeta() || prawnApi.busy()) return;
     if (!orderTakes(neta)) {
       glowObject(item.object3D!, COLOR_WARN);
       feedback.flash(StationKind.NetaCase, COLOR_WARN);
@@ -216,7 +217,9 @@ export class CuttingSystem extends createSystem({
       return;
     }
     if (!caseApi.consume(item, NETA[neta].perPiece)) return;
-    pieceApi.take(neta);
+    // The kuruma-ebi is live: worked at the board first (boiled or raw), then onto the fingers.
+    if (neta === 'Prawn') prawnApi.take(side);
+    else pieceApi.take(neta);
     coach.done('takeSaku');
     feedback.flash(StationKind.NetaCase, COLOR_DONE);
     console.log(`[Cutting] took a piece of ${neta} (${item.getValue(CaseItem, 'remaining')} left)`);

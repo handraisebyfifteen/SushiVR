@@ -146,6 +146,19 @@ function prawnPiece(id: NetaId): BufferGeometry {
   ]);
 }
 
+/** A live kuruma-ebi in the case: curled a little, head and body round, its tail fan flat (the stripes are the pattern's). */
+function wholePrawnPiece(): BufferGeometry {
+  const path: Vector3[] = [];
+  const radii: number[] = [];
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    path.push(new Vector3(Math.sin(t * 2.2) * 0.009, 0.0075 + 0.002 * Math.sin(t * Math.PI), -0.034 + t * 0.064));
+    radii.push(t < 0.3 ? 0.0085 : 0.0085 - 0.005 * ((t - 0.3) / 0.7));
+  }
+  const tail = flat(new SphereGeometry(1, 8, 4).scale(0.009, 0.0016, 0.008), '#4A6075');
+  return weld([patterned(taperedTube(path, radii, 10, 0.85)), [tail, new Matrix4().makeTranslation(Math.sin(2.2) * 0.009, 0.004, 0.034)]]);
+}
+
 function shrimpPiece(): BufferGeometry {
   const path: Vector3[] = [];
   const radii: number[] = [];
@@ -494,6 +507,7 @@ export function caseLook(id: NetaId): CaseLook {
       look = pieces(filletPiece(id), shingle(n, 0.072, 0.0085), def.look.pattern === 'spots' ? NetaPattern.Kohada : NetaPattern.Aji, [0.072, 0.006, 0.028]);
       break;
     case 'prawns': look = pieces(prawnPiece(id), shingle(n, 0.074, 0.011), NetaPattern.Prawn, [0.062, 0.005, 0.034]); break;
+    case 'wholePrawns': look = pieces(wholePrawnPiece(), shingle(n, 0.07, 0.016), NetaPattern.Prawn, [0.07, 0.008, 0.034]); break;
     case 'shrimps': look = pieces(shrimpPiece(), shingle(n, 0.06, 0.012, 3, 0.0135), NetaPattern.SweetShrimp, [0.054, 0.006, 0.012]); break;
     case 'halves': look = pieces(scallopPiece(), shingle(n, 0.03, 0.0125), NetaPattern.Scallop, [0.03, 0.009, 0.034]); break;
     case 'tongues':

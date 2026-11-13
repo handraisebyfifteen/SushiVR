@@ -187,6 +187,19 @@ export const HAMAGURI_OVER_POOR = 15;
 export const HAMAGURI_OVER_BAD = 30;
 /** The brush's stroke over an anago or hamaguri nigiri that puts its tsume on (a little: one short stroke), metres. */
 export const TSUME_PIECE_RUB = 0.04;
+/**
+ * The kuruma-ebi boiled to order (the user's shop: on a skewer, about ten
+ * seconds). Seconds off the mark: within half of GOOD Excellent, within GOOD
+ * Good, within BAD Poor; past BAD it is raw in the middle or tough (Bad).
+ * The Ready sign over the pot stays up POOR seconds past the mark.
+ */
+export const PRAWN_BOIL_SECONDS = 10;
+export const PRAWN_BOIL_GOOD = 3;
+export const PRAWN_BOIL_POOR = 6;
+export const PRAWN_BOIL_BAD = 10;
+/** How far the skewer is pushed in along the prawn, and how far a pull draws the skewer or the shell off (metres). */
+export const PRAWN_PUSH = 0.09;
+export const PRAWN_PULL = 0.06;
 /** Simmered until the liquid is gone (煮切る): seconds to boil it all off on a high flame (a medium one takes half as fast again). */
 export const ABALONE_REDUCE_SECONDS = 30;
 /** The liquid counts as gone below this; left on the flame dry this long, it scorches. */

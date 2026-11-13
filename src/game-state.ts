@@ -1,5 +1,5 @@
 import { Vector3 } from '@iwsdk/core';
-import { CORE_FROM, MENU, type MenuId, NETA, type NetaId, type PieceKind } from './menu.js';
+import { CORE_FROM, FROM_CASE, MENU, type MenuId, NETA, type NetaId, type PieceKind } from './menu.js';
 import { DULL_CATCH_MAX, DULL_CATCH_MIN, KNIFE_DULL, KNIFE_WEAR_PER_CUT } from './tuning.js';
 import { Held, Judge } from './sushi-components.js';
 import { handedness, onHandsChanged } from './handedness.js';
@@ -565,6 +565,7 @@ export function orderTakes(neta: NetaId): boolean {
   const m = MENU[service.order.item];
   // A roll takes the saku its core is cut from (the tekka: the lean tuna).
   if (m.kind === 'maki') return m.neta.some((n) => CORE_FROM[n] === neta);
+  if (FROM_CASE[m.neta[0]] === neta) return true;
   return m.pair ? m.neta.includes(neta) : m.neta[0] === neta;
 }
 
@@ -572,7 +573,7 @@ export function orderTakes(neta: NetaId): boolean {
 export function orderNeta(): NetaId | null {
   if (!service.order) return null;
   const n = MENU[service.order.item].neta[0];
-  return CORE_FROM[n] ?? n;
+  return FROM_CASE[n] ?? CORE_FROM[n] ?? n;
 }
 
 /**
@@ -589,4 +590,23 @@ export const tsume = {
   potAt: new Vector3(),
   /** The hand holding the brush, or -1. */
   held: -1 as -1 | Side,
+};
+
+/** The kuruma-ebi's work at the board (src/prawn-system.ts), for the master and practice. */
+export type PrawnNext = 'board' | 'skewer' | 'pot' | 'boil' | 'out' | 'unskewer' | 'peel' | 'hand' | null;
+export const prawn = {
+  next: null as PrawnNext,
+  /** Boiled (the order) or peeled raw. */
+  boil: true,
+  /** The prawn's middle, its head end, the skewer's grip end (world). */
+  at: new Vector3(),
+  headAt: new Vector3(),
+  skewerAt: new Vector3(),
+  /** Its spot on the board, and the water's surface in the pot (world). */
+  boardAt: new Vector3(),
+  potAt: new Vector3(),
+  /** Seconds in the boiling water so far. */
+  boilT: 0,
+  /** The last boiled prawn's grade (read when the nigiri is served). */
+  lastBoil: null as 'Excellent' | 'Good' | 'Poor' | 'Bad' | null,
 };

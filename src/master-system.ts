@@ -17,7 +17,7 @@ import {
 import { coach, type Grade, type MistakeKey, type StepKey, type StockWarning } from './coach.js';
 import { debugLines } from './debug.js';
 import { fishOrder } from './fish-order.js';
-import { chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, sharpenWanted, staff, tamago, tea, tsume } from './game-state.js';
+import { chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, prawn, shari, sharpen, sharpenWanted, staff, tamago, tea, tsume } from './game-state.js';
 import { BACK_ROW_Z, DRAIN_SPOT_X, FOOD_SHELF_X, FOOD_SHELF_Z, RANGE_HEIGHT, SINK_BASIN_X, SINK_TOP, STOVE_X, WORKTABLE_X } from './layout.js';
 import { handedness, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
@@ -161,6 +161,14 @@ const STEP_WORDS: Record<StepKey, string> = {
   toCase: 'Into the case',
   clamsBoard: 'Clams onto the board, out of the broth',
   tsumePiece: 'A little tsume: one stroke of the brush',
+  prawnBoard: 'The prawn onto the board',
+  skewerPrawn: 'Skewer it: push the skewer in along the belly',
+  prawnPot: 'By the skewer into the boiling water',
+  prawnBoil: 'About ten seconds',
+  prawnOut: 'Out now, onto the board',
+  prawnUnskewer: 'Draw the skewer out',
+  peelPrawn: 'Hold it, pull the head and shell off',
+  prawnFingers: 'Onto your fingers',
   makeTea: 'Tea: point at the urn, pinch',
   serveTea: 'Tea: onto the tsukedai',
 };
@@ -541,6 +549,9 @@ export class MasterSystem extends createSystem({
     }
     if ((progress.kind ?? orderKind()) === 'gunkan') return this.gunkanStep();
     if ((progress.kind ?? orderKind()) === 'inari') return this.inariStep();
+    // The kuruma-ebi worked at the board first (boiled or raw).
+    const prawnWork = this.prawnStep();
+    if (prawnWork) return prawnWork;
     if (!progress.hasNeta) {
       if (progress.sakuOnBoard) return progress.sakuWrong ? 'returnSaku' : 'holdKnife';
       if (chef.boardDirt > 0 && progress.stage === 'None' && !progress.hasRice) return 'wipeBoard';
@@ -907,6 +918,30 @@ export class MasterSystem extends createSystem({
     return progress.closed ? null : 'closeAge';
   }
 
+  /** The kuruma-ebi's next step at the board (src/prawn-system.ts), if one is being worked. */
+  private prawnStep(): StepKey | null {
+    switch (prawn.next) {
+      case 'board':
+        return 'prawnBoard';
+      case 'skewer':
+        return 'skewerPrawn';
+      case 'pot':
+        return 'prawnPot';
+      case 'boil':
+        return 'prawnBoil';
+      case 'out':
+        return 'prawnOut';
+      case 'unskewer':
+        return 'prawnUnskewer';
+      case 'peel':
+        return 'peelPrawn';
+      case 'hand':
+        return 'prawnFingers';
+      default:
+        return null;
+    }
+  }
+
   /** The ordered roll's next filling is cut from a saku on the board (the tekka's tuna) and is not cut yet. */
   private coreNext(): boolean {
     const order = service.order;
@@ -1081,6 +1116,12 @@ export class MasterSystem extends createSystem({
       case 'serve':
       case 'tsumePiece':
         return StationKind.Geta;
+      case 'prawnBoard':
+      case 'skewerPrawn':
+      case 'prawnUnskewer':
+      case 'peelPrawn':
+      case 'prawnFingers':
+        return StationKind.CuttingBoard;
       default:
         return null;
     }
@@ -1187,6 +1228,24 @@ export class MasterSystem extends createSystem({
         return;
       case 'tsumePiece':
         out.copy(tsume.held === -1 ? tsume.gripAt : progress.pieceAt).add(this.tmp.set(0, 0.12, 0));
+        return;
+      case 'prawnBoard':
+        out.copy(prawn.boardAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'skewerPrawn':
+      case 'prawnUnskewer':
+        out.copy(prawn.skewerAt).add(this.tmp.set(0, 0.12, 0));
+        return;
+      case 'prawnPot':
+      case 'prawnBoil':
+      case 'prawnOut':
+        out.copy(prawn.potAt).add(this.tmp.set(0, 0.2, 0));
+        return;
+      case 'peelPrawn':
+        out.copy(prawn.headAt).add(this.tmp.set(0, 0.12, 0));
+        return;
+      case 'prawnFingers':
+        out.copy(prawn.at).add(this.tmp.set(0, 0.12, 0));
         return;
       // The back row.
       case 'stepTable':

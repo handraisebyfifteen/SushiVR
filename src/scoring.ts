@@ -13,6 +13,8 @@ export interface PieceResult {
   wasabiOk: boolean;
   /** Tsume brushed on where it belongs (anago, hamaguri), and nowhere else. */
   tsumeOk: boolean;
+  /** A boiled kuruma-ebi's boil (about ten seconds), or null. */
+  prawnBoil: 'Excellent' | 'Good' | 'Poor' | 'Bad' | null;
   headOk: boolean;
   angleOk: boolean;
   skinOk: boolean;
@@ -46,7 +48,8 @@ const JUDGE_POINTS: Record<JudgeKind, number> = {
  * angle 6, skin 3), hospitality 10, freshness 10, hygiene 10. Serving with
  * unwashed hands also costs 20 more (food-poisoning risk). A dirty board,
  * soap during service and an unwiped knife each cost 5. The anago or the
- * hamaguri without its tsume (or tsume where none goes) costs 10.
+ * hamaguri without its tsume (or tsume where none goes) costs 10; a prawn
+ * boiled well off its ten seconds 5 (Poor) or 15 (Bad).
  */
 export function scorePiece(r: PieceResult): Score {
   const penalties: IconKind[] = [];
@@ -61,6 +64,11 @@ export function scorePiece(r: PieceResult): Score {
   if (!r.tsumeOk) {
     score -= 10;
     penalties.push('tsume');
+  }
+  // The prawn under- or over-boiled: raw in the middle, or tough.
+  if (r.prawnBoil === 'Poor' || r.prawnBoil === 'Bad') {
+    score -= r.prawnBoil === 'Bad' ? 15 : 5;
+    penalties.push('boil');
   }
   if (r.headOk) score += 6;
   if (r.angleOk) score += 6;

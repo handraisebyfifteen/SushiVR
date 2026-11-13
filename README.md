@@ -94,11 +94,12 @@ for gunkan, and the roll fillings). Five sliding doors open by themselves
 for either hand. As a hand reaches in, the item nearest the fingers glows
 with its name (amber if it is the other hand's), and the items behind the
 open door float twice life size above the case, each named, so the close
-neighbours are easy to tell apart. Twenty-four of them make nigiri:
+neighbours are easy to tell apart. Twenty-five of them make nigiri:
 fourteen are cut from a block (the tuna, bonito back and belly, white fish
 and the flounder's engawa, cured mackerel, squid, octopus, abalone, tamago)
-and get a slice shorter with every cut; ten are ready-cut and taken one
-piece at a time (sweet shrimp two at a time). When
+and get a slice shorter with every cut; nine are ready-cut and taken one
+piece at a time (sweet shrimp two at a time); the kuruma-ebi is kept live
+and worked to order, boiled or raw (below). When
 one is used up it is sold out: its place is empty and nobody orders it until
 the next morning's prep. Counts and order are in `src/menu.ts`.
 
@@ -434,7 +435,7 @@ name and whether wasabi is wanted):
    your fingers slides open by itself. Pinch the ordered block and set it
    on the board; the door closes once you have taken it. A wrong one glows
    amber; pinch it back into the case (the door opens for it again). A
-   ready-cut piece (kohada, prawn, shellfish, eel...) comes straight onto
+   ready-cut piece (kohada, shellfish, eel...) comes straight onto
    your fingers instead: go on at step 4; a wrong one is not taken. A hand
    that needs washing cannot touch the fish. While a door is open the order
    ticket shows on the machine housing at the left end.
@@ -575,6 +576,22 @@ counter right of the board, give the piece one short stroke, and let go
 without it (or with tsume on anything else) the piece loses 10 points and
 shows the tsume mark. In practice mode, Tab does it.
 
+**Kuruma-ebi** (the shop's way): the case holds them live, and each order
+says boiled or raw. Take one from the case with the left hand and let go
+over the board. Boiled: a bamboo skewer lies in line behind its tail;
+pinch the skewer's flat end and push it away along the belly (it keeps
+the prawn straight). Take it by the skewer and let go over the pot of
+water kept on the boil on the counter left of the board; after about ten
+seconds a Ready sign comes up over the pot: take it out by the skewer onto
+the board and draw the skewer back out toward you. Raw: no skewer, no pot.
+Then, either way, peel it: the left hand pinches the body, the right hand
+pinches the head and pulls it away with the shell (the tail fan stays
+on). A pinch with the left hand takes it onto your fingers, and the nigiri
+goes on as usual. Boiled well short of ten seconds (raw in the middle) or
+well past it (tough), the piece loses 5 or 15 points and shows the pot
+mark. In practice mode, Tab does each step; 7 on the prawn orders it
+boiled and raw by turns.
+
 **No money**: this is a simulator, not a management game. There are no
 prices, bills or wages, and the check (お勘定) is done by a cashier,
 off-screen: when the customer has had the last piece they say "Thank you!"
@@ -688,6 +705,7 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
 | `src/range-system.ts` | The gas range: the pots, their knobs and heat, the hamaguri out onto the board, and the bonito belly on skewers |
 | `src/tsume-system.ts` | The tsume pot and its brush on the counter right of the board |
+| `src/prawn-system.ts` | The kuruma-ebi to order: on the board, the skewer, the pot on the boil, peeling, onto the fingers |
 | `src/tamago-system.ts` | The full difficulty's tamago: the suribachi from the cupboard under the sink, the scallops ground in it, the eggs tapped in, mixed with chopsticks till frothy; the square pan from its hook onto a burner, heated and oiled, the batter poured, baked low, tossed once with the chopsticks, the lid pressed on and the tamago turned out onto it, cooled, into the case, the pan wiped with paper |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
 | `src/tuning.ts` | Every gameplay number: timings, tolerances, what keeps from day to day |

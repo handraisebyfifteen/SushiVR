@@ -42,7 +42,7 @@ const TURN = new Vector3(SEAT.x - 0.45, -STEP_HEIGHT, SEAT.z - 0.4);
 const FIRST_LEG = DOOR.distanceTo(TURN);
 const WAY_LENGTH = FIRST_LEG + TURN.distanceTo(SEAT);
 const HAND_REST_X = 0.17;
-const ALL_ICONS: IconKind[] = ['rhythm', 'fish', 'wasabi', 'tsume', 'orientation', 'hand', 'fresh', 'hygiene', 'board', 'soap', 'knife'];
+const ALL_ICONS: IconKind[] = ['rhythm', 'fish', 'wasabi', 'tsume', 'boil', 'orientation', 'hand', 'fresh', 'hygiene', 'board', 'soap', 'knife'];
 
 /**
  * How the nigiri system hands a served piece (its own entity) to the
