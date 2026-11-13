@@ -144,6 +144,34 @@ change it (it is remembered):
   twelve, the sweet shrimp a sheet of eighteen (six by three, nine pieces
   of two).
 
+**Rice and nori** (full only; `src/pantry.ts`): they run out with use and
+are kept from day to day (saved in the browser). Day 1 starts with one
+10 kg sack of raw rice and 30 sheets of nori. The numbers are provisional.
+
+- The rice is cooked 1 or 1.5 sho at a time (1 sho = 1.5 kg of raw rice,
+  out of the sack), and 1 sho makes about 3.3 kg of shari, some 170
+  nigiri. With too little in the sack the cooker is not lit.
+- The bar takes its shari from the ohitsu: 19 g for a nigiri or a gunkan,
+  90 g for a roll (the tekka too), 30 g for an inari. An empty ohitsu
+  gives nothing.
+- Nori: a gunkan strip is a sixth of a sheet (6切り), a roll a half sheet.
+- More rice during the service, the chef's choice. Either cook it
+  yourself: step to the work table and light the cooker again (1 or 1.5
+  sho), then the morning's steps (the hangiri, the awasezu, the paddle,
+  the ohitsu); while the ohitsu is at the work table, the bar has no
+  rice. Or call the cook on the phone (1 or 1.5 sho, done in about 80
+  s). There is one cooker: while one batch is on, the phone's cook rows
+  read "cooking" (the cook's) or "cooker in use" (your own).
+- The rice shop is on the phone: sacks of rice and packs of 10 sheets of
+  nori (at most 3 sacks and 5 packs a call), delivered a few seconds
+  later.
+- Signs warn over the ohitsu and the nori tin: the ohitsu yellow under
+  about 40 pieces and red under about 10, the sack under 1 sho, the nori
+  under 10 sheets. The master says each once as it happens ("The shari is
+  getting low", "Shari nearly out: cook more", "Rice is low: call the rice
+  shop", "Nori is low: call the rice shop"); not the ohitsu's while more
+  rice is already cooking.
+
 Time runs faster than in a shop, and the work runs side by side: the rice
 and the pots go on first, the fish is cut while they cook.
 
@@ -168,7 +196,7 @@ and the pots go on first, the fish is cut while they cook.
    hand held out like that passes over the neta case without opening its
    doors or taking from it.
 2. The rice: step to the work table, point at the gas rice cooker under it
-   and pinch. It cooks, goes out by itself and steams (a word over the
+   and pinch (on full, one of the two marks beside it: 1 or 1.5 sho). It cooks, goes out by itself and steams (a word over the
    table counts it down).
 3. The range: on top in the ice box lie the octopus, the conger eel, the
    abalone and the gourd strips, prepared by the fish shop. Take each (either
