@@ -1340,6 +1340,9 @@ export class PracticeSystem extends createSystem({
       case 'prawnPot':
       case 'prawnBoil':
       case 'prawnOut':
+      case 'prawnIce':
+      case 'prawnCold':
+      case 'prawnIceOut':
       case 'prawnUnskewer':
       case 'peelPrawn':
       case 'prawnFingers':
@@ -2648,6 +2651,7 @@ export class PracticeSystem extends createSystem({
     const rice = chef.riceSide;
     const grip = prawn.skewerAt.clone();
     const pot = prawn.potAt.clone();
+    const bowl = prawn.bowlAt.clone();
     const board = prawn.boardAt.clone();
     const body = prawn.at.clone();
     const head = prawn.headAt.clone();
@@ -2670,7 +2674,17 @@ export class PracticeSystem extends createSystem({
         return this.say(`Boiling: ${prawn.boilT.toFixed(0)} of about 10 s`);
       case 'out':
         if (!this.ready(neta, Held.None)) return;
-        return this.run(neta, 'Out of the pot', [...take(grip), move(board, v(0, 0.08, 0.1), 'grasp', 0.6), move(board, v(0, 0.04, 0.1), 'grasp', 0.2), pinch(0), wait(0.1), this.rest(neta)]);
+        return this.run(neta, 'Out of the pot, into the ice water', [...take(grip), move(bowl, v(0, 0.1, 0.06), 'grasp', 0.5), move(bowl, v(0, 0.04, 0.06), 'grasp', 0.2), pinch(0), wait(0.1), this.rest(neta)]);
+      case 'chill': {
+        if (chef.hands[neta].holding === Held.Saku) return this.run(neta, 'Into the ice water', [move(bowl, v(0, 0.06, 0.06), 'grasp', 0.5), pinch(0), wait(0.1), this.rest(neta)]);
+        if (!this.ready(neta, Held.None)) return;
+        return this.run(neta, 'Into the ice water', [...take(grip), move(bowl, v(0, 0.1, 0.06), 'grasp', 0.5), move(bowl, v(0, 0.04, 0.06), 'grasp', 0.2), pinch(0), wait(0.1), this.rest(neta)]);
+      }
+      case 'cold':
+        return this.say(`In the ice water: ${prawn.chillT.toFixed(0)} s`);
+      case 'iceOut':
+        if (!this.ready(neta, Held.None)) return;
+        return this.run(neta, 'Out of the ice, onto the board', [...take(grip), move(board, v(0, 0.08, 0.1), 'grasp', 0.5), move(board, v(0, 0.04, 0.1), 'grasp', 0.2), pinch(0), wait(0.1), this.rest(neta)]);
       case 'unskewer':
         if (!this.ready(rice, Held.None)) return;
         return this.run(rice, 'The skewer out', [...take(grip), move(grip, v(0, 0.01, 0.09), 'grasp', 0.5), pinch(0), wait(0.1), this.rest(rice)]);

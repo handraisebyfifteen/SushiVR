@@ -165,7 +165,10 @@ const STEP_WORDS: Record<StepKey, string> = {
   skewerPrawn: 'Skewer it: push the skewer in along the belly',
   prawnPot: 'By the skewer into the boiling water',
   prawnBoil: 'About ten seconds',
-  prawnOut: 'Out now, onto the board',
+  prawnOut: 'Out now, into the ice water',
+  prawnIce: 'Into the ice water, to firm it',
+  prawnCold: 'A few seconds in the ice',
+  prawnIceOut: 'Out of the ice, onto the board',
   prawnUnskewer: 'Draw the skewer out',
   peelPrawn: 'Hold it, pull the head and shell off',
   prawnFingers: 'Onto your fingers',
@@ -931,6 +934,12 @@ export class MasterSystem extends createSystem({
         return 'prawnBoil';
       case 'out':
         return 'prawnOut';
+      case 'chill':
+        return 'prawnIce';
+      case 'cold':
+        return 'prawnCold';
+      case 'iceOut':
+        return 'prawnIceOut';
       case 'unskewer':
         return 'prawnUnskewer';
       case 'peel':
@@ -1240,6 +1249,11 @@ export class MasterSystem extends createSystem({
       case 'prawnBoil':
       case 'prawnOut':
         out.copy(prawn.potAt).add(this.tmp.set(0, 0.2, 0));
+        return;
+      case 'prawnIce':
+      case 'prawnCold':
+      case 'prawnIceOut':
+        out.copy(prawn.bowlAt).add(this.tmp.set(0, 0.2, 0));
         return;
       case 'peelPrawn':
         out.copy(prawn.headAt).add(this.tmp.set(0, 0.12, 0));

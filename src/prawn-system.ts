@@ -7,12 +7,24 @@ import { onHandsChanged, sideX } from './handedness.js';
 import { hands } from './hands.js';
 import { ICE_BOX_X, ICE_BOX_Z, WORK_COUNTER_TOP } from './layout.js';
 import { pieceApi } from './piece-system.js';
-import { createPrawnPot, createPrawnSkewer, createWholePrawn, PRAWN_LENGTH, PRAWN_POT_RADIUS, PRAWN_WATER_Y, SKEWER_LENGTH, type WholePrawn } from './scene-assets/lib/prawn-look.js';
+import {
+  createIceBowl,
+  createPrawnPot,
+  createPrawnSkewer,
+  createWholePrawn,
+  ICE_BOWL_RADIUS,
+  ICE_WATER_Y,
+  PRAWN_LENGTH,
+  PRAWN_POT_RADIUS,
+  PRAWN_WATER_Y,
+  SKEWER_LENGTH,
+  type WholePrawn,
+} from './scene-assets/lib/prawn-look.js';
 import { playDone, playPick, playPut, playTone, playWarn } from './sfx.js';
 import { overStation, stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
-import { PRAWN_BOIL_BAD, PRAWN_BOIL_GOOD, PRAWN_BOIL_POOR, PRAWN_BOIL_SECONDS, PRAWN_PULL, PRAWN_PUSH } from './tuning.js';
+import { PRAWN_BOIL_BAD, PRAWN_BOIL_GOOD, PRAWN_BOIL_POOR, PRAWN_BOIL_SECONDS, PRAWN_CHILL_SECONDS, PRAWN_PULL, PRAWN_PUSH } from './tuning.js';
 
 /** The prawn's spot on the board: left of the middle, its tail toward the chef. */
 const BOARD_X = -0.1;
@@ -35,8 +47,9 @@ export const prawnApi = {
  *  - Boiled: on the board, the bamboo skewer lying in line behind its tail
  *    is pushed in along the belly (pinch its grip end, push it away); taken
  *    by the skewer into the pot that stays on the boil left of the board,
- *    about ten seconds (a Ready sign comes up over the pot); out onto the
- *    board, the skewer drawn out toward the chef, then peeled.
+ *    about ten seconds (a Ready sign comes up over the pot); out into the
+ *    bowl of ice water beside it to firm up (締める) a few seconds; out onto
+ *    the board, the skewer drawn out toward the chef, then peeled.
  *  - Raw: on the board, peeled as it is.
  * Peeling: the neta hand holds the body, the rice hand pinches the head and
  * pulls it off with the shell (the tail fan stays on); then a pinch with
@@ -46,13 +59,16 @@ export class PrawnSystem extends createSystem({}) {
   private look!: WholePrawn;
   private skewer!: Object3D;
   private pot!: Object3D;
+  private bowl!: Object3D;
   private bubbles: Object3D | null = null;
   private ready!: Sprite;
   private label!: Sprite;
   private labelText = '';
-  private stage: 'none' | 'held' | 'board' | 'pot' = 'none';
+  private stage: 'none' | 'held' | 'board' | 'pot' | 'ice' = 'none';
   private skewered = false;
   private cooked = false;
+  /** Firmed in the ice water after the boil. */
+  private chilled = false;
   private peeled = false;
   private carrySide: Side | -1 = -1;
   private readonly carryOffset = new Vector3();
@@ -77,6 +93,9 @@ export class PrawnSystem extends createSystem({}) {
     this.pot.visible = false;
     this.bubbles = this.pot.getObjectByName('Bubbles') ?? null;
     this.world.createTransformEntity(this.pot);
+    this.bowl = createIceBowl();
+    this.bowl.visible = false;
+    this.world.createTransformEntity(this.bowl);
     this.ready = makeTextSprite('Ready', { width: 0.09, background: '#2E8B57' });
     this.ready.visible = false;
     this.world.createTransformEntity(this.ready);
@@ -89,10 +108,12 @@ export class PrawnSystem extends createSystem({}) {
     prawnApi.take = (side) => this.take(side);
   }
 
-  /** The pot where the ice box stood in the morning (on the chef's own side), the board spot. */
+  /** The pot and the ice water where the ice box stood in the morning (on the chef's own side; the ice water nearer the board), the board spot. */
   private place(): void {
-    this.pot.position.set(sideX(ICE_BOX_X), WORK_COUNTER_TOP, ICE_BOX_Z);
+    this.pot.position.set(sideX(ICE_BOX_X - 0.07), WORK_COUNTER_TOP, ICE_BOX_Z);
     prawn.potAt.copy(this.pot.position).add(this.tmp.set(0, PRAWN_WATER_Y, 0));
+    this.bowl.position.set(sideX(ICE_BOX_X + 0.11), WORK_COUNTER_TOP, ICE_BOX_Z);
+    prawn.bowlAt.copy(this.bowl.position).add(this.tmp.set(0, ICE_WATER_Y, 0));
     const board = stations.get(StationKind.CuttingBoard);
     if (board) prawn.boardAt.copy(board.pos).add(this.tmp.set(sideX(BOARD_X), 0, BOARD_Z));
   }
@@ -102,9 +123,10 @@ export class PrawnSystem extends createSystem({}) {
     this.stage = 'held';
     this.carrySide = side;
     this.carryOffset.set(0, -0.01, 0);
-    this.skewered = this.cooked = this.peeled = false;
+    this.skewered = this.cooked = this.chilled = this.peeled = false;
     prawn.boil = service.order?.item !== 'RawPrawnNigiri';
     prawn.boilT = 0;
+    prawn.chillT = 0;
     prawn.lastBoil = null;
     for (const t of this.look.tints) t.material.color.copy(t.raw);
     this.look.shell.visible = true;
@@ -120,7 +142,7 @@ export class PrawnSystem extends createSystem({}) {
     const open = chef.open;
     if (open !== this.wasOpen) {
       this.wasOpen = open;
-      this.pot.visible = open;
+      this.pot.visible = this.bowl.visible = open;
       if (!open) this.clear();
     }
     if (!open) return;
@@ -129,11 +151,12 @@ export class PrawnSystem extends createSystem({}) {
     if (this.bubbles) this.bubbles.position.y = 0.0015 * Math.sin(performance.now() * 0.03);
     if (this.stage === 'held') this.updateCarried();
     else if (this.stage === 'pot') this.updatePot(delta);
+    else if (this.stage === 'ice') this.updateIce(delta);
     else if (this.stage === 'board') this.updateBoard();
     this.publish();
   }
 
-  /** In a hand: follows it; let go over the board it lies there, over the pot (skewered) it goes in. */
+  /** In a hand: follows it; let go over the board it lies there, over the pot (skewered) it goes in, boiled over the ice water it goes in that. */
   private updateCarried(): void {
     const side = this.carrySide as Side;
     const hand = hands.all[side];
@@ -150,8 +173,46 @@ export class PrawnSystem extends createSystem({}) {
       console.log('[Prawn] into the boiling water: about ten seconds');
       return;
     }
+    if (this.cooked && !this.chilled && this.overBowl(g)) {
+      this.stage = 'ice';
+      this.moveTo(this.tmp.copy(prawn.bowlAt).add(this.tmp2.set(0, -0.006, -0.03)));
+      playPut();
+      coach.done('prawnIce');
+      console.log('[Prawn] into the ice water, to firm it');
+      return;
+    }
     // Let go over the board, or anywhere else: it lies on its spot on the board (taken, it is worked).
     this.lay();
+  }
+
+  /** In the ice water: a few seconds firm it (締める); a pinch on the skewer's grip takes it out. */
+  private updateIce(delta: number): void {
+    const before = prawn.chillT;
+    prawn.chillT += delta;
+    if (before < PRAWN_CHILL_SECONDS && prawn.chillT >= PRAWN_CHILL_SECONDS) {
+      this.chilled = true;
+      playTone(990, 0.06, 0.05);
+      console.log('[Prawn] cold and firm: out onto the board');
+    }
+    for (const side of SIDES) {
+      const hand = hands.all[side];
+      if (!hand.tracked || !hand.pinchStart || chef.hands[side].holding !== Held.None) continue;
+      const at = hand.pinchPoint(this.pinchAt);
+      if (at.distanceTo(this.gripOf(this.tmp)) > PICK && !this.overBowl(at)) continue;
+      if (!this.chilled) console.log('[Prawn] out of the ice water too soon: back in a few seconds');
+      this.stage = 'held';
+      this.carrySide = side;
+      this.carryOffset.copy(this.look.root.position).sub(hand.grasp);
+      chef.hands[side].holding = Held.Saku;
+      playPick();
+      coach.done('prawnIceOut');
+      return;
+    }
+  }
+
+  private overBowl(p: Vector3): boolean {
+    const c = prawn.bowlAt;
+    return Math.hypot(p.x - c.x, p.z - c.z) < ICE_BOWL_RADIUS + 0.04 && p.y > c.y - 0.03 && p.y < c.y + 0.3;
   }
 
   private lay(): void {
@@ -254,8 +315,8 @@ export class PrawnSystem extends createSystem({}) {
         this.skewerGrab = { side, from: hand.grasp.clone(), out: false };
         return;
       }
-      if (prawn.boil && this.skewered && !this.cooked && (onGrip || onBody)) {
-        // Taken by the skewer, to the pot.
+      if (prawn.boil && this.skewered && (!this.cooked || !this.chilled) && (onGrip || onBody)) {
+        // Taken by the skewer, to the pot (or, boiled, to the ice water).
         this.stage = 'held';
         this.carrySide = side;
         this.carryOffset.copy(this.look.root.position).sub(hand.grasp);
@@ -263,7 +324,7 @@ export class PrawnSystem extends createSystem({}) {
         playPick();
         return;
       }
-      if (this.cooked && this.skewered && onGrip) {
+      if (this.cooked && this.chilled && this.skewered && onGrip) {
         this.skewerGrab = { side, from: hand.grasp.clone(), out: true };
         return;
       }
@@ -360,7 +421,7 @@ export class PrawnSystem extends createSystem({}) {
     this.skewerGrab = null;
     this.holdSide = -1;
     this.peelFrom = null;
-    this.skewered = this.cooked = this.peeled = false;
+    this.skewered = this.cooked = this.chilled = this.peeled = false;
     this.look.root.visible = false;
     this.skewer.visible = false;
     this.ready.visible = false;
@@ -379,15 +440,23 @@ export class PrawnSystem extends createSystem({}) {
           ? prawn.boilT < PRAWN_BOIL_SECONDS
             ? 'boil'
             : 'out'
-          : this.stage === 'held'
-            ? this.skewered && !this.cooked
-              ? 'pot'
-              : 'board'
-            : prawn.boil && !this.cooked
-              ? this.skewered
+          : this.stage === 'ice'
+            ? this.chilled
+              ? 'iceOut'
+              : 'cold'
+            : this.stage === 'held'
+              ? this.skewered && !this.cooked
                 ? 'pot'
-                : 'skewer'
-              : this.skewered
+                : this.cooked && !this.chilled
+                  ? 'chill'
+                  : 'board'
+              : prawn.boil && !this.cooked
+                ? this.skewered
+                  ? 'pot'
+                  : 'skewer'
+                : prawn.boil && !this.chilled
+                  ? 'chill'
+                  : this.skewered
                 ? 'unskewer'
                 : this.peeled
                   ? 'hand'

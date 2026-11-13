@@ -582,8 +582,10 @@ over the board. Boiled: a bamboo skewer lies in line behind its tail;
 pinch the skewer's flat end and push it away along the belly (it keeps
 the prawn straight). Take it by the skewer and let go over the pot of
 water kept on the boil on the counter left of the board; after about ten
-seconds a Ready sign comes up over the pot: take it out by the skewer onto
-the board and draw the skewer back out toward you. Raw: no skewer, no pot.
+seconds a Ready sign comes up over the pot: take it out by the skewer and
+let go over the bowl of ice water beside the pot (nearer the board) to
+firm it; after a few seconds (a soft chime) take it out onto the board and
+draw the skewer back out toward you. Raw: no skewer, no pot.
 Then, either way, peel it: the left hand pinches the body, the right hand
 pinches the head and pulls it away with the shell (the tail fan stays
 on). A pinch with the left hand takes it onto your fingers, and the nigiri
@@ -705,7 +707,7 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
 | `src/range-system.ts` | The gas range: the pots, their knobs and heat, the hamaguri out onto the board, and the bonito belly on skewers |
 | `src/tsume-system.ts` | The tsume pot and its brush on the counter right of the board |
-| `src/prawn-system.ts` | The kuruma-ebi to order: on the board, the skewer, the pot on the boil, peeling, onto the fingers |
+| `src/prawn-system.ts` | The kuruma-ebi to order: on the board, the skewer, the pot on the boil, the ice water, peeling, onto the fingers |
 | `src/tamago-system.ts` | The full difficulty's tamago: the suribachi from the cupboard under the sink, the scallops ground in it, the eggs tapped in, mixed with chopsticks till frothy; the square pan from its hook onto a burner, heated and oiled, the batter poured, baked low, tossed once with the chopsticks, the lid pressed on and the tamago turned out onto it, cooled, into the case, the pan wiped with paper |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
 | `src/tuning.ts` | Every gameplay number: timings, tolerances, what keeps from day to day |

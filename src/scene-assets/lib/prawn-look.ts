@@ -137,7 +137,7 @@ export const PRAWN_WATER_Y = 0.135;
 export function createPrawnPot(): Group {
   const root = new Group();
   root.name = 'PrawnPot';
-  const cooker = new Mesh(new BoxGeometry(0.22, 0.07, 0.24), new MeshStandardMaterial({ color: '#3A3D42', roughness: 0.5, metalness: 0.3 }));
+  const cooker = new Mesh(new BoxGeometry(0.2, 0.07, 0.22), new MeshStandardMaterial({ color: '#3A3D42', roughness: 0.5, metalness: 0.3 }));
   cooker.position.y = 0.035;
   const R = PRAWN_POT_RADIUS;
   const H = 0.085;
@@ -163,5 +163,31 @@ export function createPrawnPot(): Group {
     bubbles.add(b);
   }
   root.add(cooker, pot, water, flame, bubbles);
+  return root;
+}
+
+/** The bowl of ice water beside the pot, where a boiled prawn is plunged to firm it: origin on the counter. */
+export const ICE_BOWL_RADIUS = 0.062;
+/** The water's surface over the counter. */
+export const ICE_WATER_Y = 0.042;
+export function createIceBowl(): Group {
+  const root = new Group();
+  root.name = 'PrawnIceBowl';
+  const R = ICE_BOWL_RADIUS;
+  const H = 0.055;
+  const wall = [[0.001, 0], [R * 0.6, 0], [R * 0.85, H * 0.35], [R, H], [R + 0.003, H + 0.002], [R - 0.003, H], [R * 0.84, H * 0.38], [R * 0.58, 0.003], [0.001, 0.003]].map(([r, y]) => new Vector2(r, y));
+  root.add(new Mesh(new LatheGeometry(wall, 28), new MeshStandardMaterial({ color: '#D4D8DC', roughness: 0.25, metalness: 0.8 })));
+  const water = new Mesh(new CircleGeometry(R * 0.93, 24).rotateX(-Math.PI / 2), new MeshStandardMaterial({ color: '#CFE3EA', roughness: 0.05, transparent: true, opacity: 0.6 }));
+  water.position.y = ICE_WATER_Y;
+  root.add(water);
+  const ice = new MeshStandardMaterial({ color: '#F2F8FA', roughness: 0.15, transparent: true, opacity: 0.8 });
+  for (let i = 0; i < 6; i++) {
+    const a = i * 1.9 + 0.4;
+    const r = 0.02 + (i % 3) * 0.012;
+    const cube = new Mesh(new BoxGeometry(0.016, 0.014, 0.016), ice);
+    cube.position.set(Math.sin(a) * r, ICE_WATER_Y + 0.002, Math.cos(a) * r);
+    cube.rotation.set(0.3 * i, 0.7 * i, 0.2 * i);
+    root.add(cube);
+  }
   return root;
 }

@@ -593,7 +593,7 @@ export const tsume = {
 };
 
 /** The kuruma-ebi's work at the board (src/prawn-system.ts), for the master and practice. */
-export type PrawnNext = 'board' | 'skewer' | 'pot' | 'boil' | 'out' | 'unskewer' | 'peel' | 'hand' | null;
+export type PrawnNext = 'board' | 'skewer' | 'pot' | 'boil' | 'out' | 'chill' | 'cold' | 'iceOut' | 'unskewer' | 'peel' | 'hand' | null;
 export const prawn = {
   next: null as PrawnNext,
   /** Boiled (the order) or peeled raw. */
@@ -602,11 +602,13 @@ export const prawn = {
   at: new Vector3(),
   headAt: new Vector3(),
   skewerAt: new Vector3(),
-  /** Its spot on the board, and the water's surface in the pot (world). */
+  /** Its spot on the board, the water's surface in the pot and in the ice-water bowl (world). */
   boardAt: new Vector3(),
   potAt: new Vector3(),
-  /** Seconds in the boiling water so far. */
+  bowlAt: new Vector3(),
+  /** Seconds in the boiling water, and then in the ice water, so far. */
   boilT: 0,
+  chillT: 0,
   /** The last boiled prawn's grade (read when the nigiri is served). */
   lastBoil: null as 'Excellent' | 'Good' | 'Poor' | 'Bad' | null,
 };

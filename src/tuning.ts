@@ -197,6 +197,8 @@ export const PRAWN_BOIL_SECONDS = 10;
 export const PRAWN_BOIL_GOOD = 3;
 export const PRAWN_BOIL_POOR = 6;
 export const PRAWN_BOIL_BAD = 10;
+/** Seconds in the ice water after the boil that firm the prawn (締める). */
+export const PRAWN_CHILL_SECONDS = 4;
 /** How far the skewer is pushed in along the prawn, and how far a pull draws the skewer or the shell off (metres). */
 export const PRAWN_PUSH = 0.09;
 export const PRAWN_PULL = 0.06;
