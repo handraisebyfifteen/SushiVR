@@ -1,4 +1,5 @@
 import type { Object3D, Vector3 } from '@iwsdk/core';
+import type { Grade } from './coach.js';
 import type { Side } from './game-state.js';
 import type { NetaId } from './menu.js';
 import type { PrepId } from './prep.js';
@@ -19,6 +20,18 @@ export const prepApi = {
   potWanted: (_id: string): boolean => true,
   /** This material has still to go into its pot (in the ice box, or in a hand on the way): its insert is not done with yet. */
   awaitingPot: (_id: PrepId): boolean => false,
+  /** The hamaguri, out of their pot and let go over the board: true when they went onto it (the board's work takes them from there). */
+  fromPot: (_id: PrepId, _grade: Grade): boolean => false,
+  /** Nothing lies on the board (no material, no seared belly): the hamaguri may come onto it. */
+  boardFree: (): boolean => true,
+};
+
+/** The tsume pot and its brush on the counter (src/tsume-system.ts). */
+export const tsumeApi = {
+  /** The brush is in this hand. */
+  brushIn: (_side: Side): boolean => false,
+  /** The brush's bristle tip (world) while in this hand; false if it is not. */
+  tipAt: (_side: Side, _out: Vector3): boolean => false,
 };
 
 export const cureApi = {

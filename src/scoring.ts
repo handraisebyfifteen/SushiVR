@@ -11,6 +11,8 @@ export interface PieceResult {
   /** What was made, when it is not simply the order (one piece of a bonito pair). */
   served: MenuId | null;
   wasabiOk: boolean;
+  /** Tsume brushed on where it belongs (anago, hamaguri), and nowhere else. */
+  tsumeOk: boolean;
   headOk: boolean;
   angleOk: boolean;
   skinOk: boolean;
@@ -43,7 +45,8 @@ const JUDGE_POINTS: Record<JudgeKind, number> = {
  * 100 points: rhythm 30, right item 15, wasabi 10, orientation 15 (head 6,
  * angle 6, skin 3), hospitality 10, freshness 10, hygiene 10. Serving with
  * unwashed hands also costs 20 more (food-poisoning risk). A dirty board,
- * soap during service and an unwiped knife each cost 5.
+ * soap during service and an unwiped knife each cost 5. The anago or the
+ * hamaguri without its tsume (or tsume where none goes) costs 10.
  */
 export function scorePiece(r: PieceResult): Score {
   const penalties: IconKind[] = [];
@@ -55,6 +58,10 @@ export function scorePiece(r: PieceResult): Score {
   else penalties.push('fish');
   if (r.wasabiOk) score += 10;
   else penalties.push('wasabi');
+  if (!r.tsumeOk) {
+    score -= 10;
+    penalties.push('tsume');
+  }
   if (r.headOk) score += 6;
   if (r.angleOk) score += 6;
   if (r.skinOk) score += 3;

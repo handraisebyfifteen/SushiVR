@@ -24,9 +24,11 @@ import { canTakeRice } from './pantry.js';
 import { chef, type JudgeKind, prep, progress, service, shari } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { sideSign } from './handedness.js';
-import { hands } from './hands.js';
+import { hands, RubTracker } from './hands.js';
 import { addPieceDirt } from './hygiene-system.js';
-import type { NetaId, PieceKind } from './menu.js';
+import { type NetaId, type PieceKind, TSUME_NETA } from './menu.js';
+import { tsumeApi } from './prep-api.js';
+import { TSUME_PIECE_RUB } from './tuning.js';
 import { type PieceResult, scorePiece } from './scoring.js';
 import { playRustle, playTone } from './sfx.js';
 import { overStation, stations } from './station-system.js';
@@ -129,6 +131,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   private lastLowRight = false;
   private carryYawOffset = 0;
   private holdTime = 0;
+  /** The tsume brushed on (the anago and hamaguri nigiri), the brush's stroke so far, its tip. */
+  private tsumed = false;
+  private readonly tsumeRub = new RubTracker();
+  private readonly tipAt = new Vector3();
   private readonly tmp = new Vector3();
 
   private get active(): Assembly | null {
@@ -239,10 +245,12 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       this.gunkan.update(delta);
       this.maki.update(delta);
     } else if (this.stage === NigiriStage.Done) {
+      this.updateTsume();
       this.updatePickUp(riceHand);
     } else if (this.stage === NigiriStage.Carried) {
       this.updateCarry(riceHand);
     } else if (this.stage === NigiriStage.Placed) {
+      this.updateTsume();
       this.updatePlaced(riceHand, delta);
     } else {
       active.update(delta);
@@ -365,6 +373,25 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     }
   }
 
+  /** The tsume brush (src/tsume-system.ts) stroked over a finished nigiri, in the hand or on the geta: the glaze goes on. */
+  private updateTsume(): void {
+    if (this.kind !== 'nigiri' || this.tsumed) return;
+    let held = false;
+    for (const side of [0, 1] as const) if (!held && tsumeApi.tipAt(side, this.tipAt)) held = true;
+    if (!held) {
+      this.tsumeRub.reset();
+      return;
+    }
+    const f = this.focus;
+    const over = Math.hypot(this.tipAt.x - f.x, this.tipAt.z - f.z) < 0.04 && this.tipAt.y > f.y - 0.01 && this.tipAt.y < f.y + 0.05;
+    if (this.tsumeRub.update(this.tipAt, over) < TSUME_PIECE_RUB) return;
+    this.tsumed = true;
+    this.nigiri.showTsume(true);
+    playRustle();
+    coach.done('tsumePiece');
+    console.log(`[Piece] tsume on the ${this.netaId}${TSUME_NETA.includes(this.netaId) ? '' : ' (no tsume goes on this one)'}`);
+  }
+
   private updatePlaced(riceHand: HandReader, delta: number): void {
     this.updatePickUp(riceHand);
     if (this.stage !== NigiriStage.Placed) return;
@@ -387,6 +414,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       itemOk: false,
       served: null,
       wasabiOk: !!order && order.wasabi === (this.wasabi === 'neta'),
+      tsumeOk: (this.kind === 'nigiri' && TSUME_NETA.includes(this.netaId)) === this.tsumed,
       headOk: true,
       angleOk: true,
       skinOk: true,
@@ -428,6 +456,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
 
   private resetPiece(): void {
     this.hasNeta = this.netaHeld = this.hasRice = false;
+    this.tsumed = false;
+    this.tsumeRub.reset();
     this.wasabi = 'none';
     this.judges.fill(Judge.None);
     this.boardWasDirty = false;
@@ -587,6 +617,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     progress.netaHeld = this.netaHeld;
     progress.hasRice = this.hasRice;
     progress.wasabi = this.wasabi;
+    progress.tsumeWanted = this.kind === 'nigiri' && this.hasNeta && TSUME_NETA.includes(this.netaId);
+    progress.tsume = this.tsumed;
     progress.beatOrigin = this.phaseStart ?? 0;
     // A roll's core slice publishes its own place (MakiAssembly.publish).
     if (this.kind !== 'maki') progress.sliceAt.copy(this.netaOnBoard);

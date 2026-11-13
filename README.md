@@ -79,13 +79,13 @@ indigo noren and the brighter kitchen showing through it, is at the left end of 
 and the part-timer come out of it when called. Fluorescent work lights
 hang over the board and the sink.
 
-**The neta case** holds 31 items, left to right: tamago, abalone, octopus,
+**The neta case** holds 32 items, left to right: tamago, abalone, octopus,
 squid, squid legs (geso), flounder, striped jack, young yellowtail, bonito
 back and belly, lean / medium fatty
 / fatty tuna, gizzard shad (kohada), horse mackerel, cured mackerel, prawn,
-sweet shrimp, scallop, ark shell, egg cockle, sea eel and the inari pouches,
+sweet shrimp, scallop, ark shell, egg cockle, sea eel, hamaguri (煮はま) and the inari pouches,
 then, at the right end, sea urchin, salmon roe and the roll fillings (cucumber,
-gourd strips, pickled radish, plum paste, shiso; the tekka roll's tuna is cut
+gourd strips (bought simmered), pickled radish, plum paste, shiso; the tekka roll's tuna is cut
 from the lean tuna saku to order). The left
 (neta) hand takes the neta; the right-end items are the right hand's (the
 uni, its lobes laid in overlapping rows on a white-wood ori with a small
@@ -94,10 +94,10 @@ for gunkan, and the roll fillings). Five sliding doors open by themselves
 for either hand. As a hand reaches in, the item nearest the fingers glows
 with its name (amber if it is the other hand's), and the items behind the
 open door float twice life size above the case, each named, so the close
-neighbours are easy to tell apart. Twenty-three of them make nigiri:
+neighbours are easy to tell apart. Twenty-four of them make nigiri:
 fourteen are cut from a block (the tuna, bonito back and belly, white fish
 and the flounder's engawa, cured mackerel, squid, octopus, abalone, tamago)
-and get a slice shorter with every cut; nine are ready-cut and taken one
+and get a slice shorter with every cut; ten are ready-cut and taken one
 piece at a time (sweet shrimp two at a time). When
 one is used up it is sold out: its place is empty and nobody orders it until
 the next morning's prep. Counts and order are in `src/menu.ts`.
@@ -130,7 +130,7 @@ change it (it is remembered):
 - **Full** (本格): the case keeps what is left from day to day (saved in
   the browser when the day closes; day 1 starts empty). You check the case
   and order what it needs. Only tuna and cooked things (anago, tamago,
-  octopus, abalone, the gourd strips, the inari pouches) keep overnight;
+  octopus, abalone, hamaguri, the gourd strips, the inari pouches) keep overnight;
   uni and ikura two business days, the garnishes three; the rest of
   yesterday's is out of the case in the morning, with a word over the case.
   The garnishes and pickles (cucumber, shiso, pickled radish, plum paste)
@@ -198,13 +198,14 @@ and the pots go on first, the fish is cut while they cook.
 2. The rice: step to the work table, point at the gas rice cooker under it
    and pinch (on full, one of the two marks beside it: 1 or 1.5 sho). It cooks, goes out by itself and steams (a word over the
    table counts it down).
-3. The range: on top in the ice box lie the octopus, the conger eel, the
-   abalone and the gourd strips, prepared by the fish shop. Take each (either
+3. The range: on top in the ice box lie the octopus, the conger eel and the
+   abalone, prepared by the fish shop, and the live hamaguri in a net bag
+   (the gourd strips are bought ready simmered: no prep). Take each (either
    hand) and let go over its own pot on the range (step to the range; from
    there the ice box is in reach, turned to the bar). Each burner has a knob
    on the range's front: a short pinch lights it on high or puts it out;
    keep pinching and it turns down a notch at a time (high, medium, low).
-   The octopus, the abalone and the gourd strips come in the fish shop's
+   The octopus and the abalone come in the fish shop's
    stainless inserts (中子); the eel is bought opened, in a pack (a white
    foam tray). Once all four are in their pots, the empty inserts pile up
    in the box and are dealt with one at a time: first the eel's pack, which
@@ -222,9 +223,20 @@ and the pots go on first, the fish is cut while they cook.
    - Conger eel: 煮る with the broth held at 90 degrees (the word over the
      pan is its thermometer): bring it up on high, then turn it down to low
      before it boils. Boiling breaks the eel up.
-   - Gourd strips and abalone: 煮切る, boiled until the liquid is gone (the
-     word over the pot counts it down), then the flame off before they
-     scorch.
+   - Abalone: 煮切る, boiled until the liquid is gone (the word over the
+     pot counts it down), then the flame off before it scorches.
+   - Hamaguri: boiled on a high flame till the shells open (the lids lift
+     as they cook), then the flame off: boiled on, they toughen. Take them
+     out of their broth (it stays in the pot for the soup) and let go over
+     the board, not the case. Hot from the pot, they lie there a little to
+     cool (8 seconds); then, worked like a fish: pull them out of the
+     shells (both hands, as the squid's legs), one stroke of the knife down
+     the middle opens them, pull the guts out, and brush tsume over them:
+     the tsume pot stands on the counter right of the board, its brush in
+     it; pinch the brush by its handle, stroke it over the clams, let go
+     (it goes back into the pot). Then the opened clams go into the case;
+     the shells and guts into the trash. If the board is in use, the clams
+     wait in their pot with the flame off.
    When one is done, put its flame out, take it out of the pot and let go
    over the case (step back to the board). Its pot goes back into the
    cupboard under the sink. On the full difficulty every pot starts in that
@@ -314,6 +326,8 @@ and the pots go on first, the fish is cut while they cook.
      skinned before the saku), then split into back and belly saku; the
      flounder's fillets have their engawa cut off instead. The hamachi half:
      unwrapped, belly bones, pin bones, skin, then back and belly.
+   - Then the moisture off (the shop's way: white fish is ready once it is
+     dry): a sheet from the kitchen-paper box, patted over the saku.
    Every saku and engawa goes into the case.
    - On the full difficulty, the kohada and the saba too (the shop's way:
      cured on the day). The kohada come whole, eight a day, one a piece
@@ -390,7 +404,7 @@ and the pots go on first, the fish is cut while they cook.
 
 Your cuts are graded (how close to the line): a crooked cut wastes flesh,
 so the saku gives fewer slices to serve. What comes off the range is graded
-too (a tough octopus, a broken eel, scorched gourd strips, a belly burnt or
+too (a tough octopus, a broken eel, tough hamaguri, a scorched abalone, a belly burnt or
 seared on one side only give fewer pieces). When the prep is done, the
 pieces it gave show over the board (no grade words: shops differ in their
 prep).
@@ -543,8 +557,8 @@ skin edge (bonito, striped jack, cured mackerel) shows it on the customer's
 right when cut at the guide line.
 
 **Grades**: every piece served (a roll is one order) is graded Excellent /
-Good / Poor / Bad from the four timed beats, wasabi, orientation,
-hospitality (handedness), freshness since the cut, and hygiene (unwashed
+Good / Poor / Bad from the four timed beats, wasabi, the tsume (see below),
+orientation, hospitality (handedness), freshness since the cut, and hygiene (unwashed
 hands, a dirty board, soap during service, an unwiped knife); the grade
 and small icons for what to improve appear above the customer. The grade
 decides how much more they order: a customer comes in with three orders in
@@ -552,6 +566,14 @@ mind, an Excellent piece brings one more (up to six), a Poor one one fewer,
 and after a Bad one they order no more. A piece that is not what was
 ordered is sent back ("Not my order") and made again. A bonito order with
 no part named is two pieces, back and belly, one after the other.
+
+**Tsume** (the shop's way): the anago and the hamaguri nigiri get a
+little tsume, no wasabi. With the piece finished (on the fingers or on
+the geta), pinch the brush by its handle from the tsume pot on the
+counter right of the board, give the piece one short stroke, and let go
+(the brush goes back into its pot); the neta takes a dark gloss. Served
+without it (or with tsume on anything else) the piece loses 10 points and
+shows the tsume mark. In practice mode, Tab does it.
 
 **No money**: this is a simulator, not a management game. There are no
 prices, bills or wages, and the check (お勘定) is done by a cashier,
@@ -608,7 +630,7 @@ steps through the neta, 7 makes the customer order the selected one, and 8
 restocks the whole case. In the morning prep, = points at the telephone,
 9 carries the next fish to the board, a saku into the case or a
 scrap into the trash, 0 pulls off the wrapping, the legs or the skin, X
-(knife in hand) cuts along the line, - pats the squid dry with paper, [ does
+(knife in hand) cuts along the line, - pats the squid or the white fish dry with paper (or brushes the tsume over the opened hamaguri), [ does
 the next step with the board (lift, wash, stand, lift, put back; T turns
 around between), ] points at the noren and pinches (to open, and again to
 close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+K changes hands (left- or right-handed; the morning, before the call); O skips the prep and opens the bar. At the back row, A does the
@@ -664,7 +686,8 @@ them. To try the glasses in the emulator, set `dev.emulator.device` in
 | `src/fish-order-system.ts` | The morning's case stock, ordering from the case, the order slip, the difficulty sign, the day's close |
 | `src/place-system.ts` | Where the chef stands: the stool, or a step back at the work table or the range |
 | `src/shari-system.ts` | The shari: the gas rice cooker, the hangiri, the awasezu, the paddle, the ohitsu |
-| `src/range-system.ts` | The gas range: the pots, their knobs and heat, and the bonito belly on skewers |
+| `src/range-system.ts` | The gas range: the pots, their knobs and heat, the hamaguri out onto the board, and the bonito belly on skewers |
+| `src/tsume-system.ts` | The tsume pot and its brush on the counter right of the board |
 | `src/tamago-system.ts` | The full difficulty's tamago: the suribachi from the cupboard under the sink, the scallops ground in it, the eggs tapped in, mixed with chopsticks till frothy; the square pan from its hook onto a burner, heated and oiled, the batter poured, baked low, tossed once with the chopsticks, the lid pressed on and the tamago turned out onto it, cooled, into the case, the pan wiped with paper |
 | `src/scene-assets/lib/fillet-look.ts` | Stage 4's fish (a whole striped jack and flounder, a hamachi half), their fillets and filleting steps, and the sink's tools (wash board, fish box, scaler, deba, tweezers) |
 | `src/tuning.ts` | Every gameplay number: timings, tolerances, what keeps from day to day |

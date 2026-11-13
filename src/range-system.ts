@@ -47,8 +47,10 @@ import {
   EEL_BOIL_BAD,
   EEL_BOIL_POOR,
   EEL_SECONDS,
+  HAMAGURI_OVER_BAD,
+  HAMAGURI_OVER_POOR,
+  HAMAGURI_SECONDS,
   HEAT_RATE,
-  KANPYO_REDUCE_SECONDS,
   LOW_FLAME_TEMP,
   OCTOPUS_OVER_BAD,
   OCTOPUS_OVER_POOR,
@@ -66,15 +68,16 @@ import {
 } from './tuning.js';
 import { cupboardApi } from './cupboard-system.js';
 import { display } from './display-settings.js';
+import { sideX } from './handedness.js';
 
-/** On the range (range-local x, z): the eel's wide pan back right and the gourd strips front right (seen facing it), the abalone back left, the octopus front left. */
+/** On the range (range-local x, z): the eel's wide pan back right and the hamaguri front right (seen facing it), the abalone back left, the octopus front left. */
 const LAYOUT: Record<PotId, { bx: number; bz: number; knob: number }> = {
   SeaEel: { bx: -0.165, bz: 0.1, knob: -0.26 },
-  Kanpyo: { bx: -0.165, bz: -0.1, knob: -0.13 },
+  Hamaguri: { bx: -0.165, bz: -0.1, knob: -0.13 },
   Octopus: { bx: 0.165, bz: -0.1, knob: 0.13 },
   Abalone: { bx: 0.165, bz: 0.1, knob: 0.26 },
 };
-const POTS: readonly PotId[] = ['Octopus', 'SeaEel', 'Kanpyo', 'Abalone'];
+const POTS: readonly PotId[] = ['Octopus', 'SeaEel', 'Hamaguri', 'Abalone'];
 /** The grates' top, where a pot or the net stands. */
 const GRATE_Y = RANGE_HEIGHT + 0.043;
 const KNOB_Y = RANGE_HEIGHT - 0.115;
@@ -127,22 +130,26 @@ const STORED: Record<PotId, Vector3> = {
   Octopus: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 - 0.1, SINK_SHELF_Y, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.17),
   Abalone: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 + 0.105, SINK_SHELF_Y, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.17),
   SeaEel: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 - 0.075, 0.09, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.2),
-  Kanpyo: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 + 0.13, 0.09, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.16),
+  Hamaguri: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 + 0.145, 0.09, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.16),
 };
 const POT_PICK = 0.1;
 
 /**
  * The gas range in the morning prep (stage 3), from putting things in the
- * pot (the user's shop): the prepared octopus, conger eel, abalone and
- * gourd strips come in the fish shop's ice box; each goes into its own pot
+ * pot (the user's shop): the prepared octopus, conger eel and abalone,
+ * and the live hamaguri, come in the fish shop's ice box; each goes into its own pot
  * on the range, and each burner's knob sets its flame (a pinch on the knob
  * moves it one click: off, high, medium, low, off).
  *  - Octopus: 炊く, at a rolling boil on a high flame; boiled on too long
  *    after it is done, it toughens.
  *  - Conger eel: 煮る with the broth held at 90 degrees (the thermometer
  *    over the pan); boiling breaks it up.
- *  - Gourd strips, abalone: 煮切る, boiled until the liquid is gone, then
- *    the flame off before they scorch.
+ *  - Abalone: 煮切る, boiled until the liquid is gone, then the flame off
+ *    before it scorches.
+ *  - Hamaguri: boiled on a high flame till the shells open, the flame off
+ *    (boiled on, they toughen); taken out of their broth (kept for the
+ *    soup) onto the board, where the prep's work finishes them
+ *    (src/prep-cut-system.ts: cooled, shelled, opened, gutted, tsume).
  *  - Done and the flame off, each is taken out and let go over the case.
  *  - The bonito belly from the saku-taking waits on the ice: on the board
  *    the skewers go in through the skin side, then onto the grill net
@@ -292,7 +299,7 @@ export class RangeSystem extends createSystem({
     this.seat(b);
     playPut();
     coach.done('potIn');
-    console.log(`[Range] the ${this.name(b)} ${b.id === 'Kanpyo' ? 'are' : 'is'} in the pot`);
+    console.log(`[Range] the ${this.name(b)} ${this.isAre(b)} in the pot`);
     return true;
   }
 
@@ -312,7 +319,11 @@ export class RangeSystem extends createSystem({
   }
 
   private name(b: Burner): string {
-    return b.id === 'SeaEel' ? 'conger eel' : b.id === 'Kanpyo' ? 'gourd strips' : b.id.toLowerCase();
+    return b.id === 'SeaEel' ? 'conger eel' : b.id.toLowerCase();
+  }
+
+  private isAre(b: Burner): string {
+    return b.id === 'Hamaguri' ? 'are' : 'is';
   }
 
   // ---- heat -------------------------------------------------------------------------
@@ -359,14 +370,24 @@ export class RangeSystem extends createSystem({
       if (b.temp >= 99.5) b.over += delta;
       done = b.progress >= EEL_SECONDS;
       cookedness = b.progress / EEL_SECONDS;
+    } else if (b.id === 'Hamaguri') {
+      // At the boil they open; boiled on after that, they toughen.
+      if (boiling) {
+        if (b.state === 'done') b.over += delta;
+        else b.progress += delta;
+      }
+      done = b.progress >= HAMAGURI_SECONDS;
+      cookedness = b.progress / HAMAGURI_SECONDS;
+      const k = Math.min(1, Math.max(0, (cookedness - 0.55) / 0.45));
+      for (const lid of (b.ing?.userData.lids as Object3D[] | undefined) ?? []) lid.rotation.x = 1.05 * k * k * (3 - 2 * k);
     } else {
       // Boiled down: high twice as fast as medium; dry on the flame, it scorches.
-      if (boiling || (b.liquid < REDUCED_LEVEL && b.level >= 2)) b.liquid = Math.max(0, b.liquid - (delta / (b.id === 'Kanpyo' ? KANPYO_REDUCE_SECONDS : ABALONE_REDUCE_SECONDS)) * (b.level === 3 ? 1 : 0.5));
+      if (boiling || (b.liquid < REDUCED_LEVEL && b.level >= 2)) b.liquid = Math.max(0, b.liquid - (delta / ABALONE_REDUCE_SECONDS) * (b.level === 3 ? 1 : 0.5));
       if (b.liquid <= 0 && b.level > 0) b.over += delta;
       done = b.liquid <= REDUCED_LEVEL;
       cookedness = 1 - b.liquid;
     }
-    const scorched = (b.id === 'Kanpyo' || b.id === 'Abalone') && b.over > SCORCH_SECONDS;
+    const scorched = b.id === 'Abalone' && b.over > SCORCH_SECONDS;
     for (const t of b.tints) {
       t.material.color.copy(t.raw).lerp(t.cooked, scorched ? 1 : Math.min(1, cookedness));
       if (scorched) t.material.color.multiplyScalar(0.55);
@@ -374,13 +395,16 @@ export class RangeSystem extends createSystem({
     if (done && b.state === 'cooking') {
       b.state = 'done';
       playDone();
-      console.log(`[Range] the ${this.name(b)} ${b.id === 'Kanpyo' ? 'are' : 'is'} done: the flame off, then out into the case`);
+      console.log(
+        b.id === 'Hamaguri' ? '[Range] the hamaguri are open: the flame off, then out onto the board' : `[Range] the ${this.name(b)} is done: the flame off, then out into the case`,
+      );
     }
   }
 
   private grade(b: Burner): Grade {
     if (b.id === 'Octopus') return b.over > OCTOPUS_OVER_BAD ? 'Bad' : b.over > OCTOPUS_OVER_POOR ? 'Poor' : 'Excellent';
     if (b.id === 'SeaEel') return b.over > EEL_BOIL_BAD ? 'Bad' : b.over > EEL_BOIL_POOR ? 'Poor' : b.over > 0.5 ? 'Good' : 'Excellent';
+    if (b.id === 'Hamaguri') return b.over > HAMAGURI_OVER_BAD ? 'Bad' : b.over > HAMAGURI_OVER_POOR ? 'Poor' : 'Excellent';
     // Dry on the flame: a moment is nothing, then it catches, then it scorches.
     return b.over > SCORCH_SECONDS ? 'Bad' : b.over > SCORCH_SECONDS / 2 ? 'Poor' : b.over > 1 ? 'Good' : 'Excellent';
   }
@@ -392,6 +416,8 @@ export class RangeSystem extends createSystem({
       const t = `${Math.round(b.temp)}°C`;
       if (b.id === 'SeaEel') {
         text = b.temp >= 99.5 ? `${t} boiling!` : b.state === 'done' ? `${t} done` : `${t} eel ${Math.round((100 * b.progress) / EEL_SECONDS)}%`;
+      } else if (b.id === 'Hamaguri') {
+        text = b.state === 'done' ? (b.level > 0 ? 'Open: flame off' : 'Open') : b.temp >= 99.5 && b.level >= 2 ? `Boiling ${Math.round((100 * b.progress) / HAMAGURI_SECONDS)}%` : `${t}`;
       } else if (b.id === 'Octopus') {
         text = b.state === 'done' ? (b.level > 0 ? 'Done: flame off' : 'Done') : b.temp >= 99.5 && b.level === 3 ? `Boiling ${Math.round((100 * b.progress) / OCTOPUS_SECONDS)}%` : `${t}`;
       } else {
@@ -483,7 +509,7 @@ export class RangeSystem extends createSystem({
   }
 
   private possessive(b: Burner): string {
-    return b.id === 'Kanpyo' ? "the gourd strips'" : `the ${this.name(b)}'s`;
+    return `the ${this.name(b)}'s`;
   }
 
   private hold(side: Side, c: Carried, at: Vector3): void {
@@ -496,6 +522,12 @@ export class RangeSystem extends createSystem({
     if (c.kind === 'belly') range.caseNeta = 'BonitoBelly';
     if (c.kind === 'pot') range.potHeld = true;
     this.caseItems.get(range.caseNeta as NetaId)?.object3D?.getWorldPosition(range.caseAt);
+    // The hamaguri go onto the board (their spot on it), not into the case.
+    range.toBoard = c.kind === 'ing' && c.b.id === 'Hamaguri';
+    if (range.toBoard) {
+      const board = stations.get(StationKind.CuttingBoard);
+      if (board) range.caseAt.copy(board.pos).add(this.tmp2.set(sideX(0.05), 0.02, 0.02));
+    }
     chef.hands[side].holding = c.kind === 'net' ? Held.Net : Held.Saku;
     this.offset[side].copy(at).sub(hands.all[side].grasp);
     playPick();
@@ -569,6 +601,7 @@ export class RangeSystem extends createSystem({
   }
 
   private releaseIngredient(b: Burner, at: Vector3): void {
+    if (b.id === 'Hamaguri') return this.clamsOut(b, at);
     if (!this.overCase(at)) {
       this.seat(b);
       return;
@@ -584,8 +617,29 @@ export class RangeSystem extends createSystem({
     feedback.flash(StationKind.NetaCase, COLOR_DONE);
     playPut();
     coach.done('potOut');
-    console.log(`[Range] the ${this.name(b)} ${b.id === 'Kanpyo' ? 'are' : 'is'} in the case: ${grade} (${stock} of ${full})`);
+    console.log(`[Range] the ${this.name(b)} ${this.isAre(b)} in the case: ${grade} (${stock} of ${full})`);
     prepApi.taskDone(b.id);
+  }
+
+  /** The hamaguri let go: over the board they leave their broth (kept for the soup) and lie there to cool; anywhere else, back into the pot. */
+  private clamsOut(b: Burner, at: Vector3): void {
+    if (!overStation(at, StationKind.CuttingBoard)) {
+      if (this.overCase(at)) {
+        playWarn();
+        console.log('[Range] the hamaguri go onto the board first: shelled, opened, the guts out, tsume');
+      }
+      this.seat(b);
+      return;
+    }
+    if (!prepApi.fromPot('Hamaguri', this.grade(b))) {
+      this.seat(b);
+      return;
+    }
+    b.ing = null;
+    this.putAway(b);
+    playPut();
+    coach.done('potOut');
+    console.log('[Range] the hamaguri are out of their broth (kept for the soup)');
   }
 
   /** Over the case, or just short of its place in it (its slot is at the case's near edge). */
@@ -849,7 +903,8 @@ export class RangeSystem extends createSystem({
       if (b.state === 'out' && range.panOn === i) target = range.panTarget;
       if (b.level !== target) want = 'knob';
       else if (b.state === 'empty') want = 'put';
-      else if (b.state === 'done') want = 'take';
+      // The hamaguri wait in their pot (the flame off) while the board is in use.
+      else if (b.state === 'done' && (b.id !== 'Hamaguri' || prepApi.boardFree())) want = 'take';
       const v = b.view;
       v.stored = b.stored;
       v.potAt.copy(b.pot.position).add(this.tmp.set(0, POT_SPECS[b.id].height, 0));

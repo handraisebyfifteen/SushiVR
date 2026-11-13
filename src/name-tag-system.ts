@@ -46,7 +46,7 @@ const DEFS: readonly TagDef[] = [
   { name: 'Shamoji', label: 'Shamoji (paddle)', group: 'back' },
   { name: 'Awasezu', label: 'Awasezu (sushi vinegar)', group: 'back' },
   { name: 'PotSeaEel', label: 'Sea eel pot', group: 'back' },
-  { name: 'PotKanpyo', label: 'Kanpyo pot', group: 'back' },
+  { name: 'PotHamaguri', label: 'Hamaguri pot', group: 'back' },
   { name: 'PotOctopus', label: 'Octopus pot', group: 'back' },
   { name: 'PotAbalone', label: 'Abalone pot', group: 'back' },
   { name: 'TamagoPan', label: 'Tamago pan', group: 'back' },

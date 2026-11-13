@@ -100,6 +100,9 @@ export const tea = {
  * and hygiene systems so the master can tell which step comes next.
  */
 export const progress = {
+  /** The nigiri in progress takes tsume (anago, hamaguri), and whether the brush has put it on. */
+  tsumeWanted: false,
+  tsume: false,
   sakuOnBoard: false,
   /** The saku on the board is not the ordered fish. */
   sakuWrong: false,
@@ -158,6 +161,10 @@ export type PrepNext =
   | 'cut'
   | 'pull'
   | 'wipe'
+  /** The hamaguri cooling on the board: nothing to do but wait. */
+  | 'cool'
+  /** The tsume brush over the opened hamaguri. */
+  | 'tsume'
   | 'scale'
   | 'turn'
   | 'rinse'
@@ -370,8 +377,10 @@ export const range = {
   /** A hand holds a pot (from the cupboard under the sink to its burner). */
   potHeld: false,
   caseNeta: '',
-  /** That item's place in the case (world). */
+  /** That item's place in the case (world); for the hamaguri, their spot on the board. */
   caseAt: new Vector3(),
+  /** What is in the hand goes onto the board, not into the case (the hamaguri, to cool and be worked there). */
+  toBoard: false,
   /** The belly's face down on the net has had its sear. */
   faceDone: false,
   /** The burner the tamago's pan is on (-1: on its hook), and the flame it wants (0 off, 1 low). */
@@ -571,3 +580,13 @@ export function orderNeta(): NetaId | null {
  * current by NetaCaseSystem from the CaseItem components.
  */
 export const caseStock = Object.fromEntries(Object.keys(NETA).map((id) => [id, 0])) as Record<NetaId, number>;
+
+/** The tsume pot and its brush on the counter (src/tsume-system.ts), for the master, practice and hints. */
+export const tsume = {
+  /** The brush's grip (world): in its pot, or in the hand. */
+  gripAt: new Vector3(),
+  /** The pot's middle (world). */
+  potAt: new Vector3(),
+  /** The hand holding the brush, or -1. */
+  held: -1 as -1 | Side,
+};

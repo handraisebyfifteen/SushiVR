@@ -14,7 +14,7 @@ const foam = new MeshStandardMaterial({ color: '#F3F3EF', roughness: 0.9 });
 
 /**
  * A nakago (中子): the stainless insert pan the fish shop delivers a prepared
- * ingredient in (the octopus, the abalone, the gourd strips; the user's shop).
+ * ingredient in (the octopus, the abalone; the user's shop).
  * Origin at the underside's middle, long along X, open on top, the floor's
  * top at NAKAGO_FLOOR; a rolled lip round the rim. Emptied into its pot, it is
  * washed and dried at the sink and stacked upside down on the sink's end.

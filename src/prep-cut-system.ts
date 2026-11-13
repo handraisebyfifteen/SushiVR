@@ -1,6 +1,7 @@
 import {
   Box3,
   BoxGeometry,
+  Color,
   createSystem,
   type Entity,
   Mesh,
@@ -18,7 +19,7 @@ import { COLOR_DONE, COLOR_WARN, feedback } from './feedback.js';
 import { chef, edgeCatches, prep, type Side, staff, wearKnife } from './game-state.js';
 import { handedness, sideX } from './handedness.js';
 import { hands, RubTracker } from './hands.js';
-import { cureApi, nakagoApi, prepApi, rangeApi, tamagoApi } from './prep-api.js';
+import { cureApi, nakagoApi, prepApi, rangeApi, tamagoApi, tsumeApi } from './prep-api.js';
 import { NAKAGO_FLOOR } from './scene-assets/lib/nakago-look.js';
 import { NETA, type NetaId } from './menu.js';
 import { scrapsApi } from './opening-system.js';
@@ -96,7 +97,8 @@ const SLOT: Partial<Record<PrepId, [number, number, number?]>> = {
   SeaEel: [-0.09, 0.1, 0],
   Octopus: [0.075, 0.1, 0.065],
   Abalone: [0.08, 0.1, -0.085],
-  Kanpyo: [-0.005, 0.11, -0.09],
+  // The hamaguri, live in their net bag.
+  Hamaguri: [-0.005, 0.105, -0.09],
   // The tamago's batter bowl (full) on top of them.
   Tamago: [0.005, 0.16, 0],
 };
@@ -193,6 +195,8 @@ type Carried =
   | { kind: 'paper'; mesh: Mesh; used: boolean };
 
 const usedPaper = new MeshStandardMaterial({ color: '#D9D2C2', roughness: 0.95 });
+/** The tsume's dark brown, brushed over the opened clams. */
+const TSUME_COLOR = new Color('#5A2E12');
 
 /**
  * Saku-taking (柵取り) in the morning prep, on the itaba manaita.
@@ -232,6 +236,10 @@ export class PrepCutSystem extends createSystem({
   private readonly pullFrom = new Vector3();
   private readonly pullHome: Vector3[] = [];
   private readonly wipeRub = new RubTracker();
+  private readonly brushRub = new RubTracker();
+  /** The material cooling on the board (the hamaguri off the range), and for how long so far. */
+  private coolFor: Material | null = null;
+  private coolT = 0;
   private guide!: Mesh<BoxGeometry, MeshBasicMaterial>;
   private summary!: Sprite;
   private summaryTime = 0;
@@ -294,6 +302,8 @@ export class PrepCutSystem extends createSystem({
     prepApi.taskDone = (what) => this.taskDone(what);
     prepApi.stock = (neta, stock) => this.stock(neta, stock, NETA[neta].stock);
     prepApi.paperIn = (side) => this.carried[side]?.kind === 'paper';
+    prepApi.fromPot = (id, grade) => this.fromPot(id, grade);
+    prepApi.boardFree = () => !this.boardMaterial() && !prep.boardBusy;
     prepApi.potWanted = (id) => !this.built || this.materials.some((m) => m.id === id && (m.state === 'box' || m.state === 'held' || m.state === 'pot'));
     prepApi.awaitingPot = (id) => this.materials.some((m) => m.id === id && (m.state === 'box' || m.state === 'held'));
     prepApi.usePaper = (side) => {
@@ -461,10 +471,13 @@ export class PrepCutSystem extends createSystem({
     const work = chef.facingBack ? (wash && this.sinkNext(wash) ? wash : null) : board;
     const live = work ? work.look.steps[work.step] : undefined;
     this.guide.visible = false;
+    // Cooling goes on whichever way the chef faces.
+    if (board && step?.kind === 'cool') this.updateCool(board, step, delta);
     if (this.tapWater) this.tapWater.visible = !!wash && wash.look.steps[wash.step]?.kind === 'rinse';
     if (work && live?.kind === 'cut') this.updateCut(work, live);
     else if (work && live?.kind === 'pull') this.updatePull(work, live);
     else if (work && live?.kind === 'wipe') this.updateWipe(work);
+    else if (work && live?.kind === 'brush') this.updateBrush(work);
     else if (work && live?.kind === 'scale') this.updateScale(work, live);
     else if (work && live?.kind === 'turn') this.updateTurn(work, live);
     else if (work && live?.kind === 'rinse') this.updateRinse(work, live);
@@ -1065,6 +1078,63 @@ export class PrepCutSystem extends createSystem({
     }
   }
 
+  /** Hot from the pot, it lies on the board a while before it can be worked. */
+  private updateCool(m: Material, s: Extract<PrepStep, { kind: 'cool' }>, delta: number): void {
+    if (this.coolFor !== m) {
+      this.coolFor = m;
+      this.coolT = 0;
+    }
+    this.coolT += delta;
+    if (this.coolT < s.seconds) return;
+    this.coolFor = null;
+    console.log(`[Prep] the ${PREP[m.id].name.toLowerCase()} are cool enough to handle`);
+    this.stepDone(m, s);
+  }
+
+  /** The tsume brush stroked over the material: the opened clams darken and shine. */
+  private updateBrush(m: Material): void {
+    for (const side of [chef.netaSide, chef.riceSide]) {
+      if (!tsumeApi.tipAt(side, this.tmpW)) continue;
+      // The bristles over the clams, touching or nearly (a few centimetres' grace).
+      const over = this.overMaterial(m, this.tmpW, 0.03, 0.05);
+      if (this.brushRub.update(this.tmpW, over) < RUB_WIPE_BOARD) continue;
+      this.brushRub.reset();
+      for (const mat of (m.root.userData.glaze as MeshStandardMaterial[] | undefined) ?? []) {
+        mat.color.lerp(TSUME_COLOR, 0.5);
+        mat.roughness = 0.22;
+      }
+      m.grades.push('Excellent');
+      coach.done('brushTsume');
+      console.log(`[Prep] tsume on (${PREP[m.id].name.toLowerCase()})`);
+      this.stepDone(m, m.look.steps[m.step]);
+      return;
+    }
+  }
+
+  /** The hamaguri out of their pot, let go over the board (their broth stays for the soup): on the board to cool, then worked there. */
+  private fromPot(id: PrepId, grade: Grade): boolean {
+    const m = this.materials.find((x) => x.id === id && x.state === 'pot');
+    const board = stations.get(StationKind.CuttingBoard);
+    if (!m || !board) return false;
+    if (this.boardMaterial() || prep.boardBusy) {
+      feedback.flash(StationKind.CuttingBoard, COLOR_WARN);
+      console.log(`[Prep] the board is in use: finish what is on it first`);
+      return false;
+    }
+    const [bx, bz] = m.look.boardAt ?? [0, 0];
+    m.root.position.set(board.pos.x + sideX(bx), board.pos.y, board.pos.z + bz);
+    m.root.rotation.set(0, 0, 0);
+    m.root.scale.x = 1;
+    m.baseY = board.pos.y;
+    m.state = 'board';
+    m.step = 0;
+    m.grades.push(grade);
+    prep.boardUsed = true;
+    feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
+    console.log(`[Prep] the ${PREP[m.id].name.toLowerCase()} are on the board to cool (${grade})`);
+    return true;
+  }
+
   /** A world direction in a part's parent's frame (the root turns; the fish's group rolls over). */
   private inParent(p: Object3D, dir: Vector3, out: Vector3): Vector3 {
     out.copy(dir);
@@ -1572,6 +1642,12 @@ export class PrepCutSystem extends createSystem({
       case 'wipe':
         prep.next = 'wipe';
         break;
+      case 'cool':
+        prep.next = 'cool';
+        break;
+      case 'brush':
+        prep.next = 'tsume';
+        break;
       case 'scale':
         prep.next = 'scale';
         break;
@@ -1638,6 +1714,7 @@ export class PrepCutSystem extends createSystem({
         feedback.hints.add(StationKind.Sink);
         break;
       case 'pins':
+      case 'tsume':
         feedback.hints.add(StationKind.CuttingBoard);
         break;
       case 'wipe':

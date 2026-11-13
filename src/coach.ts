@@ -85,6 +85,8 @@ export type StepKey =
   | 'cutPrep'
   | 'pullPrep'
   | 'wipePaper'
+  | 'coolClams'
+  | 'brushTsume'
   | 'stockSaku'
   | 'discardScrap'
   | 'liftBoard'
@@ -125,6 +127,8 @@ export type StepKey =
   | 'bellyBoard'
   | 'bellyNet'
   | 'toCase'
+  | 'clamsBoard'
+  | 'tsumePiece'
   // stage 4: the whole fish
   | 'scaleFish'
   | 'turnFish'

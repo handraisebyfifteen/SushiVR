@@ -8,7 +8,7 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
-import { type BurnerView, chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, staff, tamago, tea } from './game-state.js';
+import { type BurnerView, chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, staff, tamago, tea, tsume } from './game-state.js';
 import type { HandReader } from './hand-reader.js';
 import { handedness, setLeftHanded, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
@@ -1243,8 +1243,34 @@ export class PracticeSystem extends createSystem({
     this.run(side, 'Back in its place', [pinch(0), wait(0.1), this.rest(side)]);
   }
 
+  /** - with the hamaguri opened on the board: the tsume brush from its pot, stroked over them, let go (it goes back into its pot). */
+  private tsumeBrush(): void {
+    if (prep.next !== 'tsume') return this.say('Nothing to brush');
+    const side = chef.riceSide;
+    if (!this.ready(side, Held.None)) return;
+    const grip = tsume.gripAt.clone();
+    const work = prep.materialAt.clone();
+    // The brush leans toward the chef: its tip 12 cm below the grip and 5 cm out beyond it.
+    const over = v(0, 0.125, 0.053);
+    this.run(side, 'Tsume on', [
+      move(grip, v(0, 0.06, 0.02), 'grasp', 0.3),
+      move(grip, v(0, 0, 0), 'grasp', 0.15),
+      wait(0.2),
+      pinch(1),
+      wait(0.12),
+      move(work, v(0, 0.2, 0.053), 'grasp', 0.4),
+      move(work, over, 'grasp', 0.15),
+      rub(work, over, 'grasp', 3, 0.05, 2, () => prep.next !== 'tsume'),
+      move(work, v(0, 0.2, 0.053), 'grasp', 0.2),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
+  }
+
   /** - in the morning prep: a sheet of kitchen paper, rubbed over the fish, then into the trash. */
   private paperWipe(): void {
+    if (prep.next === 'tsume') return this.tsumeBrush();
     if (prep.next !== 'wipe') return this.say('Nothing to pat dry');
     const side = chef.riceSide;
     if (!this.ready(side, Held.None)) return;
@@ -1298,6 +1324,12 @@ export class PracticeSystem extends createSystem({
         return this.pullPrep();
       case 'wipePaper':
         return range.belly === 'wet' ? this.bellyKey() : this.paperWipe();
+      case 'coolClams':
+        return this.say('The clams are cooling: wait');
+      case 'brushTsume':
+        return this.tsumeBrush();
+      case 'tsumePiece':
+        return this.tsumeOnPiece();
       case 'holdKnife':
       case 'putKnife':
         return this.knife();
@@ -1401,6 +1433,7 @@ export class PracticeSystem extends createSystem({
       case 'bellyBoard':
       case 'bellyNet':
       case 'toCase':
+      case 'clamsBoard':
         return this.rangeKey();
       default:
         return this.say(`Tab does not do "${step}": use its own key`);
@@ -2568,6 +2601,31 @@ export class PracticeSystem extends createSystem({
     const geta = this.reachable(StationKind.Geta);
     if (!geta) return;
     this.run(rice, by > 0 ? 'Turned left' : 'Turned right', [move(geta, GETA_LET_GO, 'grasp', 0.2, { yawBy: by })]);
+  }
+
+  /** Tab on an anago or hamaguri nigiri on the geta: the tsume brush from its pot, one short stroke over the piece, let go (back into its pot). */
+  private tsumeOnPiece(): void {
+    if (!progress.tsumeWanted || progress.tsume) return this.say('No tsume wanted');
+    const side = chef.riceSide;
+    if (!this.ready(side, Held.None)) return;
+    const grip = tsume.gripAt.clone();
+    const piece = progress.pieceAt.clone();
+    // The brush leans toward the chef: its tip 12 cm below the grip and 5 cm out beyond it.
+    const over = v(0, 0.128, 0.053);
+    this.run(side, 'Tsume on the piece', [
+      move(grip, v(0, 0.06, 0.02), 'grasp', 0.3),
+      move(grip, v(0, 0, 0), 'grasp', 0.15),
+      wait(0.2),
+      pinch(1),
+      wait(0.12),
+      move(piece, v(0, 0.2, 0.053), 'grasp', 0.45),
+      move(piece, over, 'grasp', 0.15),
+      rub(piece, over, 'grasp', 2, 0.02, 1, () => progress.tsume),
+      move(piece, v(0, 0.2, 0.053), 'grasp', 0.2),
+      pinch(0),
+      wait(0.1),
+      this.rest(side),
+    ]);
   }
 
   /** S: hold a fist over the geta for a moment to serve. */

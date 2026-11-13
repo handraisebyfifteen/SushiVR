@@ -44,6 +44,9 @@ export interface PrepEffect {
  *  - turn: the fish pinched at `at` and lifted a little; it rolls over.
  *  - rinse: a hand rubs the belly cavity at `at`, under the running tap.
  *  - pins: the tweezers, held by a pinch, pull each named pin bone out.
+ * Then the hamaguri (off the range):
+ *  - cool: it lies on the board this long, hot, before it is worked.
+ *  - brush: the tsume brush (src/tsume-system.ts) stroked over it.
  */
 export type PrepStep =
   | ({ kind: 'cut'; axis: 'z' | 'x'; at: number; mid: number; len: number; low?: boolean; say: string } & PrepEffect)
@@ -52,7 +55,9 @@ export type PrepStep =
   | ({ kind: 'scale'; part: string; say: string } & PrepEffect)
   | ({ kind: 'turn'; at: Vector3; say: string } & PrepEffect)
   | ({ kind: 'rinse'; at: Vector3; say: string } & PrepEffect)
-  | ({ kind: 'pins'; pins: string[]; say: string } & PrepEffect);
+  | ({ kind: 'pins'; pins: string[]; say: string } & PrepEffect)
+  | ({ kind: 'cool'; seconds: number; say: string } & PrepEffect)
+  | ({ kind: 'brush'; say: string } & PrepEffect);
 
 export interface PrepProduct {
   /** The parts that go together; the first gives the centre and the length. */
@@ -318,7 +323,7 @@ function gesoFlat(): BufferGeometry {
  * reads their colours from root.userData.tints). For the cook, each fills
  * its own case item.
  */
-function simmered(id: 'Octopus' | 'SeaEel' | 'Abalone' | 'Kanpyo'): PrepMaterialLook {
+function simmered(id: 'Octopus' | 'SeaEel' | 'Abalone'): PrepMaterialLook {
   const look = ingredientLook(id);
   look.root.userData.tints = look.tints;
   look.root.userData.top = look.top;
@@ -329,6 +334,38 @@ function simmered(id: 'Octopus' | 'SeaEel' | 'Abalone' | 'Kanpyo'): PrepMaterial
     top: look.top,
     steps: [],
     products: [{ parts: [], neta: id, dest: 'case' }],
+  };
+}
+
+/**
+ * The hamaguri (the user's shop): into the pot live, then off the range
+ * onto the board, where they are worked like a fish: cooled a little (hot
+ * from the pot), out of the shells, opened with the knife, the guts out,
+ * tsume brushed on; then the opened clams go into the case.
+ */
+function hamaguriBoiled(): PrepMaterialLook {
+  const look = ingredientLook('Hamaguri');
+  look.root.userData.tints = look.tints;
+  look.root.userData.top = look.top;
+  const t = look.top;
+  return {
+    root: look.root,
+    length: look.halfWidth * 2,
+    halfWidth: look.halfWidth,
+    top: t,
+    boardAt: [0.05, 0.02],
+    pileAt: [0.2, 0.08],
+    steps: [
+      { kind: 'cool', seconds: 8, say: 'Hot from the pot: let them cool a little' },
+      {
+        kind: 'pull', netaAt: new Vector3(-0.04, t, -0.03), riceAt: new Vector3(0.04, t, 0.03), parts: ['Shells'],
+        shift: [['Closed', 0, 0, -0.006], ['Guts', 0, 0, -0.006]], scrap: ['Shells'], say: 'Out of the shells',
+      },
+      { kind: 'cut', axis: 'z', at: 0, mid: 0, len: 0.15, hide: ['Closed'], show: ['Opened', 'Guts'], say: 'Open them' },
+      { kind: 'pull', netaAt: new Vector3(-0.04, 0.008, -0.03), riceAt: new Vector3(0.04, 0.008, 0.03), parts: ['Guts'], scrap: ['Guts'], say: 'The guts out' },
+      { kind: 'brush', say: 'Tsume on with the brush' },
+    ],
+    products: [{ parts: ['Opened'], neta: 'Hamaguri', dest: 'case' }],
   };
 }
 
@@ -344,8 +381,9 @@ export function prepMaterialLook(id: PrepId, kohadaSize = 1): PrepMaterialLook |
     case 'Octopus':
     case 'SeaEel':
     case 'Abalone':
-    case 'Kanpyo':
       return simmered(id);
+    case 'Hamaguri':
+      return hamaguriBoiled();
     case 'StripedJack':
       return stripedJack();
     case 'Flounder':

@@ -17,7 +17,7 @@ import {
 import { coach, type Grade, type MistakeKey, type StepKey, type StockWarning } from './coach.js';
 import { debugLines } from './debug.js';
 import { fishOrder } from './fish-order.js';
-import { chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, sharpenWanted, staff, tamago, tea } from './game-state.js';
+import { chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, shari, sharpen, sharpenWanted, staff, tamago, tea, tsume } from './game-state.js';
 import { BACK_ROW_Z, DRAIN_SPOT_X, FOOD_SHELF_X, FOOD_SHELF_Z, RANGE_HEIGHT, SINK_BASIN_X, SINK_TOP, STOVE_X, WORKTABLE_X } from './layout.js';
 import { handedness, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
@@ -111,6 +111,8 @@ const STEP_WORDS: Record<StepKey, string> = {
   cutPrep: 'Along the line',
   pullPrep: 'Pull it off',
   wipePaper: 'Pat it dry with paper',
+  coolClams: 'Let the clams cool a little',
+  brushTsume: 'Tsume on with the brush',
   stockSaku: 'Into the case',
   discardScrap: 'Scraps in the trash',
   liftBoard: 'Lift the board',
@@ -157,6 +159,8 @@ const STEP_WORDS: Record<StepKey, string> = {
   bellyBoard: 'Belly onto the board',
   bellyNet: 'Onto the net, skin down',
   toCase: 'Into the case',
+  clamsBoard: 'Clams onto the board, out of the broth',
+  tsumePiece: 'A little tsume: one stroke of the brush',
   makeTea: 'Tea: point at the urn, pinch',
   serveTea: 'Tea: onto the tsukedai',
 };
@@ -564,7 +568,8 @@ export class MasterSystem extends createSystem({
       case 'Carried':
         return 'place';
       case 'Placed':
-        return 'serve';
+        // The anago and the hamaguri: a little tsume on before it goes.
+        return progress.tsumeWanted && !progress.tsume ? 'tsumePiece' : 'serve';
     }
     return null;
   }
@@ -662,6 +667,10 @@ export class MasterSystem extends createSystem({
         return front('pullPrep');
       case 'wipe':
         return front('wipePaper');
+      case 'cool':
+        return front('coolClams');
+      case 'tsume':
+        return front('brushTsume');
       case 'stock':
         // A fish to cure goes to its tray on the drainboard (picked up at the board first).
         if (prep.stockTo === 'cure') return prep.productHeld ? this.goTo('drain', 'back', back, 'layCure') : front('layCure');
@@ -765,7 +774,7 @@ export class MasterSystem extends createSystem({
     // The suribachi in hand: from the cupboard to the work table, or (with the batter) to the pan.
     if (tamago.bowlHeld) return this.goTo(tamago.next === 'suribachi' ? 'table' : 'range', 'back', back, tamago.next === 'suribachi' ? 'suribachiOut' : 'pourTamago');
     if (range.netHeld) return this.goTo('range', 'back', back, 'hangNet');
-    if (range.ingHeld) return this.goTo('seat', 'front', back, 'toCase');
+    if (range.ingHeld) return this.goTo('seat', 'front', back, range.toBoard ? 'clamsBoard' : 'toCase');
     if (range.bellyHeld) {
       switch (range.belly) {
         case 'ice':
@@ -1035,6 +1044,9 @@ export class MasterSystem extends createSystem({
         return chef.hands.some((h) => h.holding === Held.Paper) ? null : StationKind.PaperBox;
       case 'wipePaper':
         return StationKind.PaperBox;
+      case 'clamsBoard':
+      case 'brushTsume':
+        return StationKind.CuttingBoard;
       case 'discardScrap':
         return StationKind.TrashBin;
       case 'liftBoard':
@@ -1067,6 +1079,7 @@ export class MasterSystem extends createSystem({
         return StationKind.Wasabi;
       case 'place':
       case 'serve':
+      case 'tsumePiece':
         return StationKind.Geta;
       default:
         return null;
@@ -1162,6 +1175,18 @@ export class MasterSystem extends createSystem({
         return;
       case 'wipePaper':
         out.copy(range.belly === 'wet' ? range.bellyAt : prep.materialAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'coolClams':
+        out.copy(prep.materialAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'brushTsume':
+        out.copy(tsume.held === -1 ? tsume.gripAt : prep.materialAt).add(this.tmp.set(0, 0.12, 0));
+        return;
+      case 'clamsBoard':
+        out.copy(range.caseAt).add(this.tmp.set(0, 0.2, 0));
+        return;
+      case 'tsumePiece':
+        out.copy(tsume.held === -1 ? tsume.gripAt : progress.pieceAt).add(this.tmp.set(0, 0.12, 0));
         return;
       // The back row.
       case 'stepTable':

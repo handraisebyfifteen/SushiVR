@@ -101,6 +101,8 @@ export const Held = {
   DryCloth: 'DryCloth',
   /** A sheet of kitchen paper (patting the squid dry). */
   Paper: 'Paper',
+  /** The tsume brush (刷毛), from its pot on the counter. */
+  Brush: 'Brush',
   /** The manaita, carried to the sink to be washed and back. */
   Board: 'Board',
   /** The telephone handset. */

@@ -4,6 +4,7 @@ import {
   Color,
   ConeGeometry,
   CylinderGeometry,
+  DoubleSide,
   Group,
   LatheGeometry,
   Matrix4,
@@ -22,15 +23,15 @@ import { seeded, taperedTube } from './neta-paint.js';
 /**
  * The gas range in the morning prep (stage 3), from putting things in the
  * pot: a pot each for the octopus (炊く, a high flame), the conger eel
- * (煮る, the broth held at 90 degrees), the gourd strips and the abalone
- * (煮切る, until the liquid is gone), and a grill net for searing the
+ * (煮る, the broth held at 90 degrees), the hamaguri (boiled till they
+ * open) and the abalone (煮切る, until the liquid is gone), and a grill net for searing the
  * bonito belly on skewers (金串) through its skin side. The ingredients
  * come prepared in the fish shop's ice box. Runtime meshes
  * (src/range-system.ts); `back-row-preview` lays them out.
  * Origins at the bottom (grate contact) unless said otherwise.
  */
 
-export type PotId = 'Octopus' | 'SeaEel' | 'Kanpyo' | 'Abalone';
+export type PotId = 'Octopus' | 'SeaEel' | 'Hamaguri' | 'Abalone';
 
 export interface PotSpec {
   radius: number;
@@ -45,7 +46,8 @@ export interface PotSpec {
 export const POT_SPECS: Record<PotId, PotSpec> = {
   Octopus: { radius: 0.1, height: 0.15, liquid: '#C8D7DD', depth: 0.11 },
   SeaEel: { radius: 0.13, height: 0.065, liquid: '#6B4423', depth: 0.04 },
-  Kanpyo: { radius: 0.065, height: 0.07, liquid: '#8A5A26', depth: 0.045, longHandle: true },
+  // Water and a little sake: it clouds as the clams open (the broth is kept for the soup).
+  Hamaguri: { radius: 0.085, height: 0.09, liquid: '#D8D3C2', depth: 0.06 },
   Abalone: { radius: 0.09, height: 0.09, liquid: '#5C3A1A', depth: 0.06 },
 };
 
@@ -227,24 +229,82 @@ function abalone(): IngredientLook {
   return { root, tints: [body, rim], top: 0.026, halfWidth: 0.05 };
 }
 
-/** Gourd strips (かんぴょう), soaked and salt-rubbed: a coiled bundle of flat ribbons. */
-function kanpyo(): IngredientLook {
-  const strip = tint('#E6D9B8', '#A0703A', 0.5);
-  const path: Vector3[] = [];
-  const radii: number[] = [];
-  for (let k = 0; k <= 60; k++) {
-    const u = k / 60;
-    const a = u * Math.PI * 2 * 3;
-    const r = 0.026 + 0.012 * Math.sin(u * 9);
-    path.push(new Vector3(Math.cos(a) * r, 0.004 + u * 0.016, Math.sin(a) * r));
-    radii.push(0.007);
-  }
-  const mesh = new Mesh(taperedTube(path, radii, 6, 0.22), strip.material);
-  mesh.name = 'Strips';
+/** Hamaguri: a clam's shell half, a shallow dome (rim at y = 0, dome down), W wide and L long. */
+function clamHalf(W: number, L: number, H: number, up: boolean): BufferGeometry {
+  return new SphereGeometry(1, 14, 6, 0, Math.PI * 2, up ? 0 : Math.PI / 2, Math.PI / 2).scale(W / 2, H, L / 2);
+}
+
+/** The clams' ring: eight round the middle, each lying outward (its hinge out), centred on the origin. */
+export const CLAM_COUNT = 8;
+const CLAM_RING = 0.05;
+const CLAM_W = 0.036;
+const CLAM_L = 0.044;
+const CLAM_H = 0.011;
+
+/**
+ * Live hamaguri (the user's shop), as they go into the pot and come out
+ * onto the board: eight clams in a ring. Named groups for the board's work
+ * (src/scene-assets/lib/prep-look.ts): `Shells` (each bottom half and its
+ * lid, `userData.lids` turned open by the boil), `Closed` (the meat as it
+ * sits in the shell), `Opened` (each meat opened flat, hidden till the
+ * knife), `Guts` (hidden till then). `userData.glaze` are the opened meat's
+ * materials, darkened and glossed when the tsume goes on.
+ */
+function hamaguri(): IngredientLook {
+  const meat = tint('#EFC6A0', '#C98E5A', 0.45);
+  const shellMat = new MeshStandardMaterial({ color: '#BBA98E', roughness: 0.42, side: DoubleSide });
+  const shellDark = new MeshStandardMaterial({ color: '#8C7458', roughness: 0.42, side: DoubleSide });
+  const opened = new MeshStandardMaterial({ color: '#C98E5A', roughness: 0.4 });
+  const gutsMat = new MeshStandardMaterial({ color: '#4F4A2E', roughness: 0.5 });
+  const bottom = clamHalf(CLAM_W, CLAM_L, CLAM_H, false).translate(0, CLAM_H, 0);
+  // The lid's hinge at its outer end: the geometry runs back from it toward the middle.
+  const lid = clamHalf(CLAM_W, CLAM_L, CLAM_H * 0.9, true).translate(0, 0, -CLAM_L / 2);
+  const closed = new SphereGeometry(1, 12, 6).scale(CLAM_W * 0.36, 0.0055, CLAM_L * 0.38).translate(0, CLAM_H * 0.85, 0);
+  const flat = new SphereGeometry(1, 14, 5).scale(CLAM_W * 0.48, 0.0032, CLAM_L * 0.46).translate(0, 0.0032, 0);
+  const gut = new SphereGeometry(1, 8, 5).scale(0.0055, 0.004, 0.0075);
   const root = new Group();
-  root.name = 'KanpyoPrepared';
-  root.add(mesh);
-  return { root, tints: [strip], top: 0.024, halfWidth: 0.045 };
+  root.name = 'HamaguriPrepared';
+  const shells = new Group();
+  shells.name = 'Shells';
+  const closedGroup = new Group();
+  closedGroup.name = 'Closed';
+  const openedGroup = new Group();
+  openedGroup.name = 'Opened';
+  openedGroup.visible = false;
+  const guts = new Group();
+  guts.name = 'Guts';
+  guts.visible = false;
+  const lids: Group[] = [];
+  for (let i = 0; i < CLAM_COUNT; i++) {
+    const a = (i / CLAM_COUNT) * Math.PI * 2;
+    // Each clam's own frame: +Z outward from the middle (its hinge out there).
+    const place = (o: Group | Mesh, r: number, y: number) => {
+      o.position.set(Math.sin(a) * r, y, Math.cos(a) * r);
+      o.rotation.y = a;
+    };
+    const b = new Mesh(bottom, i % 3 ? shellMat : shellDark);
+    place(b, CLAM_RING, 0);
+    const pivot = new Group();
+    place(pivot, CLAM_RING + CLAM_L / 2, CLAM_H);
+    // Turned about its own X (the hinge) after its yaw.
+    pivot.rotation.order = 'YXZ';
+    pivot.add(new Mesh(lid, i % 3 ? shellMat : shellDark));
+    lids.push(pivot);
+    shells.add(b, pivot);
+    const c = new Mesh(closed, meat.material);
+    place(c, CLAM_RING, 0);
+    closedGroup.add(c);
+    const f = new Mesh(flat, opened);
+    place(f, CLAM_RING, 0);
+    openedGroup.add(f);
+    const g = new Mesh(gut, gutsMat);
+    place(g, CLAM_RING + CLAM_L * 0.22, CLAM_H * 0.85 + 0.004);
+    guts.add(g);
+  }
+  root.add(shells, closedGroup, openedGroup, guts);
+  root.userData.lids = lids;
+  root.userData.glaze = [opened];
+  return { root, tints: [meat], top: CLAM_H * 2, halfWidth: CLAM_RING + CLAM_L / 2 };
 }
 
 /** What goes into each pot, as it comes out of the ice box. */
@@ -256,8 +316,8 @@ export function ingredientLook(id: PotId): IngredientLook {
       return seaEel();
     case 'Abalone':
       return abalone();
-    case 'Kanpyo':
-      return kanpyo();
+    case 'Hamaguri':
+      return hamaguri();
   }
 }
 

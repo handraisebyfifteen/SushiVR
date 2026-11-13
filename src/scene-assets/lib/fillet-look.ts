@@ -490,7 +490,7 @@ function roundFish(o: RoundFish): PrepMaterialLook {
     bonesStep(B),
     pinsStep(A),
     pinsStep(B),
-    ...(o.cure ? [] : [skinStep(A), skinStep(B), splitStep(A, 'Split into back and belly'), splitStep(B, 'Split into back and belly')]),
+    ...(o.cure ? [] : [skinStep(A), skinStep(B), splitStep(A, 'Split into back and belly'), splitStep(B, 'Split into back and belly'), DRY_STEP]),
   ];
   return {
     root,
@@ -556,6 +556,9 @@ const sabaFlank = (p: Vector3, _n: Vector3, out: Color): Color => {
 };
 
 // ---------------------------------------------------------------- a fillet's own steps
+
+/** White fish (the user's shop): filleted, then the moisture off with kitchen paper, and it is ready for the case. */
+const DRY_STEP: PrepStep = { kind: 'wipe', say: 'Pat the saku dry with paper' };
 
 /** Belly bones (腹骨) shaved off flat, along their strip. */
 function bonesStep(f: FilletSpec): PrepStep {
@@ -747,6 +750,7 @@ export function flounder(): PrepMaterialLook {
     bonesStep(F[3]),
     ...F.map(skinStep),
     ...F.map((f) => splitStep(f, 'Cut the engawa off')),
+    DRY_STEP,
   ];
   return {
     root,
@@ -822,6 +826,7 @@ export function hamachiHalf(): PrepMaterialLook {
       pinsStep(f),
       skinStep(f),
       splitStep(f, 'Split along the blood line: back and belly'),
+      DRY_STEP,
     ],
     products: [
       { parts: ['Back'], neta: 'Yellowtail', dest: 'case' },

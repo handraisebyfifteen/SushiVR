@@ -31,6 +31,7 @@ import { ShariSystem } from './shari-system.js';
 import { StaffSystem } from './staff-system.js';
 import { StationSystem } from './station-system.js';
 import { TeaSystem } from './tea-system.js';
+import { TsumeSystem } from './tsume-system.js';
 import { TurnSystem } from './turn-system.js';
 
 World.create(
@@ -57,6 +58,7 @@ World.create(
   world.registerSystem(PantrySystem);
   world.registerSystem(StaffSystem);
   world.registerSystem(TeaSystem);
+  world.registerSystem(TsumeSystem);
   world.registerSystem(PrepCutSystem);
   world.registerSystem(CureSystem);
   world.registerSystem(ShariSystem);

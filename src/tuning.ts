@@ -116,7 +116,7 @@ export const TAMAGO_COOL_SECONDS = 15;
  */
 export const KEPT_OVERNIGHT: readonly NetaId[] = [
   'FattyTuna', 'MediumFattyTuna', 'LeanTuna', 'TunaStick',
-  'SeaEel', 'Tamago', 'Octopus', 'Abalone', 'Kanpyo', 'InariAge',
+  'SeaEel', 'Hamaguri', 'Tamago', 'Octopus', 'Abalone', 'Kanpyo', 'InariAge',
 ];
 /**
  * Days that differ (the owner, 2026-11-10): uni and ikura last two business
@@ -181,8 +181,13 @@ export const EEL_BOIL_BAD = 10;
 export const OCTOPUS_SECONDS = 20;
 export const OCTOPUS_OVER_POOR = 10;
 export const OCTOPUS_OVER_BAD = 25;
+/** The hamaguri: seconds at the boil till the shells open; then boiled on this long they are a little tough (Poor), this long rubbery (Bad). */
+export const HAMAGURI_SECONDS = 12;
+export const HAMAGURI_OVER_POOR = 15;
+export const HAMAGURI_OVER_BAD = 30;
+/** The brush's stroke over an anago or hamaguri nigiri that puts its tsume on (a little: one short stroke), metres. */
+export const TSUME_PIECE_RUB = 0.04;
 /** Simmered until the liquid is gone (煮切る): seconds to boil it all off on a high flame (a medium one takes half as fast again). */
-export const KANPYO_REDUCE_SECONDS = 18;
 export const ABALONE_REDUCE_SECONDS = 30;
 /** The liquid counts as gone below this; left on the flame dry this long, it scorches. */
 export const REDUCED_LEVEL = 0.08;

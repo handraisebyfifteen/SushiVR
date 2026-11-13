@@ -58,6 +58,7 @@ export type IconKind =
   | 'rhythm'
   | 'fish'
   | 'wasabi'
+  | 'tsume'
   | 'orientation'
   | 'hand'
   | 'fresh'
@@ -104,6 +105,19 @@ export function makeIconSprite(kind: IconKind): Sprite {
       ctx.fillStyle = '#6B9E3A';
       ctx.beginPath();
       ctx.ellipse(32, 36, 14, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(18, 18);
+      ctx.lineTo(46, 46);
+      ctx.stroke();
+      break;
+    case 'tsume': // a dark brown drop with a cross
+      ctx.fillStyle = '#5A2E12';
+      ctx.beginPath();
+      ctx.moveTo(32, 14);
+      ctx.quadraticCurveTo(46, 34, 42, 42);
+      ctx.arc(32, 40, 10, 0.2, Math.PI - 0.2);
+      ctx.quadraticCurveTo(18, 34, 32, 14);
       ctx.fill();
       ctx.beginPath();
       ctx.moveTo(18, 18);

@@ -309,6 +309,11 @@ export function ownPieceGeometry(piece: Object3D): void {
   piece.traverse((o) => {
     const mesh = o as Object3D & { isMesh?: boolean; geometry?: BufferGeometry };
     if (!mesh.isMesh || !mesh.geometry) return;
+    // The tsume glaze over the neta shares the neta's own copy (the parent comes first).
+    if (mesh.name === 'Tsume' && mesh.parent?.name === 'Neta') {
+      mesh.geometry = (mesh.parent as Object3D & { geometry: BufferGeometry }).geometry;
+      return;
+    }
     if (mesh.name !== 'Shari' && mesh.name !== 'Neta') return;
     mesh.geometry = mesh.geometry.clone();
     mesh.geometry.userData = { ownGeometry: true };

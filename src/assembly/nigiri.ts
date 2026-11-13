@@ -1,4 +1,4 @@
-import { type BufferGeometry, type Material, Mesh, Vector3 } from '@iwsdk/core';
+import { type BufferGeometry, type Material, Mesh, MeshStandardMaterial, Vector3 } from '@iwsdk/core';
 import { coach } from '../coach.js';
 import { feedback } from '../feedback.js';
 import { chef, service } from '../game-state.js';
@@ -64,6 +64,8 @@ export class NigiriAssembly implements Assembly {
   readonly kind = 'nigiri' as const;
   readonly judgeSlots = 4;
   private readonly neta: Mesh<BufferGeometry, Material>;
+  /** The tsume brushed over the neta: a thin glossy dark glaze on the neta's own shape. */
+  private readonly tsume: Mesh<BufferGeometry, MeshStandardMaterial>;
   private readonly flipT = new Float64Array(FLIP_SAMPLES);
   private readonly flipZ = new Float32Array(FLIP_SAMPLES);
   private readonly flipCurl = new Float32Array(FLIP_SAMPLES);
@@ -83,6 +85,18 @@ export class NigiriAssembly implements Assembly {
     this.neta.name = 'Neta';
     this.neta.visible = false;
     core.piece.add(this.neta);
+    const glaze = new MeshStandardMaterial({ color: '#4A220C', roughness: 0.12, transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    this.tsume = new Mesh(first.geometry, glaze);
+    this.tsume.name = 'Tsume';
+    this.tsume.position.y = 0.0004;
+    this.tsume.visible = false;
+    this.neta.add(this.tsume);
+  }
+
+  /** The tsume on (the brush stroked over the piece) or off (a new piece). */
+  showTsume(on: boolean): void {
+    this.tsume.visible = on;
+    if (on) this.tsume.geometry = this.neta.geometry;
   }
 
   // ---- the slice ----------------------------------------------------------
@@ -366,6 +380,7 @@ export class NigiriAssembly implements Assembly {
 
   reset(): void {
     this.neta.visible = false;
+    this.tsume.visible = false;
     this.drape?.bend(0);
     this.shariYaw = 0;
     this.flipCount = 0;

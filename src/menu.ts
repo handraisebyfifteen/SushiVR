@@ -38,6 +38,8 @@ export const Neta = {
   ArkShell: 'ArkShell',
   Cockle: 'Cockle',
   SeaEel: 'SeaEel',
+  /** Simmered hamaguri (煮はま): boiled in the shop, opened, the guts out, tsume on. */
+  Hamaguri: 'Hamaguri',
   InariAge: 'InariAge',
   Uni: 'Uni',
   Ikura: 'Ikura',
@@ -171,13 +173,15 @@ export const NETA: Record<NetaId, NetaDef> = {
   Kohada: def('Gizzard shad', 'piece', 8, look('fillets', '#C9D3DB', '#2E3338', 'spots', 0.85, 0.04)),
   HorseMackerel: def('Horse mackerel', 'piece', 4, look('fillets', '#A9B9C6', '#E8B9AE', 'plain', 0.85, 0.04)),
   CuredMackerel: def('Cured mackerel', 'saku', 8, look('saku', '#E8C7BD', '#5E7488', 'mackerel', 0.6, 0.04), { skinEdge: true }),
-  Prawn: def('Prawn', 'piece', 4, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.045)),
+  Prawn: def('Prawn', 'piece', 4, look('prawns', '#F4EDE6', '#D9472F', 'stripes', 0.4, 0.042)),
   SweetShrimp: def('Sweet shrimp', 'piece', 18, look('shrimps', '#F6A48C', '#F8D3C6', 'plain', 0.85, 0.04), { perPiece: 2 }),
   // The owner: scallops come nine to a pack, one scallop a piece.
-  Scallop: def('Scallop', 'piece', 9, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.045)),
-  ArkShell: def('Ark shell', 'piece', 4, look('tongues', '#E5583E', '#F6C9A8', 'rim', 0.75, 0.046)),
+  Scallop: def('Scallop', 'piece', 9, look('halves', '#F3E7D6', '#E6D2B8', 'plain', 0.6, 0.042)),
+  ArkShell: def('Ark shell', 'piece', 4, look('tongues', '#E5583E', '#F6C9A8', 'rim', 0.75, 0.04)),
   Cockle: def('Egg cockle', 'piece', 4, look('tongues', '#F0E2CC', '#2C2230', 'tip', 0.6, 0.04)),
-  SeaEel: def('Sea eel', 'piece', 8, look('eels', '#8C5A2E', '#E9D6BE', 'glaze', 0.7, 0.046)),
+  SeaEel: def('Sea eel', 'piece', 8, look('eels', '#8C5A2E', '#E9D6BE', 'glaze', 0.7, 0.042)),
+  // Opened flat, tan with a darker rim, glossy with tsume.
+  Hamaguri: def('Hamaguri', 'piece', 8, look('tongues', '#C08550', '#7A4A26', 'rim', 0.75, 0.04)),
   InariAge: def('Inari pouch', 'age', 12, look('pouches', '#B87A33', '#8E5A22', 'plain', 0.5, 0.05)),
   Uni: def('Sea urchin', 'scoop', 4, look('urchin', '#E89A34', '#E3C99C', 'plain', 0.75, 0.058)),
   Ikura: def('Salmon roe', 'scoop', 4, look('roe', '#F0561C', '#ECE6DA', 'plain', 0.95, 0.058)),
@@ -199,7 +203,7 @@ export const CASE_ORDER: readonly NetaId[] = [
   'Tamago', 'Abalone', 'Octopus', 'Squid', 'Geso', 'Flounder', 'Engawa', 'StripedJack', 'Yellowtail', 'Bonito', 'BonitoBelly',
   'LeanTuna', 'MediumFattyTuna', 'FattyTuna',
   'Kohada', 'HorseMackerel', 'CuredMackerel', 'Prawn', 'SweetShrimp', 'Scallop', 'ArkShell', 'Cockle',
-  'SeaEel', 'InariAge',
+  'SeaEel', 'Hamaguri', 'InariAge',
   'Uni', 'Ikura', 'Cucumber', 'Kanpyo', 'Takuan', 'UmePaste', 'Shiso',
 ];
 
@@ -256,6 +260,7 @@ export const Menu = {
   ScallopNigiri: 'ScallopNigiri',
   CockleNigiri: 'CockleNigiri',
   SeaEelNigiri: 'SeaEelNigiri',
+  HamaguriNigiri: 'HamaguriNigiri',
   TamagoNigiri: 'TamagoNigiri',
   UniGunkan: 'UniGunkan',
   IkuraGunkan: 'IkuraGunkan',
@@ -309,6 +314,8 @@ export const MENU: Record<MenuId, MenuDef> = {
   ScallopNigiri: nigiri('Scallop'),
   CockleNigiri: nigiri('Cockle', 0.5),
   SeaEelNigiri: nigiri('SeaEel', 1, 'never'),
+  // Served as the anago is: no wasabi, a little tsume brushed on.
+  HamaguriNigiri: nigiri('Hamaguri', 0.7, 'never'),
   TamagoNigiri: nigiri('Tamago', 1, 'never'),
   UniGunkan: { name: 'Sea urchin', kind: 'gunkan', neta: ['Uni'], wasabi: 'ask', weight: 1.5 },
   IkuraGunkan: { name: 'Salmon roe', kind: 'gunkan', neta: ['Ikura'], wasabi: 'ask', weight: 1.5 },
@@ -320,6 +327,9 @@ export const MENU: Record<MenuId, MenuDef> = {
   UmeShisoRoll: { name: 'Plum and shiso roll', kind: 'maki', neta: ['Shiso', 'UmePaste'], wasabi: 'never', weight: 0.7, pieces: 8 },
   UmeCucumberRoll: { name: 'Plum and cucumber roll', kind: 'maki', neta: ['UmePaste', 'Cucumber'], wasabi: 'never', weight: 0.7, pieces: 8 },
 };
+
+/** Neta served with a little tsume brushed on (the user's shop: the anago, and the hamaguri the same way). */
+export const TSUME_NETA: readonly NetaId[] = ['SeaEel', 'Hamaguri'];
 
 /** True when a piece of `served` fills the order `ordered` (one piece of a pair counts). */
 export function orderAccepts(ordered: MenuId, served: MenuId): boolean {
@@ -382,6 +392,7 @@ export const MENU_BOARD: ReadonlyArray<{ ja: string; item: MenuId }> = [
   { ja: 'とり貝', item: 'CockleNigiri' },
   { ja: 'あわび', item: 'AbaloneNigiri' },
   { ja: '穴子', item: 'SeaEelNigiri' },
+  { ja: '煮はま', item: 'HamaguriNigiri' },
   { ja: '玉子', item: 'TamagoNigiri' },
   { ja: 'うに', item: 'UniGunkan' },
   { ja: 'いくら', item: 'IkuraGunkan' },

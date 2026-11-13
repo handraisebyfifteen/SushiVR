@@ -53,8 +53,13 @@ export const PREP = {
   Octopus: { name: 'Octopus', stage: 3, kind: 'simmer', makes: ['Octopus'] },
   /** 煮る, held at 90 degrees so it does not fall apart. */
   SeaEel: { name: 'Conger eel', stage: 3, kind: 'simmer', makes: ['SeaEel'] },
-  /** 煮切る: until the liquid is gone. */
-  Kanpyo: { name: 'Gourd strips', stage: 3, kind: 'simmer', makes: ['Kanpyo'] },
+  /**
+   * Live hamaguri (the user's shop): boiled till they open, taken out of
+   * their broth (kept for the soup), cooled a little on the board, out of
+   * the shells, opened, the guts out and tsume brushed on, then into the
+   * case. The gourd strips (kanpyo) are bought simmered: no prep.
+   */
+  Hamaguri: { name: 'Hamaguri', stage: 3, kind: 'simmer', makes: ['Hamaguri'] },
   Abalone: { name: 'Abalone', stage: 3, kind: 'simmer', makes: ['Abalone'] },
   // Stage 4: the fish box at the sink (filleted in the shop).
   /** A whole flounder: washed at the sink, then five pieces on the board (four saku and the engawa). */
@@ -75,11 +80,11 @@ export const PREP = {
 export type PrepId = keyof typeof PREP;
 
 /** What the fish shop's ice box holds: the saku-taking fish, and over them the range's prepared ingredients (they come out first). */
-export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoHalf', 'Squid', 'Octopus', 'SeaEel', 'Abalone', 'Kanpyo', 'Tamago'];
+export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoHalf', 'Squid', 'Octopus', 'SeaEel', 'Abalone', 'Hamaguri', 'Tamago'];
 /** The long fish box at the sink's foot, bottom first: the flounder flat on the ice, the jack and the hamachi half over it, then the saba and the row of kohada (full). */
 export const FISH_BOX_ORDER: readonly PrepId[] = ['Flounder', 'StripedJack', 'Yellowtail', 'Saba', 'Kohada'];
-/** The range's ingredients that come in the fish shop's stainless inserts (中子); the anago on a plate (src/nakago-system.ts). */
-export const NAKAGO_IDS: readonly PrepId[] = ['Octopus', 'SeaEel', 'Abalone', 'Kanpyo'];
+/** The range's ingredients that come in the fish shop's stainless inserts (中子); the anago on a plate (src/nakago-system.ts). The hamaguri come live in a net bag. */
+export const NAKAGO_IDS: readonly PrepId[] = ['Octopus', 'SeaEel', 'Abalone'];
 
 /** The tasks of the stages built so far (with the full difficulty's own, or without). */
 export function prepTasks(stage: number, full = true): PrepId[] {

@@ -134,7 +134,7 @@ const FLIP_X = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI);
  *  8. the pan wiped while hot with a sheet of kitchen paper (no soap on the
  *     copper) and hung back up, its lid with it.
  * Times are the master's guide, not a grade; a scorched face, a stuck or a
- * broken tamago costs a couple of pieces, as scorched gourd strips do.
+ * broken tamago costs a couple of pieces, as a scorched abalone does.
  */
 export class TamagoSystem extends createSystem({
   items: { required: [CaseItem] },

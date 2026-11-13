@@ -29,7 +29,7 @@ export function createBackRowPreview(): Group {
   stream.scale.y = 0.12;
   stream.position.set(0, 0.07, -0.07);
   root.add(hangiri, shamoji, pitcher);
-  const ids: PotId[] = ['Octopus', 'SeaEel', 'Kanpyo', 'Abalone'];
+  const ids: PotId[] = ['Octopus', 'SeaEel', 'Hamaguri', 'Abalone'];
   ids.forEach((id, i) => {
     const pot = createPot(id);
     pot.position.set(-0.42 + i * 0.25, 0, -0.2);
