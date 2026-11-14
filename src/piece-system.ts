@@ -360,7 +360,8 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     if (riceHand.tracked) this.pieceYaw = riceHand.yawDeg + this.carryYawOffset;
     if (!riceHand.pinchEnd && riceHand.tracked) return;
     chef.hands[chef.riceSide].holding = Held.None;
-    if (overStation(riceHand.grasp, StationKind.Geta)) {
+    // Opening the fingers moves the grasp point by some centimetres: the piece is let go where it was held just before.
+    if (overStation(riceHand.pinchPoint(this.tmp), StationKind.Geta)) {
       this.setStage(NigiriStage.Placed);
       feedback.flash(StationKind.Geta, COLOR_DONE);
       coach.done('place');
