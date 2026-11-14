@@ -9,6 +9,7 @@ import {
   RingGeometry,
   SphereGeometry,
   type Material,
+  Quaternion,
   type Sprite,
   Vector3,
 } from '@iwsdk/core';
@@ -50,6 +51,9 @@ import {
 const WASABI_DAB_DISTANCE = 0.05;
 const WASABI_TOUCH_HEIGHT = 0.035;
 const JUDGE_TEXT_SECONDS = 0.8;
+/** A held neta or rice lies this far off the palm's skin (m). */
+const ON_PALM = 0.002;
+const UP = new Vector3(0, 1, 0);
 /** The rice hand counts as "gone to the tub" when it drops below the counter on its own side (the right; a left-handed chef's left), beside the body. */
 const TUB_MAX_Y = 0.65;
 const TUB_MIN_X = 0.25;
@@ -136,6 +140,10 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   private readonly tsumeRub = new RubTracker();
   private readonly tipAt = new Vector3();
   private readonly tmp = new Vector3();
+  private readonly qYaw = new Quaternion();
+  private readonly qRice = new Quaternion();
+  /** The rice is tipped with its hand's palm (its rotation is put back when it leaves the hand). */
+  private riceTilted = false;
 
   private get active(): Assembly | null {
     switch (this.kind) {
@@ -518,7 +526,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
     this.judgeTime = JUDGE_TEXT_SECONDS;
     if (sprite) {
       sprite.visible = true;
-      sprite.position.copy(slot === 0 ? hands.all[chef.riceSide].palm : this.focus);
+      sprite.position.copy(slot === 0 ? hands.all[chef.riceSide].palmSurface : this.focus);
       sprite.position.y += 0.08;
     }
   }
@@ -536,7 +544,7 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
       }
       const k = (elapsed % TEMPO_MS) / TEMPO_MS;
       const onHand = !this.active || this.active.ringOnHand();
-      this.beatRing.position.copy(onHand ? hands.all[chef.riceSide].palm : this.focus);
+      this.beatRing.position.copy(onHand ? hands.all[chef.riceSide].palmSurface : this.focus);
       this.beatRing.position.y += 0.02;
       this.beatRing.scale.setScalar(1 + 1.4 * (1 - k));
       this.targetRing.position.copy(this.beatRing.position);
@@ -564,26 +572,38 @@ export class PieceSystem extends createSystem({}) implements PieceCore {
   private layout(): void {
     const riceHand = hands.all[chef.riceSide];
     const netaHand = hands.all[chef.netaSide];
+    this.qYaw.setFromAxisAngle(UP, (this.pieceYaw * Math.PI) / 180);
+    let inPalm = false;
     if (this.stage === NigiriStage.Carried) {
       this.piece.position.copy(riceHand.grasp);
     } else if (this.stage === NigiriStage.Placed) {
       const geta = stations.get(StationKind.Geta)!;
       this.piece.position.set(geta.pos.x, geta.pos.y + 0.004, geta.pos.z);
     } else if (this.netaHeld) {
-      this.piece.position.copy(netaHand.palm);
-      this.piece.position.y += 0.01;
+      // On the neta hand's palm, whichever way it faces, tipped with it.
+      this.piece.position.copy(netaHand.palmSurface).addScaledVector(netaHand.palmNormal, ON_PALM);
+      inPalm = true;
     } else if (this.hasNeta) {
       this.piece.position.copy(this.netaOnBoard);
     }
-    this.piece.rotation.y = (this.pieceYaw * Math.PI) / 180;
+    if (inPalm) this.piece.quaternion.multiplyQuaternions(netaHand.palmTilt, this.qYaw);
+    else this.piece.quaternion.copy(this.qYaw);
     this.piece.updateMatrixWorld();
     this.piece.getWorldPosition(this.focus);
 
+    // Out of the hand, the rice's own rotation is the kind's again (level, as it always was in the hand).
+    if (this.riceTilted) {
+      this.rice.rotation.set(0, 0, 0);
+      this.riceTilted = false;
+    }
     const riceOnPiece = this.active ? this.active.layout() : false;
     if (!riceOnPiece && this.hasRice) {
-      // Rice on its own palm: placed in world space through the piece group.
-      // Its flat side (the origin) on the palm.
-      this.piece.worldToLocal(this.rice.position.copy(riceHand.palm).add(this.tmp.set(0, 0.004, 0)));
+      // Rice on its own palm: placed in world space through the piece group,
+      // its flat side (the origin) on the palm, tipped with the palm.
+      this.piece.worldToLocal(this.rice.position.copy(riceHand.palmSurface).addScaledVector(riceHand.palmNormal, ON_PALM));
+      this.qRice.multiplyQuaternions(riceHand.palmTilt, this.qYaw);
+      this.rice.quaternion.copy(this.piece.quaternion).invert().multiply(this.qRice);
+      this.riceTilted = true;
     }
     if (this.wasabi === 'finger') this.piece.worldToLocal(this.wasabiBlob.position.copy(riceHand.indexTip));
   }

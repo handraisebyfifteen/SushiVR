@@ -1,13 +1,15 @@
 import { pause, RESUME_GRACE_MS } from './pause.js';
-import { Matrix4, Vector3, type XRInputManager } from '@iwsdk/core';
+import { Matrix4, Quaternion, Vector3, type XRInputManager } from '@iwsdk/core';
 
 export type Handedness = 'left' | 'right';
 
 /**
  * Reads one tracked hand each frame and derives the two gestures this app
  * uses: pinch (thumb tip touching index tip) and fist (fingers curled into
- * the palm). Also exposes the palm point (where a held rice ball sits) and
- * the grasp point (between thumb and index, where a pinched item sits).
+ * the palm). Also exposes the palm point (the middle of the hand, for the
+ * judgments), the palm's skin and the way it faces (where a held neta or
+ * rice lies, whichever way the hand is turned) and the grasp point (between
+ * thumb and index, where a pinched item sits).
  *
  * Joint transforms come from IWSDK's hand adapter relative to the grip space;
  * they are converted to world space here. No allocation per frame.
@@ -34,13 +36,28 @@ const PINCH_OFF = 0.6;
  */
 export const LOST_GRACE_MS = 400;
 
+/** From the palm point (on the bones) out to the palm's skin (m). */
+const PALM_SKIN = 0.015;
+const WORLD_UP = new Vector3(0, 1, 0);
+
 /** Frames of grasp history kept (a few hundred ms at 72-90 fps). */
 const GRASP_RING = 24;
 /** The fingers move the grasp point as they close: a pinch is judged where it was this long before. */
 export const PINCH_LOOKBACK_MS = 150;
 
 export class HandReader {
+  /** The middle of the hand, on the bones: what the judgments measure. */
   readonly palm = new Vector3();
+  /** The way the palm faces (unit; the wrist joint's -Y in WebXR's hand axes). */
+  readonly palmNormal = new Vector3(0, 1, 0);
+  /** On the palm's skin: where a held neta or rice lies. */
+  readonly palmSurface = new Vector3();
+  /**
+   * How the palm is tipped from lying flat, face up, keeping the fingers'
+   * heading: a held piece turned by it lies on the palm whichever way the
+   * hand is turned (palm down, it hangs under the hand).
+   */
+  readonly palmTilt = new Quaternion();
   readonly grasp = new Vector3();
   /** Index fingertip: used to dab wasabi. */
   readonly indexTip = new Vector3();
@@ -68,8 +85,12 @@ export class HandReader {
   private jointIndex = new Map<string, number>();
   private indexedCount = -1;
   private readonly mat = new Matrix4();
+  private readonly flatBasis = new Matrix4();
   private readonly a = new Vector3();
   private readonly b = new Vector3();
+  private readonly fingers = new Vector3();
+  private readonly flatFingers = new Vector3();
+  private readonly side = new Vector3();
 
   constructor(
     readonly handedness: Handedness,
@@ -142,6 +163,7 @@ export class HandReader {
     this.indexTip.copy(this.b);
 
     this.jointWorld('wrist', joints, grip.matrixWorld, this.wrist);
+    this.updatePalmFacing(joints, grip.matrixWorld);
     this.jointWorld('middle-finger-phalanx-proximal', joints, grip.matrixWorld, this.a);
     this.a.sub(this.wrist);
     this.a.y = 0;
@@ -172,6 +194,34 @@ export class HandReader {
     this.pinch = select || (wasPinch ? strength > PINCH_OFF : strength > PINCH_ON);
     this.pinchStart = this.pinch && !wasPinch;
     this.pinchEnd = !this.pinch && wasPinch;
+  }
+
+  /**
+   * The palm's way of facing, its skin, and its tilt, from the wrist joint's
+   * axes (WebXR hand joints: -Z toward the fingers, -Y out of the palm).
+   */
+  private updatePalmFacing(joints: Float32Array, gripWorld: Matrix4): void {
+    const index = this.jointIndex.get('wrist');
+    if (index === undefined) return;
+    this.mat.fromArray(joints, index * 16).premultiply(gripWorld);
+    this.palmNormal.setFromMatrixColumn(this.mat, 1).normalize().negate();
+    this.fingers.setFromMatrixColumn(this.mat, 2).normalize().negate();
+    this.palmSurface.copy(this.palm).addScaledVector(this.palmNormal, PALM_SKIN);
+
+    // Tilt = the hand's frame (up: the palm, forward: the fingers) times the
+    // inverse of the same hand lying flat, face up, with the same heading.
+    this.flatFingers.set(this.fingers.x, 0, this.fingers.z);
+    // Fingers straight up or down: no heading to keep; the last tilt stays.
+    if (this.flatFingers.lengthSq() < 1e-6) return;
+    this.flatFingers.normalize();
+    // Basis columns (x, y, z), forward = -z: x = y × z = forward × up.
+    this.side.crossVectors(this.fingers, this.palmNormal);
+    this.a.copy(this.fingers).negate();
+    this.mat.makeBasis(this.side, this.palmNormal, this.a);
+    this.side.crossVectors(this.flatFingers, WORLD_UP);
+    this.b.copy(this.flatFingers).negate();
+    this.flatBasis.makeBasis(this.side, WORLD_UP, this.b).transpose();
+    this.palmTilt.setFromRotationMatrix(this.mat.multiply(this.flatBasis));
   }
 
   private jointWorld(

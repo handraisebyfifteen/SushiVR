@@ -170,6 +170,8 @@ const DEFAULT_OFFSET: Record<Anchor, Vector3> = {
 };
 const CURL_FINGERS: EmuFinger[] = ['middle', 'ring', 'pinky'];
 const FINGER_PITCH = -0.35;
+/** How fast a hand turns over to hold the neta or rice palm up (rad per second: half a turn in 0.3 s). */
+const ROLL_RATE = 10;
 const LOOK_PITCH_DEG = -22;
 const HEAD_TURN_RATE_DEG = 320;
 const HEADING_STEP_DEG = 45;
@@ -226,8 +228,11 @@ class DriverHand {
   /** Finger curl toward a fist (0..1), now and where the current move began. */
   curl = 0;
   curlStart = 0;
+  /** Turn of the hand about its fingers (rad): 0 palm down, π palm up. */
+  roll = 0;
   readonly sentWrist = new Vector3(Number.NaN, 0, 0);
   sentYaw = Number.NaN;
+  sentRoll = Number.NaN;
   sentPinch = -1;
   sentPose = '';
   sentCurl = 0;
@@ -2933,7 +2938,12 @@ export class PracticeSystem extends createSystem({
     let yaw = (d.yawDeg * Math.PI) / 180;
     const shake = this.shake[d.side];
     if (this.shaky) yaw += SHAKE_YAW * Math.sin(0.9 * this.clock + shake.phase[3]);
-    this.euler.set(FINGER_PITCH, yaw, 0, 'YXZ');
+    // Holding the neta or the rice: the hand turns over, palm up, as a chef holds them.
+    const holding = chef.hands[d.side].holding;
+    const wantRoll = holding === Held.Neta || holding === Held.Rice ? Math.PI : 0;
+    const rollStep = ROLL_RATE * delta;
+    d.roll += Math.max(-rollStep, Math.min(rollStep, wantRoll - d.roll));
+    this.euler.set(FINGER_PITCH, yaw, d.roll, 'YXZ');
     this.q.setFromEuler(this.euler);
 
     // Wrist = anchor target minus the measured wrist-to-anchor offset.
@@ -2958,7 +2968,7 @@ export class PracticeSystem extends createSystem({
     this.wrist.copy(this.noisy).sub(this.b);
 
     const moved = Number.isNaN(d.sentWrist.x) || d.sentWrist.distanceToSquared(this.wrist) > 1e-6;
-    if (moved || Math.abs(yaw - d.sentYaw) > 0.005) {
+    if (moved || Math.abs(yaw - d.sentYaw) > 0.005 || Math.abs(d.roll - d.sentRoll) > 0.005) {
       // setPin copies its arrays, so it is only called while the hand moves.
       this.pinArray[0] = this.wrist.x;
       this.pinArray[1] = this.wrist.y;
@@ -2970,6 +2980,7 @@ export class PracticeSystem extends createSystem({
       hand.setPin({ anchor: 'wrist', target: this.pinArray, wristRotation: this.rotArray });
       d.sentWrist.copy(this.wrist);
       d.sentYaw = yaw;
+      d.sentRoll = d.roll;
     }
   }
 
