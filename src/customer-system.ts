@@ -14,6 +14,7 @@ import { dayTally } from './day-tally.js';
 import { releasePiece } from './scene-assets/lib/nigiri-form.js';
 import { MENU, type MenuId, NETA, pairRest } from './menu.js';
 import type { Score } from './scoring.js';
+import { customerLeft, stage, stageMenu } from './stage.js';
 import { stations } from './station-system.js';
 import { Bar, Customer, CustomerState, StationKind } from './sushi-components.js';
 import { makeOrderCard, redrawOrderCard } from './order-card.js';
@@ -58,7 +59,9 @@ export const customerApi = {
  * the whole case sold out, anything on the menu.
  */
 function pickOrder(): MenuId {
-  const ids = (Object.keys(MENU) as MenuId[]).filter((id) => ENABLED_KINDS.includes(MENU[id].kind));
+  // A nigiri stage keeps to its own part of the menu (src/stage.ts).
+  const menu = stage.on ? stageMenu() : (Object.keys(MENU) as MenuId[]);
+  const ids = menu.filter((id) => ENABLED_KINDS.includes(MENU[id].kind));
   const inStock = ids.filter((id) => MENU[id].neta.every((n) => caseStock[n] >= NETA[n].perPiece));
   const pool = inStock.length ? inStock : ids;
   let r = Math.random() * pool.reduce((sum, id) => sum + MENU[id].weight, 0);
@@ -195,7 +198,8 @@ export class CustomerSystem extends createSystem({}) {
     this.newOrder();
     service.customerHandKnown = false;
     service.eatenByCustomer = 0;
-    this.teaPlanned = Math.random() < TEA_REQUEST_RATIO;
+    // No tea in a nigiri stage: the hands stay on the pieces.
+    this.teaPlanned = !stage.on && Math.random() < TEA_REQUEST_RATIO;
     this.teaAsked = false;
     this.teaWait = 0;
     tea.wanted = false;
@@ -488,6 +492,8 @@ export class CustomerSystem extends createSystem({}) {
         if (this.walkS <= 0) {
           this.resultGroup.visible = false;
           tea.clear = true;
+          // A nigiri stage ends with its last customer.
+          if (stage.on && customerLeft()) day.closing = true;
           if (day.closing) this.closeDay('the last customer has left');
           else this.newCustomer(false);
         }

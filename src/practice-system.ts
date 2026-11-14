@@ -71,6 +71,9 @@ interface EmuDevice {
   position: EmuVector;
   quaternion: EmuQuaternion;
   hands: { left: EmuHand; right: EmuHand };
+  /** As the headset reports it: 'visible', or 'visible-blurred' while its menu is over the game. */
+  visibilityState: string;
+  updateVisibilityState(state: string): void;
 }
 
 function emulatedDevice(): EmuDevice | null {
@@ -366,6 +369,16 @@ export class PracticeSystem extends createSystem({
 
   private onKey(e: KeyboardEvent, down: boolean): void {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.code === 'KeyP' && e.shiftKey) {
+      // Shift+P: the headset's menu comes up over the game, and goes again (a test of pause and resume, src/pause.ts).
+      const emu = emulatedDevice();
+      if (down && !e.repeat && emu) {
+        const open = emu.visibilityState === 'visible';
+        emu.updateVisibilityState(open ? 'visible-blurred' : 'visible');
+        console.log(`[Practice] the headset's menu ${open ? 'opened' : 'closed'} (test)`);
+      }
+      return;
+    }
     if (e.code === 'KeyP') {
       if (down && !e.repeat) this.setOn(!this.on);
       return;
@@ -437,8 +450,8 @@ export class PracticeSystem extends createSystem({
         caseApi.restockAll();
         this.say('Case restocked');
       },
-      Digit9: () => this.prepCarry(),
-      Digit0: () => this.pullPrep(),
+      Digit9: () => (e.shiftKey ? this.phoneLine(['settings', 'game'], 'Phone: settings, the game (stages or the shop)') : this.prepCarry()),
+      Digit0: () => (e.shiftKey ? this.phoneLine(['settings', 'restart'], 'Phone: settings, start') : this.pullPrep()),
       Minus: () => (e.shiftKey ? this.phoneLine(['greengrocer'], 'Phone: the greengrocer') : this.paperWipe()),
       Equal: () => (e.shiftKey ? this.phoneLine(['settings', 'playMode'], 'Phone: settings, play mode') : this.callFishShop()),
       BracketLeft: () => (e.shiftKey ? this.phoneLine(['riceShop', 'riceCall'], 'Phone: the rice shop') : this.boardStep()),
@@ -1317,6 +1330,7 @@ export class PracticeSystem extends createSystem({
       case 'towel':
         return this.towel();
       case 'callFishShop':
+      case 'phoneOn':
         return this.callFishShop();
       case 'orderFish':
         return this.orderFish();
@@ -3056,6 +3070,7 @@ export class PracticeSystem extends createSystem({
       'Prep: 9 carry  0 pull off  X cut  - paper  [ board  ] noren',
       "Phone (a press a step): = fish shop  Shift+- greengrocer  ; cook  ' part-timer",
       "  Shift+= play mode  Shift+; hands  Shift+' tool names  ] noren in: close",
+      '  Shift+9 game (stages / shop)  Shift+0 start it  Shift+P headset menu (pause test)',
       '  Shift+[ rice shop (rice, nori)  Shift+] cook: 1 sho more (service, full)',
       ', tea urn (Shift: ask for tea)   . tea to the tsukedai',
       "Back row: A shari  Enter range  / step  Tab: the master's step",

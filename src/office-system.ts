@@ -21,6 +21,7 @@ import { GAZE_CONE_DEG, gazeOff, GazePinch } from './gaze.js';
 import { heldOut, POINT_ACROSS_DEG, POINT_LATCH_SECONDS, pointOff } from './pointing.js';
 import { BOOKS_SHEET_HEIGHT, BOOKS_SHEET_WIDTH } from './scene-assets/shop-props.scene-asset.js';
 import { playPress } from './sfx.js';
+import { averagePoints, CLEAR_POINTS, finishStage, stage, stageWords } from './stage.js';
 import { stations } from './station-system.js';
 import { teaApi } from './tea-system.js';
 import { Held, StationKind } from './sushi-components.js';
@@ -283,10 +284,23 @@ export class OfficeSystem extends createSystem({}) {
   private updateResults(): void {
     if (!this.sheet) return;
     const full = fishOrder.difficulty === 'full';
-    const key = `${dayTally.served}|${day.closed}|${fishOrder.difficulty}|${fishOrder.day}|${fishOrder.spoiled.length}`;
+    const key = `${dayTally.served}|${day.closed}|${fishOrder.difficulty}|${fishOrder.day}|${fishOrder.spoiled.length}|${stage.version}`;
     if (key === this.drawn) return;
     this.drawn = key;
-    if (day.closed) {
+    const points = averagePoints(dayTally.grades);
+    if (day.closed && stage.on && !stage.over) {
+      // The stage's last customer has left: its points are final (a clear unlocks the next).
+      finishStage(points);
+      setSpriteText(
+        this.notice,
+        stage.clear ? `Stage ${stage.id} clear! ${points} points` : `${points} points: ${CLEAR_POINTS} to clear`,
+        { color: stage.clear ? '#FFD86B' : '#ffffff' },
+      );
+      this.notice.visible = true;
+      // It stays up: the phone is the way on.
+      this.noticeTime = Infinity;
+      console.log(`[Stage] ${stage.id} over: ${points} points, ${stage.clear ? 'clear' : 'not cleared'}`);
+    } else if (day.closed && !stage.on) {
       this.notice.visible = true;
       this.noticeTime = NOTICE_SECONDS;
       console.log(`[Day] closed: ${dayTally.served} served (${GRADES.map((g) => `${g} ${dayTally.grades[g]}`).join(', ')})`);
@@ -303,11 +317,11 @@ export class OfficeSystem extends createSystem({}) {
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     ctx.font = 'bold 40px sans-serif';
-    const title = full ? `Day ${fishOrder.day} results` : "Today's results";
-    ctx.fillText(day.closed ? `${title}: closed` : title, SHEET_W / 2, 50);
+    const title = stage.on ? `Stage ${stage.id}` : full ? `Day ${fishOrder.day} results` : "Today's results";
+    ctx.fillText(day.closed ? (stage.on ? `${title}: ${stage.clear ? 'CLEAR' : 'not yet'}` : `${title}: closed`) : title, SHEET_W / 2, 50);
     // The difficulty, chosen in the phone's settings.
     ctx.fillStyle = '#5B5348';
-    fitText(ctx, full ? 'Full: the case carries over, you order' : 'Easy: the usual comes, the cook fills the rest', SHEET_W / 2, 88, SHEET_W - 40, 20);
+    fitText(ctx, stage.on ? `${stageWords()}. Clear at ${CLEAR_POINTS} points` : full ? 'Full: the case carries over, you order' : 'Easy: the usual comes, the cook fills the rest', SHEET_W / 2, 88, SHEET_W - 40, 20);
     // The pieces served, underlined; then each grade on a ruled line.
     let y = 150;
     figureRow(ctx, 'Served', dayTally.served, '#2B2118', y, 34);
@@ -324,14 +338,18 @@ export class OfficeSystem extends createSystem({}) {
       figureRow(ctx, g, dayTally.grades[g], GRADE_INK[g], y, 28);
       y += 50;
     }
+    if (stage.on) {
+      // The stage's points so far: the grades averaged (Excellent 100, Good 75, Poor 40, Bad 0).
+      figureRow(ctx, 'Points (average)', points, points >= CLEAR_POINTS ? '#2E6B2E' : '#A3242E', y + 6, 30);
+    }
     ctx.textAlign = 'center';
     ctx.fillStyle = '#5B5348';
     if (thrown) {
       fitText(ctx, `Thrown out this morning: ${kinds} item${kinds > 1 ? 's' : ''}, ${thrown} piece${thrown > 1 ? 's' : ''}`, SHEET_W / 2, y + 10, SHEET_W - 40, 22);
     }
     if (day.closed) {
-      fitText(ctx, full ? 'Thank you. The case is kept.' : 'Thank you for today.', SHEET_W / 2, SHEET_H - 56, SHEET_W - 32, 22);
-      fitText(ctx, full ? 'Reload for the next day.' : 'Reload for a new day.', SHEET_W / 2, SHEET_H - 26, SHEET_W - 32, 22);
+      if (!stage.on) fitText(ctx, full ? 'Thank you. The case is kept.' : 'Thank you for today.', SHEET_W / 2, SHEET_H - 56, SHEET_W - 32, 22);
+      fitText(ctx, stage.on ? 'Point at the phone and pinch to go on.' : 'Point at the phone and pinch for the next day.', SHEET_W / 2, SHEET_H - 26, SHEET_W - 32, 22);
     }
     this.sheet.texture.needsUpdate = true;
   }

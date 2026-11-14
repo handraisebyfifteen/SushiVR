@@ -11,7 +11,7 @@ import {
 import { cycleDisplay, display, DISPLAY_ROWS, type DisplayKey, displayValueText } from './display-settings.js';
 import { fishOrder, type Supplier } from './fish-order.js';
 import { fishOrderApi } from './fish-order-system.js';
-import { chef, holdingAnything, prep, shari, staff } from './game-state.js';
+import { chef, day, holdingAnything, prep, shari, staff } from './game-state.js';
 import { handedness, setLeftHanded } from './handedness.js';
 import { hands } from './hands.js';
 import { officeApi } from './office-system.js';
@@ -19,6 +19,7 @@ import { canAskCookRice, noriSheetsLeft, orderWords, pantry, pantryOn, riceText 
 import { pantryApi } from './pantry-system.js';
 import { phoneApi } from './phone-system.js';
 import { playPress } from './sfx.js';
+import { bestPoints, cycleStage, nextStageId, restart, savedGame, savedStageId, setGame, stage } from './stage.js';
 import { stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
 import { NORI_PER_PACK, RICE_SACK_KG } from './tuning.js';
@@ -56,6 +57,10 @@ export type PhoneRowId =
   | 'settings'
   | 'hangUp'
   | 'playMode'
+  | 'goOn'
+  | 'game'
+  | 'stage'
+  | 'restart'
   | 'hands'
   | 'display'
   | 'back'
@@ -210,7 +215,17 @@ export class PhoneBookSystem extends createSystem({}) {
   /** The lines of the page as things are now. */
   private build(): void {
     const rows: Row[] = [];
-    if (this.page === 'lines') {
+    if (this.page === 'lines' && (stage.on || day.closed)) {
+      // A nigiri stage has no shops to call; a day that is over has only the way on.
+      if (stage.on && stage.over) {
+        const next = stage.clear ? nextStageId() : null;
+        rows.push({ id: 'goOn', label: stage.clear ? (next ? 'Next stage' : 'Play it again') : 'Try again', value: next ?? stage.id, enabled: true });
+      } else if (!stage.on) {
+        rows.push({ id: 'goOn', label: 'Next day', value: '', enabled: true });
+      }
+      rows.push({ id: 'settings', label: 'Settings', value: '>', enabled: true });
+      rows.push({ id: 'hangUp', label: 'Hang up', value: '', enabled: true });
+    } else if (this.page === 'lines') {
       rows.push({ id: 'fish', label: 'Fish shop', value: this.shopValue('fish'), enabled: phoneApi.canDial('fish') });
       rows.push({ id: 'greengrocer', label: 'Greengrocer', value: this.shopValue('greengrocer'), enabled: phoneApi.canDial('greengrocer') });
       rows.push({ id: 'riceShop', label: 'Rice shop (rice, nori)', value: pantryOn() ? (pantry.comingIn > 0 ? 'on its way' : '>') : 'comes as usual', enabled: pantryOn() });
@@ -226,7 +241,13 @@ export class PhoneBookSystem extends createSystem({}) {
     } else if (this.page === 'settings') {
       const current = playModeSource.current();
       const mode = playModeSource.choices().find((c) => c.id === current);
-      rows.push({ id: 'playMode', label: 'Play mode', value: mode?.label ?? current, enabled: playModeSource.canChange() });
+      // The game and the stage are for the next start: "Start" loads the page again with them.
+      const game = savedGame();
+      const best = bestPoints(savedStageId());
+      rows.push({ id: 'game', label: 'Game', value: game === 'stages' ? 'Nigiri stages' : 'The shop (whole day)', enabled: true });
+      rows.push({ id: 'stage', label: 'Stage', value: game === 'stages' ? `${savedStageId()}${best !== null ? ` (best ${best})` : ''}` : '-', enabled: game === 'stages' });
+      rows.push({ id: 'restart', label: 'Start', value: game === 'stages' ? `stage ${savedStageId()}` : 'the shop', enabled: true });
+      rows.push({ id: 'playMode', label: 'Shop: difficulty', value: mode?.label ?? current, enabled: playModeSource.canChange() });
       rows.push({ id: 'hands', label: 'Hands', value: handedness.left ? 'Left-handed' : 'Right-handed', enabled: this.canChangeHands() });
       rows.push({ id: 'display', label: 'Display', value: '>', enabled: true });
       rows.push({ id: 'back', label: 'Back', value: '', enabled: true });
@@ -299,6 +320,19 @@ export class PhoneBookSystem extends createSystem({}) {
         return;
       case 'settings':
         this.page = 'settings';
+        return;
+      case 'goOn':
+      case 'restart':
+        console.log('[Phone] starting again');
+        restart();
+        return;
+      case 'game':
+        setGame(savedGame() === 'stages' ? 'shop' : 'stages');
+        console.log(`[Phone] settings: game ${savedGame()} (from the next start)`);
+        return;
+      case 'stage':
+        cycleStage();
+        console.log(`[Phone] settings: stage ${savedStageId()} (from the next start)`);
         return;
       case 'hangUp':
         phoneApi.hangUp();

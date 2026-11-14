@@ -22,6 +22,7 @@ import { NETA_CASE_HEIGHT, NETA_CASE_WIDTH, NETA_HOUSING_WIDTH } from './layout.
 import { NETA, type NetaId } from './menu.js';
 import { caseApi, caseDoors } from './neta-case-system.js';
 import { playPress } from './sfx.js';
+import { stage } from './stage.js';
 import { CaseItem } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
 
@@ -101,6 +102,8 @@ export class FishOrderSystem extends createSystem({
     const neta = entity.getValue(CaseItem, 'neta') as NetaId;
     this.items.set(neta, entity);
     if (prep.active && !prep.ordered) this.morning(neta, entity);
+    // A nigiri stage starts with the case full.
+    else if (stage.on) entity.setValue(CaseItem, 'remaining', NETA[neta].stock);
   }
 
   private morning(neta: NetaId, entity: Entity): void {

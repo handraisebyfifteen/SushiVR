@@ -3,6 +3,7 @@ import { CORE_FROM, FROM_CASE, MENU, type MenuId, NETA, type NetaId, type PieceK
 import { DULL_CATCH_MAX, DULL_CATCH_MIN, KNIFE_DULL, KNIFE_WEAR_PER_CUT } from './tuning.js';
 import { Held, Judge } from './sushi-components.js';
 import { handedness, onHandsChanged } from './handedness.js';
+import { stage } from './stage.js';
 
 export type HeldKind = (typeof Held)[keyof typeof Held];
 export type JudgeKind = (typeof Judge)[keyof typeof Judge];
@@ -35,7 +36,7 @@ export const chef = {
   /** Set by the knife system when the knife is put down dirty; consumed per piece. */
   knifeUnwiped: false,
   /** The edge: 1 freshly sharpened, worn by every cut (src/sharpen-system.ts); the morning starts with yesterday's wear. */
-  knifeSharp: 0.6,
+  knifeSharp: stage.on ? 1 : 0.6,
   /** A cut was made with a worn edge; consumed per piece. */
   knifeDull: false,
   facingBack: false,
@@ -181,12 +182,13 @@ export type PrepNext =
 
 /** The morning prep (仕込み), from the start of the day until the bar opens. */
 export const prep = {
-  active: true,
+  /** A nigiri stage (src/stage.ts) has no morning: it starts at the counter. */
+  active: !stage.on,
   /** The fish shop has been called, and its delivery (the ice box) has arrived. */
   ordered: false,
   delivered: false,
   /** Every prep task is finished. */
-  done: false,
+  done: stage.on,
   /** Scraps still on the board or in a hand (thrown away before opening). */
   scrapsLeft: 0,
   /** Each hand (left, right) carries something of the prep: the fish from the ice box, a scrap, a sheet of paper. */

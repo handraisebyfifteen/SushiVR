@@ -1,3 +1,4 @@
+import { pause, RESUME_GRACE_MS } from './pause.js';
 import { Matrix4, Vector3, type XRInputManager } from '@iwsdk/core';
 
 export type Handedness = 'left' | 'right';
@@ -100,8 +101,10 @@ export class HandReader {
       if (this.tracked) {
         // Lost only for a moment: hold the last pose and grip.
         const now = performance.now();
-        if (this.lostAt < 0) this.lostAt = now;
-        if (now - this.lostAt < LOST_GRACE_MS) return;
+        // A pause is not time lost: the grace starts again when the game goes on, and is longer then.
+        if (this.lostAt < 0 || this.lostAt < pause.resumedAt) this.lostAt = now;
+        const grace = pause.resumedAt > 0 && now - pause.resumedAt < RESUME_GRACE_MS ? RESUME_GRACE_MS : LOST_GRACE_MS;
+        if (now - this.lostAt < grace) return;
         this.lostAt = -1;
         this.tracked = false;
         this.fistEnd = this.fist;

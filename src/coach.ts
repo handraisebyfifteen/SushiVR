@@ -54,6 +54,8 @@ export type StepKey =
   | 'cutRoll'
   // morning prep
   | 'callFishShop'
+  /** The day (or the stage) is over: the phone is the way on. */
+  | 'phoneOn'
   | 'orderFish'
   | 'stepDrain'
   | 'layCure'

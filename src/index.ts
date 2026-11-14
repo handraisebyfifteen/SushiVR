@@ -1,4 +1,6 @@
-import { World } from '@iwsdk/core';
+import { VisibilityState, World } from '@iwsdk/core';
+import { MAX_STEP, pause } from './pause.js';
+import { makeTextSprite } from './text-sprites.js';
 import projectOptions from 'virtual:iwsdk-project';
 import { CustomerSystem } from './customer-system.js';
 import { CureSystem } from './cure-system.js';
@@ -39,6 +41,32 @@ World.create(
   document.getElementById('scene-container') as HTMLDivElement,
   projectOptions,
 ).then((world) => {
+  // Pause and resume (src/pause.ts): while the headset shows its menu over the game, or does not show the
+  // game at all, no system runs, so no game time passes; and no frame carries more than MAX_STEP of time.
+  const paused = makeTextSprite('Paused', { width: 0.5 });
+  paused.name = 'PausedNotice';
+  paused.visible = false;
+  paused.position.set(0, 1.3, -0.45);
+  paused.renderOrder = 990;
+  world.createTransformEntity(paused);
+  const runSystems = world.update.bind(world);
+  world.update = (delta: number, time: number): void => {
+    const state = world.visibilityState.peek();
+    const shown = state === VisibilityState.Visible || state === VisibilityState.NonImmersive;
+    if (!shown) {
+      if (!pause.on) console.log(`[Pause] paused (${state})`);
+      pause.on = true;
+      paused.visible = true;
+      return;
+    }
+    if (pause.on) {
+      pause.on = false;
+      paused.visible = false;
+      pause.resumedAt = performance.now();
+      console.log('[Pause] going on');
+    }
+    runSystems(Math.min(delta, MAX_STEP), time);
+  };
   // Order matters: hands and stations first, feedback and debug last.
   world.registerSystem(HandsSystem);
   world.registerSystem(StationSystem);

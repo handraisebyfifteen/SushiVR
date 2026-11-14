@@ -4,8 +4,32 @@ A sushi-restaurant simulator for WebXR, built for the Meta VR Start Developer
 Competition 2026. It runs in the browser of a VR headset such as Meta Quest with
 no installation: open the URL and start making sushi.
 
-> Work in progress. The first playable slice is in: a seated sushi counter
-> where you make and serve one nigiri at a time using hand tracking only.
+> A seated sushi counter where you make and serve one nigiri at a time using
+> hand tracking only. Built and tested in the desktop emulator; not yet tested
+> on a headset.
+
+## Two games
+
+- **Nigiri stages** (the game a new player starts in, `src/stage.ts`): you sit
+  down, wash your hands, and the first customer is already seated. The case is
+  full and the shari is in the ohitsu. The world's number is the number of
+  customers (worlds 1 to 3), and each world has four stages whose menu grows:
+  basic neta, more neta, then cured fish, shellfish and gunkan, then the whole
+  menu. When the last customer has left, the grades of the pieces are averaged
+  (Excellent 100, Good 75, Poor 40, Bad 0). 65 points or more clears the stage
+  and opens the next. The board by the phone shows the points.
+- **The shop** (the whole day): the morning prep, the service and the closing,
+  easy or full, as described below.
+
+To go on after a stage or a day, point at the phone and pinch: the card's first
+line is "Next stage", "Try again" or "Next day". The phone's Settings choose the
+game and the stage ("Start" loads the page again; in a headset, enter VR once
+more).
+
+**Pause.** While the headset's menu is over the game, or the headset is off,
+no game time passes (`src/pause.ts`): customers do not lose patience, timers
+and flames stand still, a "Paused" sign shows, and what the hands held is still
+held when you come back.
 
 Read this in Japanese: [README.ja.md](README.ja.md)
 

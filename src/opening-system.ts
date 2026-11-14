@@ -14,6 +14,7 @@ import { overStation, stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
 import { BOARD_DRY_SECONDS, CLEANUP_SECONDS, CLOSE_AFTER_SECONDS, RUB_WASH_CLOTH } from './tuning.js';
 import { playPress } from './sfx.js';
+import { stage } from './stage.js';
 
 /** How the part-timer clears the scraps off the board (set by src/prep-cut-system.ts). */
 export const scrapsApi = {
@@ -80,6 +81,12 @@ export class OpeningSystem extends createSystem({}) {
     this.updateNoriLid(delta);
     this.updateWasabi();
     if (!prep.active) {
+      if (stage.on) {
+        // A nigiri stage: the noren goes out with the opening wash and comes in with the last customer, by itself.
+        this.stageNoren();
+        if (chef.open) day.openFor += delta;
+        return;
+      }
       if (chef.open) {
         day.openFor += delta;
         this.updateNoren();
@@ -358,6 +365,19 @@ export class OpeningSystem extends createSystem({}) {
     }
     const glow = this.norenCloth as (Material & { emissive?: { setRGB(r: number, g: number, b: number): void } }) | null;
     glow?.emissive?.setRGB(pointing && ready ? 0.12 : 0, pointing && ready ? 0.12 : 0, pointing && ready ? 0.2 : 0);
+  }
+
+  private stageNorenOut: boolean | null = null;
+
+  private stageNoren(): void {
+    const out = chef.open && !day.closing;
+    if (out === this.stageNorenOut) return;
+    this.norenIn ??= this.world.scene.getObjectByName('NorenInside') ?? null;
+    this.norenOut ??= this.world.scene.getObjectByName('NorenOutside') ?? null;
+    if (!this.norenIn || !this.norenOut) return;
+    this.stageNorenOut = out;
+    this.norenIn.visible = !out;
+    this.norenOut.visible = out;
   }
 
   private hangOut(): void {

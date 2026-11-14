@@ -17,7 +17,7 @@ import {
 import { coach, type Grade, type MistakeKey, type StepKey, type StockWarning } from './coach.js';
 import { debugLines } from './debug.js';
 import { fishOrder } from './fish-order.js';
-import { chef, cupboard, cure, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, prawn, shari, sharpen, sharpenWanted, staff, tamago, tea, tsume } from './game-state.js';
+import { chef, cupboard, cure, day, holdingAnything, nakago, nakagoWanted, orderKind, orderNeta, type Place, prep, progress, range, service, prawn, shari, sharpen, sharpenWanted, staff, tamago, tea, tsume } from './game-state.js';
 import { BACK_ROW_Z, DRAIN_SPOT_X, FOOD_SHELF_X, FOOD_SHELF_Z, RANGE_HEIGHT, SINK_BASIN_X, SINK_TOP, STOVE_X, WORKTABLE_X } from './layout.js';
 import { handedness, sideSign, sideX } from './handedness.js';
 import { hands } from './hands.js';
@@ -82,6 +82,7 @@ const STEP_WORDS: Record<StepKey, string> = {
   squeezeRoll: 'Both fists on the beat',
   cutRoll: 'Cut on the line',
   callFishShop: 'Call the fish shop',
+  phoneOn: 'Point at the phone and pinch',
   orderFish: 'Order: pinch what the case needs, then point at the phone',
   stepDrain: 'Step to the drainboard beside the sink',
   layCure: 'Into its tray on the drainboard',
@@ -512,6 +513,8 @@ export class MasterSystem extends createSystem({
     const [L, R] = chef.hands;
     const back = chef.facingBack;
 
+    // The day (or the stage) is over: the phone (the office corner) starts the next.
+    if (day.closed) return holdingAnything() || progress.clothHeld ? null : back ? 'turnFront' : 'phoneOn';
     if (progress.clothHeld) {
       if (chef.clothDirty) return back ? 'rinseCloth' : 'turnBack';
       if (!back && chef.boardDirt > 0) return 'wipeBoard';
@@ -1070,6 +1073,7 @@ export class MasterSystem extends createSystem({
       case 'rackNakago':
         return StationKind.Whetstone;
       case 'callFishShop':
+      case 'phoneOn':
         return StationKind.Phone;
       case 'orderFish':
         return StationKind.NetaCase;
