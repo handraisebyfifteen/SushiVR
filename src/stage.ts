@@ -189,6 +189,13 @@ export function cycleStage(): void {
   stage.version++;
 }
 
+/** Opens every stage (a test tool, src/practice-system.ts): each not yet cleared counts as cleared at the clear line. */
+export function unlockAll(): void {
+  for (let w = 1; w <= WORLDS; w++) for (let st = 1; st <= STEPS; st++) saved.cleared[`${w}-${st}`] ??= CLEAR_POINTS;
+  save();
+  stage.version++;
+}
+
 /** A cleared stage's best points, or null. */
 export function bestPoints(id: string): number | null {
   return saved.cleared[id] ?? null;

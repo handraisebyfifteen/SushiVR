@@ -27,6 +27,7 @@ import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, SHARI_SCOOPS } from './tuning.js';
 import { chefRiceInService, pantry } from './pantry.js';
 import { phoneBookApi, type PhoneRowId } from './phone-book-system.js';
 import { phoneApi } from './phone-system.js';
+import { unlockAll } from './stage.js';
 
 /**
  * Practice mode (development only): play the bar from the keyboard in the
@@ -438,9 +439,15 @@ export class PracticeSystem extends createSystem({
         if (neta) this.takeSaku(neta);
         else this.say('No order yet');
       },
-      Digit5: () => this.takeSaku(NIGIRI_NETA[this.selected]),
+      // Shift+5: every stage open, and the phone's settings step the stage to play next (test).
+      Digit5: () => {
+        if (!e.shiftKey) return this.takeSaku(NIGIRI_NETA[this.selected]);
+        unlockAll();
+        this.phoneLine(['settings', 'stage'], 'Phone: settings, the stage (all open)');
+      },
       Digit6: () => this.select(e.shiftKey ? -1 : 1),
-      Digit7: () => this.orderSelected(),
+      // Shift+7: the phone's first line after a stage or a day (next stage, try again, next day).
+      Digit7: () => (e.shiftKey ? this.phoneLine(['goOn'], 'Phone: go on') : this.orderSelected()),
       Digit8: () => {
         if (e.shiftKey) {
           // The full difficulty's shop starts again from day 1 (an empty case) at the next reload.
@@ -3070,7 +3077,7 @@ export class PracticeSystem extends createSystem({
       'Prep: 9 carry  0 pull off  X cut  - paper  [ board  ] noren',
       "Phone (a press a step): = fish shop  Shift+- greengrocer  ; cook  ' part-timer",
       "  Shift+= play mode  Shift+; hands  Shift+' tool names  ] noren in: close",
-      '  Shift+9 game (stages / shop)  Shift+0 start it  Shift+P headset menu (pause test)',
+      '  Shift+5 stage (all open)  Shift+7 go on  Shift+9 game (stages / shop)  Shift+0 start it  Shift+P headset menu',
       '  Shift+[ rice shop (rice, nori)  Shift+] cook: 1 sho more (service, full)',
       ', tea urn (Shift: ask for tea)   . tea to the tsukedai',
       "Back row: A shari  Enter range  / step  Tab: the master's step",
