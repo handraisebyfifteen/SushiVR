@@ -8,7 +8,7 @@ no installation: open the URL and start making sushi.
 > hand tracking only. Built and tested in the desktop emulator; not yet tested
 > on a headset.
 
-## Two games
+## Three games
 
 - **Nigiri stages** (the game a new player starts in, `src/stage.ts`): you sit
   down, wash your hands, and the first customer is already seated. The case is
@@ -18,12 +18,21 @@ no installation: open the URL and start making sushi.
   menu. When the last customer has left, the grades of the pieces are averaged
   (Excellent 100, Good 75, Poor 40, Bad 0). 65 points or more clears the stage
   and opens the next. The board by the phone shows the points.
+- **Prep stages** (`src/stage.ts`): the morning's work, one thing at a time.
+  The stage's fish is delivered as it starts, and the stage is over when all of
+  it is made and put away (no cleaning, no opening). Two worlds of four stages:
+  1-1 white fish (striped jack, hamachi, flounder), 1-2 tuna, 1-3 kohada and
+  saba (salted and vinegared, on kitchen timers), 1-4 tamago, 2-1 aji and
+  squid, 2-2 octopus, 2-3 the shari, 2-4 all of it together. The grades of the
+  cuts and of the curing times are averaged the same way, and 65 points clear
+  the stage; a stage with nothing graded (the tamago, the octopus, the shari)
+  is cleared by finishing it.
 - **The shop** (the whole day): the morning prep, the service and the closing,
   easy or full, as described below.
 
 To go on after a stage or a day, point at the phone and pinch: the card's first
 line is "Next stage", "Try again" or "Next day". The phone's Settings choose the
-game and the stage ("Start" loads the page again; in a headset, enter VR once
+game (nigiri stages, prep stages, the shop) and the stage ("Start" loads the page again; in a headset, enter VR once
 more).
 
 **Pause.** While the headset's menu is over the game, or the headset is off,
@@ -392,6 +401,12 @@ and the pots go on first, the fish is cut while they cook.
      times are the shop's guide and the master tells them; shops differ, so
      no time costs pieces (`src/cure-system.ts`). A few minutes before a
      fish's time the master calls you over to be ready.
+   - The aji too (full): washed and filleted in three like the jack, belly
+     and pin bones out. Its tray comes out when the fillets are ready (where
+     the vinegar stands, or where a basket or tray has been put away): salt
+     it till white, 3 minutes on its own kitchen timer, rinse the salt off
+     under the tap, then lift the fillets and let go over the case. No
+     vinegar.
 6. The shari (the shop's way: rice vinegar made ahead, no fanning): when the
    rice is done, point at the cooker again and pinch: it is turned out into
    the hangiri on the work table. Take the bowl of awasezu and hold it over
