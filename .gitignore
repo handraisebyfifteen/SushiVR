@@ -49,3 +49,4 @@ opencode.json
 
 # Screenshots and checks from development (kept locally, not in the repo)
 artifacts/
+.vercel
