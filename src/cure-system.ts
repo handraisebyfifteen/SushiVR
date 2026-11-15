@@ -112,6 +112,9 @@ interface Batch {
   zone: number;
   /** Minutes in the vinegar when the fish were taken up out of it (graded when they reach the case). */
   taken: number;
+  /** The aji's tray is out (it comes out as the fillets are ready for it), and stands where the vinegar goes. */
+  shown: boolean;
+  atPot: boolean;
   /** The last time's grade, shown on the timer for a moment. */
   note: string;
   noteTime: number;
@@ -241,7 +244,8 @@ export class CureSystem extends createSystem({
     if (!FISH.some((id) => today.includes(id))) return;
     const make = (id: FishId, salter: Group, x: number, z: number, W: number, D: number, timerY: number): Batch => {
       salter.position.set(x, SINK_TOP + (id === 'Kohada' ? RIB : 0), z);
-      salter.visible = today.includes(id);
+      // The aji's tray comes out when its fillets are ready (placeAjiTray).
+      salter.visible = today.includes(id) && id !== 'Aji';
       this.world.createTransformEntity(salter);
       const timer = createKitchenTimer();
       timer.position.set(TIMER_X - 0.002, timerY, TIMER_Z);
@@ -257,7 +261,7 @@ export class CureSystem extends createSystem({
         id, neta: CURED[id], salter, home: salter.position.clone(), W, D,
         bed: (salter.getObjectByName('SaltBed') as Mesh | undefined) ?? null, top: salter.getObjectByName('Salt') as Mesh,
         parts: [], saved: { salt: [], water: [], pot: [] }, state: 'empty', minutes: 0, rinse: 0, clean: false, saltAt: salter.position.clone(),
-        coming: today.includes(id), timer, timerText, timerKey: NaN, taken: 0, note: '', noteTime: 0,
+        coming: today.includes(id), timer, timerText, timerKey: NaN, taken: 0, note: '', noteTime: 0, shown: false, atPot: false,
         face: (timer.getObjectByName('TimerBody') as Mesh).material as MeshStandardMaterial, zone: 0,
       };
     };
@@ -265,7 +269,7 @@ export class CureSystem extends createSystem({
     this.batches = [
       make('Kohada', createZaru(KOHADA_ZARU_D), KOHADA_ZARU_X, KOHADA_ZARU_Z, KOHADA_ZARU_D, KOHADA_ZARU_D, TIMER_Y[0]),
       make('Saba', createTray(SABA_TRAY_W, SABA_TRAY_D), SABA_TRAY_X, SABA_TRAY_Z, SABA_TRAY_W, SABA_TRAY_D, TIMER_Y[1]),
-      // The aji's tray stands where the vinegar will: its three minutes are over long before the vinegar is wanted.
+      // The aji's tray has no place of its own on the small drainboard (placeAjiTray).
       make('Aji', createTray(VINEGAR_POT_W, SABA_TRAY_D), VINEGAR_POT_X, VINEGAR_POT_Z, VINEGAR_POT_W, SABA_TRAY_D, TIMER_Y[2]),
     ];
     const kohada = this.batches[0];
@@ -417,7 +421,9 @@ export class CureSystem extends createSystem({
     // The bowl of water stands in the sink from the kohada's salting till they come out of it.
     const kohada = this.batches.find((b) => b.id === 'Kohada');
     if (this.water) this.water.visible = !!kohada && (kohada.state === 'salted' || kohada.state === 'soaked' || this.fishHand?.from === 'water');
-    // The vinegar comes out once the aji's tray is off its place (and only when something is to be vinegared).
+    const aji = this.batches.find((b) => b.id === 'Aji');
+    if (aji) this.placeAjiTray(aji);
+    // The vinegar is out unless the aji's tray stands in its place (and only when something is to be vinegared).
     if (this.pot) this.pot.visible = !this.potBlocked() && this.batches.some((b) => b.id !== 'Aji' && b.coming);
     this.time += delta;
     for (const side of [0, 1] as const) this.remember(side);
@@ -721,8 +727,10 @@ export class CureSystem extends createSystem({
 
   private stock(b: Batch): void {
     for (const p of b.parts) p.visible = false;
-    if (b.id === 'Aji') b.salter.visible = false;
-    else {
+    if (b.id === 'Aji') {
+      b.salter.visible = false;
+      b.shown = false;
+    } else {
       this.judge(b, 'vinegar', b.taken, VINEGAR_MINUTES);
       this.potBy = null;
     }
@@ -928,10 +936,29 @@ export class CureSystem extends createSystem({
     }
   }
 
-  /** The aji's tray still stands where the vinegar goes. */
+  /** The aji's tray stands where the vinegar goes. */
   private potBlocked(): boolean {
     const aji = this.batches.find((b) => b.id === 'Aji');
-    return !!aji && aji.coming && aji.state !== 'done';
+    return !!aji && aji.shown && aji.atPot;
+  }
+
+  /**
+   * The aji's tray comes out as its fillets are ready to be laid: where the
+   * vinegar stands (the vinegar waits its three minutes), or, with fish in
+   * the vinegar, where their basket or tray stood (it is put away by then).
+   */
+  private placeAjiTray(b: Batch): void {
+    if (b.shown || !b.coming || b.state !== 'empty') return;
+    if (!(prep.next === 'stock' && prep.stockTo === 'cure' && prep.onBoard === 'Aji')) return;
+    const host = this.potBy ? this.batches.find((x) => x.id === this.potBy) : undefined;
+    b.atPot = !host;
+    b.home.copy(host ? host.home : this.potHome);
+    b.home.y = SINK_TOP;
+    b.salter.position.copy(b.home);
+    b.saltAt.copy(b.home);
+    b.salter.visible = true;
+    b.shown = true;
+    console.log(`[Cure] the aji's tray is out${host ? ` where the ${host.id.toLowerCase()} stood` : ' where the vinegar stands'}`);
   }
 
   /** Its time: due (the action), close (get ready at the drainboard: a few minutes before), or not yet. */
