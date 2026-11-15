@@ -53,6 +53,7 @@ import {
   CURE_MINUTE_SECONDS,
   CURE_RINSE_SECONDS,
   KOHADA_SALT_MINUTES,
+  AJI_SALT_MINUTES,
   SABA_SALT_MINUTES,
   SALT_COVER,
   SALT_PER_PINCH,
@@ -65,12 +66,14 @@ import {
   VINEGAR_MINUTES,
 } from './tuning.js';
 
-type FishId = 'Kohada' | 'Saba';
-const FISH: readonly FishId[] = ['Saba', 'Kohada'];
+type FishId = 'Kohada' | 'Saba' | 'Aji';
+const FISH: readonly FishId[] = ['Saba', 'Kohada', 'Aji'];
+const CURED: Record<FishId, NetaId> = { Kohada: 'Kohada', Saba: 'CuredMackerel', Aji: 'HorseMackerel' };
 /**
  * The kohada: empty basket, salted basket (bedded), laid, salted over, in the
  * water (soaked: the salt comes off as they go in), drained on the basket, in
  * the vinegar. The saba: empty tray, laid, salted, rinsed, in the vinegar.
+ * The aji: empty tray, laid, salted (3 minutes), rinsed, into the case.
  */
 type State = 'empty' | 'bedded' | 'laid' | 'salted' | 'soaked' | 'draining' | 'rinsed' | 'vinegar' | 'done';
 type Side = 0 | 1;
@@ -235,7 +238,7 @@ export class CureSystem extends createSystem({
   private build(): void {
     this.built = true;
     const today = todaysMaterials();
-    if (!today.includes('Kohada') && !today.includes('Saba')) return;
+    if (!FISH.some((id) => today.includes(id))) return;
     const make = (id: FishId, salter: Group, x: number, z: number, W: number, D: number, timerY: number): Batch => {
       salter.position.set(x, SINK_TOP + (id === 'Kohada' ? RIB : 0), z);
       salter.visible = today.includes(id);
@@ -251,7 +254,7 @@ export class CureSystem extends createSystem({
       timerText.visible = false;
       this.world.createTransformEntity(timerText);
       return {
-        id, neta: id === 'Kohada' ? 'Kohada' : 'CuredMackerel', salter, home: salter.position.clone(), W, D,
+        id, neta: CURED[id], salter, home: salter.position.clone(), W, D,
         bed: (salter.getObjectByName('SaltBed') as Mesh | undefined) ?? null, top: salter.getObjectByName('Salt') as Mesh,
         parts: [], saved: { salt: [], water: [], pot: [] }, state: 'empty', minutes: 0, rinse: 0, clean: false, saltAt: salter.position.clone(),
         coming: today.includes(id), timer, timerText, timerKey: NaN, taken: 0, note: '', noteTime: 0,
@@ -262,6 +265,8 @@ export class CureSystem extends createSystem({
     this.batches = [
       make('Kohada', createZaru(KOHADA_ZARU_D), KOHADA_ZARU_X, KOHADA_ZARU_Z, KOHADA_ZARU_D, KOHADA_ZARU_D, TIMER_Y[0]),
       make('Saba', createTray(SABA_TRAY_W, SABA_TRAY_D), SABA_TRAY_X, SABA_TRAY_Z, SABA_TRAY_W, SABA_TRAY_D, TIMER_Y[1]),
+      // The aji's tray stands where the vinegar will: its three minutes are over long before the vinegar is wanted.
+      make('Aji', createTray(VINEGAR_POT_W, SABA_TRAY_D), VINEGAR_POT_X, VINEGAR_POT_Z, VINEGAR_POT_W, SABA_TRAY_D, TIMER_Y[2]),
     ];
     const kohada = this.batches[0];
     if (kohada.bed) this.nextSaltSpot(kohada, kohada.bed);
@@ -412,6 +417,8 @@ export class CureSystem extends createSystem({
     // The bowl of water stands in the sink from the kohada's salting till they come out of it.
     const kohada = this.batches.find((b) => b.id === 'Kohada');
     if (this.water) this.water.visible = !!kohada && (kohada.state === 'salted' || kohada.state === 'soaked' || this.fishHand?.from === 'water');
+    // The vinegar comes out once the aji's tray is off its place (and only when something is to be vinegared).
+    if (this.pot) this.pot.visible = !this.potBlocked() && this.batches.some((b) => b.id !== 'Aji' && b.coming);
     this.time += delta;
     for (const side of [0, 1] as const) this.remember(side);
     for (const side of [0, 1] as const) this.updateHand(side);
@@ -500,7 +507,7 @@ export class CureSystem extends createSystem({
 
   /** The salter is to go under the tap: the saba's tray with its fish salted; the kohada's basket once its fish are in the water. */
   private rinseWanted(b: Batch): boolean {
-    if (b.id === 'Saba') return b.state === 'salted';
+    if (b.id !== 'Kohada') return b.state === 'salted';
     return b.state === 'soaked' && !b.clean;
   }
 
@@ -670,10 +677,15 @@ export class CureSystem extends createSystem({
         return;
       }
     }
-    if (h.from === 'salt' && (b.state === 'draining' || b.state === 'rinsed') && this.near(this.potHome, VINEGAR_POT_W, VINEGAR_POT_D, g, 0.06, 0.35)) {
-      if (this.potBy) {
+    // The aji have no vinegar: their salt off, they go into the case.
+    if (h.from === 'salt' && b.id === 'Aji' && b.state === 'rinsed' && overStation(g, StationKind.NetaCase)) {
+      this.stock(b);
+      return;
+    }
+    if (h.from === 'salt' && b.id !== 'Aji' && (b.state === 'draining' || b.state === 'rinsed') && this.near(this.potHome, VINEGAR_POT_W, VINEGAR_POT_D, g, 0.06, 0.35)) {
+      if (this.potBy || this.potBlocked()) {
         playWarn();
-        console.log(`[Cure] the vinegar has the ${this.potBy.toLowerCase()} in it: after them`);
+        console.log(`[Cure] the vinegar ${this.potBy ? `has the ${this.potBy.toLowerCase()} in it: after them` : 'is not out yet: the aji first'}`);
       } else {
         this.intoVinegar(b);
         return;
@@ -709,9 +721,12 @@ export class CureSystem extends createSystem({
 
   private stock(b: Batch): void {
     for (const p of b.parts) p.visible = false;
-    this.judge(b, 'vinegar', b.taken, VINEGAR_MINUTES);
+    if (b.id === 'Aji') b.salter.visible = false;
+    else {
+      this.judge(b, 'vinegar', b.taken, VINEGAR_MINUTES);
+      this.potBy = null;
+    }
     b.state = 'done';
-    this.potBy = null;
     const stock = Math.round(NETA[b.neta].stock * fractionOf(b.id));
     prepApi.stock(b.neta, stock);
     feedback.flash(StationKind.NetaCase, COLOR_DONE);
@@ -724,7 +739,7 @@ export class CureSystem extends createSystem({
   // ---- times ---------------------------------------------------------------------------
 
   private saltAim(b: Batch): number {
-    return b.id === 'Kohada' ? KOHADA_SALT_MINUTES : SABA_SALT_MINUTES;
+    return b.id === 'Kohada' ? KOHADA_SALT_MINUTES : b.id === 'Saba' ? SABA_SALT_MINUTES : AJI_SALT_MINUTES;
   }
 
   /** The present stage's target time (0: no timer running). */
@@ -809,7 +824,7 @@ export class CureSystem extends createSystem({
     b.timerKey = key;
     b.timerText.visible = key !== OFF_KEY;
     if (key === OFF_KEY) return;
-    const name = b.id === 'Kohada' ? 'Kohada' : 'Saba';
+    const name = b.id;
     const clock = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     setSpriteText(
       b.timerText,
@@ -828,7 +843,7 @@ export class CureSystem extends createSystem({
     let b: Batch | undefined;
     if (this.fishHand) {
       b = this.fishHand.b;
-      next = this.fishHand.from === 'pot' ? 'case' : 'move';
+      next = this.fishHand.from === 'pot' || (b.id === 'Aji' && b.state === 'rinsed') ? 'case' : 'move';
     } else if (this.trayHand) {
       b = this.trayHand.b;
       next = this.rinseWanted(b) ? 'rinse' : 'back';
@@ -870,7 +885,8 @@ export class CureSystem extends createSystem({
     else cure.dropAt.copy(cure.potAt);
     const item = this.caseItems.get(b.neta);
     if (item) item.getWorldPosition(cure.caseAt);
-    const name = b.id === 'Kohada' ? 'kohada' : 'saba';
+    if (b.id === 'Aji' && b.state === 'rinsed') cure.dropAt.copy(cure.caseAt);
+    const name = b.id.toLowerCase();
     const stage = b.state === 'salted' ? 'salt' : 'vinegar';
     const move =
       b.state === 'salted' ? `The kohada have had their salt (${this.saltWords(b)}): into the bowl of water in the sink`
@@ -879,10 +895,10 @@ export class CureSystem extends createSystem({
     cure.say =
       next === 'bed' ? 'The basket first: salt it (a pinch from the bowl, opened over the bare parts)'
       : next === 'salt' ? `Salt the ${name} over till they are fairly white: pinches from the bowl, over the bare parts`
-      : next === 'rinse' ? (b.id === 'Kohada' ? 'Rinse the salt off the basket under the tap' : `The saba have had their salt (${this.saltWords(b)}): rinse it off under the tap`)
+      : next === 'rinse' ? (b.id === 'Kohada' ? 'Rinse the salt off the basket under the tap' : `The ${name} have had their salt (${this.saltWords(b)}): rinse it off under the tap`)
       : next === 'back' ? 'Put it back'
       : next === 'move' ? move
-      : next === 'out' ? `The ${name} are done: out of the vinegar, into the case`
+      : next === 'out' ? (b.id === 'Aji' ? 'The aji are ready: out of the tray, into the case' : `The ${name} are done: out of the vinegar, into the case`)
       : next === 'case' ? 'Into the case'
       : next === 'soon' ? `Get ready: the ${name} come off the ${stage} in about ${cure.left} min`
       : `The ${name}: about ${cure.left} min more (pinch a timer to skip ahead)`;
@@ -901,14 +917,21 @@ export class CureSystem extends createSystem({
       case 'soaked':
         return b.clean ? 'move' : 'rinse';
       case 'draining':
-        return this.potBy ? 'wait' : 'move';
+        return this.potBy || this.potBlocked() ? 'wait' : 'move';
       case 'rinsed':
-        return this.potBy ? 'wait' : 'move';
+        if (b.id === 'Aji') return 'out';
+        return this.potBy || this.potBlocked() ? 'wait' : 'move';
       case 'vinegar':
         return this.timed(b.minutes, VINEGAR_MINUTES, 'out');
       default:
         return null;
     }
+  }
+
+  /** The aji's tray still stands where the vinegar goes. */
+  private potBlocked(): boolean {
+    const aji = this.batches.find((b) => b.id === 'Aji');
+    return !!aji && aji.coming && aji.state !== 'done';
   }
 
   /** Its time: due (the action), close (get ready at the drainboard: a few minutes before), or not yet. */

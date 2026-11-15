@@ -56,6 +56,8 @@ export const KOHADA_SALT_MINUTES = 40;
 export const KOHADA_SIZE_MINUTES = 0;
 /** Saba (the owner: 2-3 hours): salt 2 hours. */
 export const SABA_SALT_MINUTES = 120;
+/** Aji (the owner): salt 3 minutes, the salt rinsed off, and it is ready (no vinegar). */
+export const AJI_SALT_MINUTES = 3;
 /** The vinegar (the owner, 2026-11-10): 20 min for every fish. */
 export const VINEGAR_MINUTES = 20;
 /**

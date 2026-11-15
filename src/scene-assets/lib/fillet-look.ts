@@ -523,6 +523,16 @@ export function wholeSaba(): PrepMaterialLook {
   return roundFish({ name: 'Saba', neta: 'CuredMackerel', flesh: 'Yellowtail', skin: sabaSkin, flank: sabaFlank, fins: ['#4A5C63', '#8A989C', '#3F5058'], cure: true });
 }
 
+/**
+ * A whole aji (the full difficulty, the owner's shop): washed and filleted
+ * like the jack (三枚おろし), belly and pin bones out, the two fillets with
+ * their skin laid in a tray and salted 3 minutes, the salt rinsed off, then
+ * into the case (src/cure-system.ts).
+ */
+export function wholeAji(): PrepMaterialLook {
+  return roundFish({ name: 'Aji', neta: 'HorseMackerel', skin: ajiSkin, flank: ajiFlank, fins: ['#7C8A72', '#C8CDBE', '#8E9A6E'], cure: true });
+}
+
 interface RoundFish {
   name: string;
   neta: NetaId;
@@ -552,6 +562,26 @@ const sabaFlank = (p: Vector3, _n: Vector3, out: Color): Color => {
   const u = p.z / Math.max(0.006, at(JACK, p.x).w);
   sabaSkin(u, out);
   if (u < -0.25 && Math.sin(p.x * 260 + Math.sin(p.z * 400) * 1.6 + u * 3) > 0.45) out.lerp(sabaBand, 0.75);
+  return out;
+};
+
+const ajiBack = new Color('#55706A');
+const ajiGold = new Color('#C9C08A');
+const ajiSide = new Color('#C3CCCB');
+const ajiBelly = new Color('#EEF0EC');
+const ajiScute = new Color('#8F9A8C');
+/** The aji's skin: grey-green back, a yellowish band, silver flank, white belly. */
+function ajiSkin(u: number, out: Color): Color {
+  if (u < -0.3) return out.copy(ajiBack);
+  if (u < -0.08) return out.copy(ajiBack).lerp(ajiGold, (u + 0.3) / 0.22);
+  if (u < 0.2) return out.copy(ajiGold).lerp(ajiSide, (u + 0.08) / 0.28);
+  return out.copy(ajiSide).lerp(ajiBelly, Math.min(1, (u - 0.2) / 0.3));
+}
+/** On the fish: the line of scutes (ぜいご) along the flank's middle, toward the tail. */
+const ajiFlank = (p: Vector3, _n: Vector3, out: Color): Color => {
+  const u = p.z / Math.max(0.006, at(JACK, p.x).w);
+  ajiSkin(u, out);
+  if (p.x > 0.02 && Math.abs(u + 0.02) < 0.07 && Math.sin(p.x * 900) > -0.2) out.lerp(ajiScute, 0.7);
   return out;
 };
 

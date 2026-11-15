@@ -66,10 +66,10 @@ const PREP_STAGES: Readonly<Record<string, PrepStage>> = {
   '1-2': { words: 'tuna', materials: ['TunaBelly'], rice: false },
   '1-3': { words: 'kohada and saba, cured', materials: ['Kohada', 'Saba'], rice: false },
   '1-4': { words: 'tamago', materials: ['Tamago'], rice: false },
-  '2-1': { words: 'squid', materials: ['Squid'], rice: false },
+  '2-1': { words: 'aji and squid', materials: ['Aji', 'Squid'], rice: false },
   '2-2': { words: 'octopus', materials: ['Octopus'], rice: false },
   '2-3': { words: 'shari', materials: [], rice: true },
-  '2-4': { words: 'the whole prep', materials: [...WHITE, 'TunaBelly', 'Kohada', 'Saba', 'Tamago', 'Squid', 'Octopus'], rice: true },
+  '2-4': { words: 'the whole prep', materials: [...WHITE, 'TunaBelly', 'Kohada', 'Saba', 'Tamago', 'Aji', 'Squid', 'Octopus'], rice: true },
 };
 
 export type Game = 'stages' | 'prep' | 'shop';

@@ -276,10 +276,10 @@ export const VINEGAR_POT_X = DRAIN_SPOT_X;
 export const VINEGAR_POT_Z = SABA_TRAY_Z + SABA_TRAY_D / 2 + 0.01 + VINEGAR_POT_D / 2;
 export const WATER_BOWL_R = 0.08;
 export const WATER_BOWL_X = SINK_BASIN_X + WASH_BOARD_WIDTH / 2 - 0.09;
-/** The timers on the dish cabinet's side (its face toward the sink, -X): kohada over saba. */
+/** The timers on the dish cabinet's side (its face toward the sink, -X): kohada over saba over aji. */
 export const TIMER_X = SINK_UNIT_X + SINK_WIDTH / 2 + CABINET_GAP;
 export const TIMER_Z = BACK_ROW_Z + 0.26;
-export const TIMER_Y: readonly [number, number] = [1.2, 1.1];
+export const TIMER_Y: readonly [number, number, number] = [1.2, 1.1, 1.0];
 export const SCALER_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - SINK_END_STRIP + 0.03;
 export const DEBA_X = SINK_BASIN_X - SINK_BASIN_WIDTH / 2 - 0.04;
 /** Where the scaler's grip and the deba's bolster lie (Z). */

@@ -93,6 +93,8 @@ export class OpeningSystem extends createSystem({}) {
       }
       return;
     }
+    // A prep stage ends with the prep: no cleaning, no opening.
+    if (stage.prep && prep.done) return;
     if (prep.done && !prep.boardUsed && !prep.boardWashed) {
       // Nothing was cut on it this morning: no wash needed.
       prep.boardWashed = true;

@@ -5,7 +5,7 @@ import { type Dims, prepMaterial, roundedBlock } from './neta-look.js';
 import { flat, patterned, taperedTube, weld } from './neta-paint.js';
 import { kohadaRow } from './cure-look.js';
 import { tamagoMakings } from './tamago-look.js';
-import { flounder, hamachiHalf, stripedJack, wholeSaba } from './fillet-look.js';
+import { flounder, hamachiHalf, stripedJack, wholeAji, wholeSaba } from './fillet-look.js';
 import { ingredientLook } from './range-look.js';
 
 /**
@@ -392,6 +392,8 @@ export function prepMaterialLook(id: PrepId, kohadaSize = 1): PrepMaterialLook |
       return hamachiHalf();
     case 'Saba':
       return wholeSaba();
+    case 'Aji':
+      return wholeAji();
     case 'Kohada':
       return kohadaRow(kohadaSize);
     case 'Tamago':

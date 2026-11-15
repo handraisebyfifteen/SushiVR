@@ -73,6 +73,8 @@ export const PREP = {
   Kohada: { name: 'Kohada', stage: 4, kind: 'kohada', makes: ['Kohada'], fishBox: true, hard: true },
   /** A whole saba: washed, three pieces, belly and pin bones; the fillets salted 2-3 hours, then vinegared (skin on: it is peeled when served). */
   Saba: { name: 'Saba', stage: 4, kind: 'fillet3', makes: ['CuredMackerel'], fishBox: true, hard: true },
+  /** A whole aji (the owner: 三枚おろし): washed, three pieces, belly and pin bones; the fillets salted 3 minutes in a tray, the salt rinsed off, and into the case (no vinegar). */
+  Aji: { name: 'Aji', stage: 4, kind: 'fillet3', makes: ['HorseMackerel'], fishBox: true, hard: true },
   /** 厚焼き with scallop, made in the shop (the owner): the scallops ground in the suribachi, the eggs tapped in, mixed with chopsticks till frothy, poured into the square pan, a low flame, turned once. */
   Tamago: { name: 'Scallops and eggs', stage: 3, kind: 'simmer', makes: ['Tamago'], hard: true },
 } as const satisfies Record<string, PrepTask>;
@@ -82,7 +84,7 @@ export type PrepId = keyof typeof PREP;
 /** What the fish shop's ice box holds: the saku-taking fish, and over them the range's prepared ingredients (they come out first). */
 export const ICE_BOX_ORDER: readonly PrepId[] = ['TunaBelly', 'BonitoHalf', 'Squid', 'Octopus', 'SeaEel', 'Abalone', 'Hamaguri', 'Tamago'];
 /** The long fish box at the sink's foot, bottom first: the flounder flat on the ice, the jack and the hamachi half over it, then the saba and the row of kohada (full). */
-export const FISH_BOX_ORDER: readonly PrepId[] = ['Flounder', 'StripedJack', 'Yellowtail', 'Saba', 'Kohada'];
+export const FISH_BOX_ORDER: readonly PrepId[] = ['Flounder', 'StripedJack', 'Yellowtail', 'Saba', 'Aji', 'Kohada'];
 /** The range's ingredients that come in the fish shop's stainless inserts (中子); the anago on a plate (src/nakago-system.ts). The hamaguri come live in a net bag. */
 export const NAKAGO_IDS: readonly PrepId[] = ['Octopus', 'SeaEel', 'Abalone'];
 

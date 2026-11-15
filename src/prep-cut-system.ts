@@ -108,7 +108,8 @@ const FISH_SLOT: Partial<Record<PrepId, [number, number]>> = {
   Flounder: [0, 0],
   StripedJack: [0.066, 0.031],
   Yellowtail: [-0.068, 0.031],
-  Saba: [0.01, 0.062],
+  Saba: [0.03, 0.062],
+  Aji: [-0.05, 0.062],
   Kohada: [0, 0.09],
 };
 /** In the fish box a fish lies along the box (along X) as on the wash board: head on the chef's left facing the sink (away from it), belly toward the chef. */
