@@ -36,7 +36,7 @@ export const chef = {
   /** Set by the knife system when the knife is put down dirty; consumed per piece. */
   knifeUnwiped: false,
   /** The edge: 1 freshly sharpened, worn by every cut (src/sharpen-system.ts); the morning starts with yesterday's wear. */
-  knifeSharp: stage.on ? 1 : 0.6,
+  knifeSharp: stage.on || stage.prep ? 1 : 0.6,
   /** A cut was made with a worn edge; consumed per piece. */
   knifeDull: false,
   facingBack: false,
@@ -184,8 +184,8 @@ export type PrepNext =
 export const prep = {
   /** A nigiri stage (src/stage.ts) has no morning: it starts at the counter. */
   active: !stage.on,
-  /** The fish shop has been called, and its delivery (the ice box) has arrived. */
-  ordered: false,
+  /** The fish shop has been called (a prep stage's fish is on its way as the stage starts), and its delivery (the ice box) has arrived. */
+  ordered: stage.prep,
   delivered: false,
   /** Every prep task is finished. */
   done: stage.on,
@@ -214,6 +214,8 @@ export const prep = {
   takeId: '',
   tasksDone: 0,
   tasksTotal: 0,
+  /** The cuts' grades, counted once all the prep is done (a prep stage's points, src/office-system.ts). */
+  cutGrades: { Excellent: 0, Good: 0, Poor: 0, Bad: 0 },
   next: null as PrepNext | null,
   /** The material on the board ('' when none). */
   onBoard: '',

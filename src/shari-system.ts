@@ -1,3 +1,4 @@
+import { stage, stageRice } from './stage.js';
 import { createSystem, Group, type Mesh, type Object3D, type Sprite, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { debugLines } from './debug.js';
@@ -150,6 +151,8 @@ export class ShariSystem extends createSystem({}) {
     if (!this.findTub()) return;
     // The bar opened before the shari was in (the prep skipped); a batch of the chef's own left when the day closed (the cook sees to it).
     if (!prep.active && !this.finished && (!this.serviceBatch || day.closed || !pantryOn())) this.finish(true);
+    // A prep stage without the rice: the shari is not its work.
+    if (stage.prep && !stageRice() && !this.finished) this.finish(true);
     if (this.finished) {
       this.followStock();
       this.offerCooker(delta);

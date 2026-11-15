@@ -215,12 +215,13 @@ export class PhoneBookSystem extends createSystem({}) {
   /** The lines of the page as things are now. */
   private build(): void {
     const rows: Row[] = [];
-    if (this.page === 'lines' && (stage.on || day.closed)) {
-      // A nigiri stage has no shops to call; a day that is over has only the way on.
-      if (stage.on && stage.over) {
+    const staged = stage.on || stage.prep;
+    if (this.page === 'lines' && (staged || day.closed)) {
+      // A stage has no shops to call; a day that is over has only the way on.
+      if (staged && stage.over) {
         const next = stage.clear ? nextStageId() : null;
         rows.push({ id: 'goOn', label: stage.clear ? (next ? 'Next stage' : 'Play it again') : 'Try again', value: next ?? stage.id, enabled: true });
-      } else if (!stage.on) {
+      } else if (!staged) {
         rows.push({ id: 'goOn', label: 'Next day', value: '', enabled: true });
       }
       rows.push({ id: 'settings', label: 'Settings', value: '>', enabled: true });
@@ -244,9 +245,9 @@ export class PhoneBookSystem extends createSystem({}) {
       // The game and the stage are for the next start: "Start" loads the page again with them.
       const game = savedGame();
       const best = bestPoints(savedStageId());
-      rows.push({ id: 'game', label: 'Game', value: game === 'stages' ? 'Nigiri stages' : 'The shop (whole day)', enabled: true });
-      rows.push({ id: 'stage', label: 'Stage', value: game === 'stages' ? `${savedStageId()}${best !== null ? ` (best ${best})` : ''}` : '-', enabled: game === 'stages' });
-      rows.push({ id: 'restart', label: 'Start', value: game === 'stages' ? `stage ${savedStageId()}` : 'the shop', enabled: true });
+      rows.push({ id: 'game', label: 'Game', value: game === 'stages' ? 'Nigiri stages' : game === 'prep' ? 'Prep stages' : 'The shop (whole day)', enabled: true });
+      rows.push({ id: 'stage', label: 'Stage', value: game !== 'shop' ? `${savedStageId()}${best !== null ? ` (best ${best})` : ''}` : '-', enabled: game !== 'shop' });
+      rows.push({ id: 'restart', label: 'Start', value: game === 'stages' ? `stage ${savedStageId()}` : game === 'prep' ? `prep stage ${savedStageId()}` : 'the shop', enabled: true });
       rows.push({ id: 'playMode', label: 'Shop: difficulty', value: mode?.label ?? current, enabled: playModeSource.canChange() });
       rows.push({ id: 'hands', label: 'Hands', value: handedness.left ? 'Left-handed' : 'Right-handed', enabled: this.canChangeHands() });
       rows.push({ id: 'display', label: 'Display', value: '>', enabled: true });
@@ -327,7 +328,7 @@ export class PhoneBookSystem extends createSystem({}) {
         restart();
         return;
       case 'game':
-        setGame(savedGame() === 'stages' ? 'shop' : 'stages');
+        setGame(savedGame() === 'stages' ? 'prep' : savedGame() === 'prep' ? 'shop' : 'stages');
         console.log(`[Phone] settings: game ${savedGame()} (from the next start)`);
         return;
       case 'stage':

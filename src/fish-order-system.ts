@@ -68,7 +68,8 @@ export class FishOrderSystem extends createSystem({
   private saved = false;
 
   init(): void {
-    if (fishOrder.difficulty === 'full') startDay();
+    // A prep stage keeps no shop from day to day.
+    if (fishOrder.difficulty === 'full' && !stage.prep) startDay();
     this.cleanupFuncs.push(this.queries.items.subscribe('qualify', (e) => this.see(e)));
     for (const e of this.queries.items.entities) this.see(e);
     fishOrderApi.toggle = () => this.toggle();
@@ -104,6 +105,8 @@ export class FishOrderSystem extends createSystem({
     if (prep.active && !prep.ordered) this.morning(neta, entity);
     // A nigiri stage starts with the case full.
     else if (stage.on) entity.setValue(CaseItem, 'remaining', NETA[neta].stock);
+    // A prep stage: what the stage makes is still to come; the rest of the case is full.
+    else if (stage.prep) entity.setValue(CaseItem, 'remaining', fishOrder.lines.has(orderOf(neta)) ? 0 : NETA[neta].stock);
   }
 
   private morning(neta: NetaId, entity: Entity): void {
@@ -160,7 +163,7 @@ export class FishOrderSystem extends createSystem({
     }
     if (day.closed && !this.saved) {
       this.saved = true;
-      if (fishOrder.difficulty === 'full') {
+      if (fishOrder.difficulty === 'full' && !stage.prep) {
         closeDay((neta) => this.items.get(neta)?.getValue(CaseItem, 'remaining') ?? 0);
         console.log(`[Order] day ${fishOrder.day} closed: the case is kept for tomorrow`);
       }

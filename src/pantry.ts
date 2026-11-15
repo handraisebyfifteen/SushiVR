@@ -1,3 +1,4 @@
+import { stage } from './stage.js';
 import { fishOrder } from './fish-order.js';
 import { chef, day, prep, shari } from './game-state.js';
 import type { PieceKind } from './menu.js';
@@ -74,7 +75,8 @@ const NORI_FOR = { gunkan: 1 / GUNKAN_STRIPS_PER_SHEET, maki: 0.5 } as const;
 
 /** Whether the rice and nori run out now (the full mode). */
 export function pantryOn(): boolean {
-  return fishOrder.difficulty === 'full';
+  // A prep stage has no stock to mind.
+  return fishOrder.difficulty === 'full' && !stage.prep;
 }
 
 /** The morning: the sack and the tin as the last day left them (a new shop starts with its first stock); the ohitsu empty. */

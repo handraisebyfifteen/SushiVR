@@ -13,7 +13,7 @@ import { debugLines } from './debug.js';
 import { dayTally } from './day-tally.js';
 import { fishOrder } from './fish-order.js';
 import { COLOR_HINT, glowObject } from './feedback.js';
-import { chef, day, prep, type Side, staff, tea } from './game-state.js';
+import { chef, cure, day, prep, type Side, staff, tea } from './game-state.js';
 import { hands } from './hands.js';
 import { CUSTOMER_SEAT_Z, TSUKEDAI_CHEF_Z } from './layout.js';
 import { phoneApi } from './phone-system.js';
@@ -284,23 +284,34 @@ export class OfficeSystem extends createSystem({}) {
   private updateResults(): void {
     if (!this.sheet) return;
     const full = fishOrder.difficulty === 'full';
-    const key = `${dayTally.served}|${day.closed}|${fishOrder.difficulty}|${fishOrder.day}|${fishOrder.spoiled.length}|${stage.version}`;
+    const key = `${dayTally.served}|${day.closed}|${fishOrder.difficulty}|${fishOrder.day}|${fishOrder.spoiled.length}|${stage.version}|${prep.done}|${cure.grades.length}`;
     if (key === this.drawn) return;
     this.drawn = key;
-    const points = averagePoints(dayTally.grades);
-    if (day.closed && stage.on && !stage.over) {
+    const staged = stage.on || stage.prep;
+    // A prep stage's grades: the curing's times as they come out, and the cuts once all is done.
+    const grades = stage.prep ? { ...prep.cutGrades } : dayTally.grades;
+    if (stage.prep) for (const g of cure.grades) grades[g.grade]++;
+    const graded = stage.prep ? GRADES.reduce((n, g) => n + grades[g], 0) : dayTally.served;
+    // A prep stage with nothing graded (the octopus, the tamago, the shari) is cleared by finishing it.
+    const points = stage.prep && graded === 0 ? (prep.done ? 100 : 0) : averagePoints(grades);
+    if (stage.prep && prep.done && !stage.over) {
+      // Everything of the stage is made and put away: the stage is over (no cleaning, no opening).
+      day.closed = true;
+      this.drawn = '';
+    }
+    if (day.closed && staged && !stage.over) {
       // The stage's last customer has left: its points are final (a clear unlocks the next).
       finishStage(points);
       setSpriteText(
         this.notice,
-        stage.clear ? `Stage ${stage.id} clear! ${points} points` : `${points} points: ${CLEAR_POINTS} to clear`,
+        stage.clear ? `${stage.title} ${stage.id} clear! ${points} points` : `${points} points: ${CLEAR_POINTS} to clear`,
         { color: stage.clear ? '#FFD86B' : '#ffffff' },
       );
       this.notice.visible = true;
       // It stays up: the phone is the way on.
       this.noticeTime = Infinity;
-      console.log(`[Stage] ${stage.id} over: ${points} points, ${stage.clear ? 'clear' : 'not cleared'}`);
-    } else if (day.closed && !stage.on) {
+      console.log(`[Stage] ${stage.prep ? 'prep ' : ''}${stage.id} over: ${points} points, ${stage.clear ? 'clear' : 'not cleared'}`);
+    } else if (day.closed && !staged) {
       this.notice.visible = true;
       this.noticeTime = NOTICE_SECONDS;
       console.log(`[Day] closed: ${dayTally.served} served (${GRADES.map((g) => `${g} ${dayTally.grades[g]}`).join(', ')})`);
@@ -317,14 +328,14 @@ export class OfficeSystem extends createSystem({}) {
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
     ctx.font = 'bold 40px sans-serif';
-    const title = stage.on ? `Stage ${stage.id}` : full ? `Day ${fishOrder.day} results` : "Today's results";
-    ctx.fillText(day.closed ? (stage.on ? `${title}: ${stage.clear ? 'CLEAR' : 'not yet'}` : `${title}: closed`) : title, SHEET_W / 2, 50);
+    const title = staged ? `${stage.title} ${stage.id}` : full ? `Day ${fishOrder.day} results` : "Today's results";
+    ctx.fillText(day.closed ? (staged ? `${title}: ${stage.clear ? 'CLEAR' : 'not yet'}` : `${title}: closed`) : title, SHEET_W / 2, 50);
     // The difficulty, chosen in the phone's settings.
     ctx.fillStyle = '#5B5348';
-    fitText(ctx, stage.on ? `${stageWords()}. Clear at ${CLEAR_POINTS} points` : full ? 'Full: the case carries over, you order' : 'Easy: the usual comes, the cook fills the rest', SHEET_W / 2, 88, SHEET_W - 40, 20);
+    fitText(ctx, staged ? `${stageWords()}. Clear at ${CLEAR_POINTS} points` : full ? 'Full: the case carries over, you order' : 'Easy: the usual comes, the cook fills the rest', SHEET_W / 2, 88, SHEET_W - 40, 20);
     // The pieces served, underlined; then each grade on a ruled line.
     let y = 150;
-    figureRow(ctx, 'Served', dayTally.served, '#2B2118', y, 34);
+    figureRow(ctx, stage.prep ? 'Graded (cuts, curing)' : 'Served', graded, '#2B2118', y, 34);
     ctx.fillStyle = '#2B2118';
     ctx.fillRect(24, y + 28, SHEET_W - 48, 3);
     y += 78;
@@ -335,10 +346,10 @@ export class OfficeSystem extends createSystem({}) {
       ctx.moveTo(20, y + 24);
       ctx.lineTo(SHEET_W - 20, y + 24);
       ctx.stroke();
-      figureRow(ctx, g, dayTally.grades[g], GRADE_INK[g], y, 28);
+      figureRow(ctx, g, grades[g], GRADE_INK[g], y, 28);
       y += 50;
     }
-    if (stage.on) {
+    if (staged) {
       // The stage's points so far: the grades averaged (Excellent 100, Good 75, Poor 40, Bad 0).
       figureRow(ctx, 'Points (average)', points, points >= CLEAR_POINTS ? '#2E6B2E' : '#A3242E', y + 6, 30);
     }
@@ -348,8 +359,8 @@ export class OfficeSystem extends createSystem({}) {
       fitText(ctx, `Thrown out this morning: ${kinds} item${kinds > 1 ? 's' : ''}, ${thrown} piece${thrown > 1 ? 's' : ''}`, SHEET_W / 2, y + 10, SHEET_W - 40, 22);
     }
     if (day.closed) {
-      if (!stage.on) fitText(ctx, full ? 'Thank you. The case is kept.' : 'Thank you for today.', SHEET_W / 2, SHEET_H - 56, SHEET_W - 32, 22);
-      fitText(ctx, stage.on ? 'Point at the phone and pinch to go on.' : 'Point at the phone and pinch for the next day.', SHEET_W / 2, SHEET_H - 26, SHEET_W - 32, 22);
+      if (!staged) fitText(ctx, full ? 'Thank you. The case is kept.' : 'Thank you for today.', SHEET_W / 2, SHEET_H - 56, SHEET_W - 32, 22);
+      fitText(ctx, staged ? 'Point at the phone and pinch to go on.' : 'Point at the phone and pinch for the next day.', SHEET_W / 2, SHEET_H - 26, SHEET_W - 32, 22);
     }
     this.sheet.texture.needsUpdate = true;
   }

@@ -1,3 +1,4 @@
+import { stage } from './stage.js';
 import { createSystem, type Object3D, type Sprite, Vector3 } from '@iwsdk/core';
 import { coach } from './coach.js';
 import { COLOR_DONE, feedback } from './feedback.js';
@@ -50,7 +51,8 @@ export class PhoneSystem extends createSystem({}) {
   /** A shop's number is ringing (seconds since it was dialled). */
   private dialing: Supplier | 'rice' | null = null;
   private ring = 0;
-  private deliverIn = 0;
+  // A prep stage's delivery comes as the stage starts.
+  private deliverIn = stage.prep ? 2 : 0;
   private greensIn = 0;
   private speech!: Sprite;
   private speechTime = 0;

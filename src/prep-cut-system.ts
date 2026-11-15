@@ -49,6 +49,7 @@ import {
   FISH_STAND_HEIGHT,
 } from './layout.js';
 import { fractionOf, kohadaScale, noteAdded, todaysMaterials, todaysTaskCount } from './fish-order.js';
+import { stage, stageRice } from './stage.js';
 import { NAKAGO_IDS, PREP, type PrepId, prepTasks } from './prep.js';
 import {
   createDeba,
@@ -374,7 +375,7 @@ export class PrepCutSystem extends createSystem({
     if (this.materials.some((m) => this.fromFishBox(m))) this.buildSink(fishBox);
     this.built = true;
     // Today's tasks: what came, the work that comes with it, and the shari. Done already if nothing came.
-    prep.tasksTotal = todaysTaskCount() + 1;
+    prep.tasksTotal = todaysTaskCount() + (stage.prep && !stageRice() ? 0 : 1);
     console.log(`[Prep] the delivery is in the ice box: ${this.materials.length} material(s)`);
     this.checkDone();
   }
@@ -1505,6 +1506,7 @@ export class PrepCutSystem extends createSystem({
     if (prep.done || prep.tasksDone < prep.tasksTotal) return;
     prep.done = true;
     const all = this.materials.flatMap((x) => x.grades);
+    for (const g of all) prep.cutGrades[g]++;
     const total = Math.round(all.reduce((s, g) => s + GRADE_POINTS[g], 0) / Math.max(1, all.length));
     const grade: Grade = total >= 90 ? 'Excellent' : total >= 75 ? 'Good' : total >= 55 ? 'Poor' : 'Bad';
     const pct = Math.round((100 * this.yieldGot) / Math.max(1, this.yieldFull));

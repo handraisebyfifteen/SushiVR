@@ -1,6 +1,6 @@
 import { CASE_ORDER, NETA, type NetaId } from './menu.js';
 import { FISH_BOX_ORDER, ICE_BOX_ORDER, PREP, type PrepId, type PrepTask } from './prep.js';
-import { stage } from './stage.js';
+import { stage, stageMaterials } from './stage.js';
 import { GREENGROCER, KEEP_DAYS, KEPT_OVERNIGHT, KOHADA_SALT_MINUTES, KOHADA_SIZE_MINUTES, PREP_STAGE, START_DIFFICULTY } from './tuning.js';
 
 /**
@@ -142,8 +142,8 @@ function write(key: string, value: string | null): void {
 }
 
 export const fishOrder = {
-  /** A nigiri stage is played the easy way (nothing carried over, no stock to mind); the saved choice is the shop's. */
-  difficulty: (stage.on ? 'easy' : read(DIFFICULTY_KEY) === 'full' || read(DIFFICULTY_KEY) === 'easy' ? read(DIFFICULTY_KEY) : START_DIFFICULTY) as Difficulty,
+  /** A nigiri stage is played the easy way (nothing carried over, no stock to mind); a prep stage the full way (every fish whole, its own delivery); the saved choice is the shop's. */
+  difficulty: (stage.on ? 'easy' : stage.prep ? 'full' : read(DIFFICULTY_KEY) === 'full' || read(DIFFICULTY_KEY) === 'easy' ? read(DIFFICULTY_KEY) : START_DIFFICULTY) as Difficulty,
   /** The full difficulty's day (1 for a new shop). */
   day: 1,
   /** A shop is on the line, taking the order (full): `calling` says which. */
@@ -165,6 +165,9 @@ export const fishOrder = {
   greensOrdered: false,
   greensDelivered: false,
 };
+
+// A prep stage's delivery is ordered already: each material in its largest amount.
+for (const id of stageMaterials()) fishOrder.lines.set(id, sizesOf(id).length - 1);
 
 export function setDifficulty(d: Difficulty): void {
   fishOrder.difficulty = d;
