@@ -794,6 +794,7 @@ export class PrepCutSystem extends createSystem({
     const g = hands.all[side].grasp;
     if (c.kind === 'material') {
       c.m.root.position.copy(g).add(this.grabOffset[side]);
+      rangeApi.carried(c.m.id, c.m.root);
     } else if (c.kind === 'paper') {
       c.mesh.position.copy(g);
     } else {

@@ -1026,6 +1026,9 @@ export class MasterSystem extends createSystem({
     if ((step === 'saltCure' || step === 'rinseCure' || step === 'vinegarCure' || step === 'cureOut' || step === 'waitCure') && cure.say) return cure.say;
     if ((step === 'panOn' || step === 'turnEgg' || step === 'eggOut' || step === 'oilPan' || step === 'lidTamago' || step === 'pressLid' || step === 'turnOutTamago' || step === 'wipePan' || step === 'cupboardTamago' || step === 'suribachiOut' || step === 'saltTamago' || step === 'sugarTamago' || step === 'grindTamago' || step === 'eggsTamago' || step === 'whiskTamago' || step === 'pourTamago') && tamago.say) return tamago.say;
     if (step === 'potIn' && prep.onBoard === 'Tamago' && tamago.next === 'makings') return tamago.say;
+    if (step === 'potIn' && prep.onBoard === 'Octopus' && range.octopus) {
+      return range.octopus === 'wait' ? 'Wait for the water to boil' : range.octopus === 'dip' ? 'Dip the leg tips till they curl out' : 'Curled: into the pot';
+    }
     return STEP_WORDS[step];
   }
 

@@ -44,6 +44,8 @@ export const cureApi = {
 export const rangeApi = {
   /** A prepared ingredient let go here: true when it went into its own pot (the range keeps it from then on). */
   putIn: (_id: PrepId, _root: Object3D, _at: Vector3): boolean => false,
+  /** A material is in a hand this frame (the octopus's legs are dipped while it is held over its boiling pot). */
+  carried: (_id: PrepId, _root: Object3D): void => {},
   /** Where its pot is (world, the liquid's middle), for hints and practice. */
   potAt: (_id: PrepId, _out: Vector3): boolean => false,
   /** The bonito belly is back on the ice at this point: the range takes it from here (skewers, the net, the ice, paper). */

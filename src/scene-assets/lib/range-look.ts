@@ -170,31 +170,53 @@ function slab(L: number, H: number, W: number, r: number, y0 = 0): BufferGeometr
   return roundedBlock(L, H, W, r).translate(-L / 2, y0, 0).rotateY(Math.PI / 2);
 }
 
-/** A small octopus, salted and washed: the head up, eight legs curling out round it. */
+/**
+ * A small octopus, salted and washed: the head up, eight legs lying out
+ * round it, nearly straight. Its one morph target is the same octopus with
+ * the legs' ends curled outward and up, as they go when their tips are
+ * dipped in boiling water (src/range-system.ts sets the influence).
+ */
 function octopus(): IngredientLook {
-  const skin = tint('#7B6A6E', '#8A2E3E', 0.45);
-  const rnd = seeded('octopus-legs');
-  const parts: Array<[BufferGeometry, Matrix4]> = [];
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2 + rnd() * 0.25;
-    const path: Vector3[] = [];
-    const radii: number[] = [];
-    for (let k = 0; k <= 8; k++) {
-      const u = k / 8;
-      const reach = 0.018 + 0.055 * u;
-      const curl = u > 0.6 ? (u - 0.6) * 2.6 : 0;
-      path.push(new Vector3(Math.cos(a + curl) * reach, 0.012 - 0.006 * u + 0.012 * curl * curl, Math.sin(a + curl) * reach));
-      radii.push(0.009 * (1 - u) + 0.0018);
+  // Boiled it is red; the legs' ends redden first, when they are dipped (its second tint).
+  const skin = tint('#7B6A6E', '#A8323A', 0.45);
+  const tips = tint('#7B6A6E', '#A8323A', 0.45);
+  /** The legs from the head out to `TIP` of their length with the head, or their ends from there. */
+  const TIP = 5;
+  const body = (curled: boolean, ends: boolean): BufferGeometry => {
+    const rnd = seeded('octopus-legs');
+    const parts: Array<[BufferGeometry, Matrix4]> = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + rnd() * 0.25;
+      const path: Vector3[] = [];
+      const radii: number[] = [];
+      for (let k = ends ? TIP : 0; k <= (ends ? 8 : TIP); k++) {
+        const u = k / 8;
+        const from = curled ? 0.4 : 0.75;
+        const curl = u > from ? (u - from) * (curled ? 4.2 : 1.2) : 0;
+        const reach = 0.018 + 0.055 * u - (curled ? 0.012 * curl : 0);
+        path.push(new Vector3(Math.cos(a + curl) * reach, 0.012 - 0.006 * u + (curled ? 0.011 : 0.006) * curl * curl, Math.sin(a + curl) * reach));
+        radii.push(0.009 * (1 - u) + 0.0018);
+      }
+      parts.push([taperedTube(path, radii, 8, 0.75), new Matrix4()]);
     }
-    parts.push([taperedTube(path, radii, 8, 0.75), new Matrix4()]);
-  }
-  parts.push([new SphereGeometry(0.03, 16, 12).scale(1, 0.85, 1.15), at(0, 0.034, 0.008)]);
-  const mesh = new Mesh(mergeGeometries(parts), skin.material);
+    if (!ends) parts.push([new SphereGeometry(0.03, 16, 12).scale(1, 0.85, 1.15), at(0, 0.034, 0.008)]);
+    return mergeGeometries(parts);
+  };
+  const morphing = (ends: boolean): BufferGeometry => {
+    const geometry = body(false, ends);
+    const curledGeometry = body(true, ends);
+    geometry.morphAttributes.position = [curledGeometry.getAttribute('position')];
+    geometry.morphAttributes.normal = [curledGeometry.getAttribute('normal')];
+    return geometry;
+  };
+  const mesh = new Mesh(morphing(false), skin.material);
   mesh.name = 'Octopus';
+  const tipMesh = new Mesh(morphing(true), tips.material);
+  tipMesh.name = 'OctopusTips';
   const root = new Group();
   root.name = 'OctopusPrepared';
-  root.add(mesh);
-  return { root, tints: [skin], top: 0.06, halfWidth: 0.075 };
+  root.add(mesh, tipMesh);
+  return { root, tints: [skin, tips], top: 0.06, halfWidth: 0.075 };
 }
 
 /** Two conger eels, opened flat (背開き): white flesh up, the dark skin under. */

@@ -17,6 +17,8 @@ import {
   SINK_UNIT_Z,
   SINK_WIDTH,
   STOVE_X,
+  TIMER_X,
+  TIMER_Z,
   WALL_THICKNESS,
 } from './layout.js';
 import { NETA, type NetaId } from './menu.js';
@@ -40,6 +42,7 @@ import { playDone, playPick, playPress, playPut, playWarn } from './sfx.js';
 import { overStation, stations } from './station-system.js';
 import { CaseItem, Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
+import { createKitchenTimer, TIMER_FACE } from './scene-assets/lib/cure-look.js';
 import {
   ABALONE_REDUCE_SECONDS,
   CHILL_SECONDS,
@@ -52,9 +55,13 @@ import {
   HAMAGURI_SECONDS,
   HEAT_RATE,
   LOW_FLAME_TEMP,
-  OCTOPUS_OVER_BAD,
-  OCTOPUS_OVER_POOR,
-  OCTOPUS_SECONDS,
+  CURE_MINUTE_SECONDS,
+  OCTOPUS_DIP_SECONDS,
+  OCTOPUS_MINUTES,
+  SKIP_LEAD_SECONDS,
+  TIME_EXCELLENT,
+  TIME_GOOD,
+  TIME_POOR,
   POT_START_TEMP,
   PREP_STAGE,
   PREP_YIELD_LOSS,
@@ -133,6 +140,13 @@ const STORED: Record<PotId, Vector3> = {
   Hamaguri: new Vector3(SINK_UNIT_X + SINK_WIDTH / 4 + 0.145, 0.09, SINK_UNIT_Z - (BACK_ROW_DEPTH - 0.04) / 2 + 0.16),
 };
 const POT_PICK = 0.1;
+/** The octopus's time at the boil, in real seconds. */
+const OCTOPUS_SECONDS = OCTOPUS_MINUTES * CURE_MINUTE_SECONDS;
+/** Its kitchen timer, over the curing's three on the dish cabinet's side; a pinch this close skips ahead. */
+const OCTOPUS_TIMER_Y = 1.3;
+const TIMER_REACH = 0.09;
+/** Its leg tips are in the water when its underside is no higher than this over the surface. */
+const DIP_OVER = 0.05;
 
 /**
  * The gas range in the morning prep (stage 3), from putting things in the
@@ -178,6 +192,13 @@ export class RangeSystem extends createSystem({
   private knobGrab: { side: Side; b: Burner; held: number; steps: number } | null = null;
   private readonly rub = new RubTracker(true);
   private cookware: Object3D | null = null;
+  /** The octopus in a hand this frame; how far its leg tips have curled (0..1); it went in uncurled. */
+  private dipRoot: Object3D | null = null;
+  private dip = 0;
+  private plunged = false;
+  private timer!: Object3D;
+  private timerText!: Sprite;
+  private timerKey = NaN;
   private active = false;
   private cleared = false;
   /** Where the belly lies on the board: right of the middle, clear of the paper box and the dishes at the back. */
@@ -200,6 +221,9 @@ export class RangeSystem extends createSystem({
       out.copy(b.centre);
       return true;
     };
+    rangeApi.carried = (id, root) => {
+      if (id === 'Octopus') this.dipRoot = root;
+    };
     rangeApi.bellyOnIce = (at) => this.bellyOnIce(at);
     rangeApi.bellyByCook = () => {
       range.belly = 'done';
@@ -208,6 +232,16 @@ export class RangeSystem extends createSystem({
     if (!this.active) return;
     for (const id of POTS) this.burners.push(this.buildBurner(id));
     range.burners = this.burners.map((b) => b.view);
+    this.timer = createKitchenTimer();
+    this.timer.position.set(TIMER_X - 0.002, OCTOPUS_TIMER_Y, TIMER_Z);
+    this.timer.rotation.y = -Math.PI / 2;
+    this.timer.visible = false;
+    this.world.createTransformEntity(this.timer);
+    this.timer.updateMatrixWorld(true);
+    this.timerText = makeTextSprite(' ', { width: 0.11 });
+    this.timerText.position.copy(this.timer.localToWorld(TIMER_FACE.clone().add(this.tmp.set(0, 0, 0.008))));
+    this.timerText.visible = false;
+    this.world.createTransformEntity(this.timerText);
     this.net = createNet();
     this.world.createTransformEntity(this.net);
     this.hangNet();
@@ -259,6 +293,7 @@ export class RangeSystem extends createSystem({
       this.updatePick(side);
     }
     this.updateKnob(delta);
+    this.updateOctopus(delta);
     for (const b of this.burners) this.simmer(b, delta);
     this.updateBelly(delta);
     this.publish();
@@ -291,6 +326,20 @@ export class RangeSystem extends createSystem({
       }
       return false;
     }
+    if (id === 'Octopus') {
+      if (!(b.level >= 2 && b.temp >= 99.5)) {
+        playWarn();
+        console.log('[Range] the water is not boiling yet: the octopus goes in at the boil');
+        return false;
+      }
+      this.plunged = this.dip < 1;
+      if (this.plunged) {
+        // Straight in, it sets as it fell: out of shape.
+        root.scale.set(1.12, 0.72, 0.9);
+        playWarn();
+        console.log('[Range] the octopus went straight in, its legs not curled: it sets out of shape');
+      }
+    }
     b.ing = root;
     b.tints = (root.userData.tints as Tint[] | undefined) ?? [];
     b.state = 'cooking';
@@ -316,6 +365,63 @@ export class RangeSystem extends createSystem({
     const dx = at.x - b.centre.x;
     const dz = at.z - b.centre.z;
     return dx * dx + dz * dz < r * r && at.y > GRATE_Y && at.y < GRATE_Y + POT_SPECS[b.id].height + 0.3;
+  }
+
+  /**
+   * The octopus before it goes in, and its 45 minutes: held over its boiling
+   * pot with its leg tips in the water, they curl outward; then it is let
+   * go. Its kitchen timer counts the time at the boil down, then the time over.
+   */
+  private updateOctopus(delta: number): void {
+    const root = this.dipRoot;
+    this.dipRoot = null;
+    const b = this.burners.find((x) => x.id === 'Octopus');
+    range.octopus = '';
+    if (!b) return;
+    const boiling = b.level >= 2 && b.temp >= 99.5;
+    if (b.state === 'empty' && !b.stored) {
+      range.octopus = this.dip >= 1 ? 'in' : boiling ? 'dip' : 'wait';
+      const surface = GRATE_Y + POT_SPECS.Octopus.depth * b.liquid;
+      if (root) range.dipOff.set(b.centre.x, surface + 0.015, b.centre.z).sub(root.position);
+      if (root && boiling && this.dip < 1) {
+        const p = root.position;
+        const r = POT_SPECS.Octopus.radius;
+        if ((p.x - b.centre.x) ** 2 + (p.z - b.centre.z) ** 2 < r * r && p.y > GRATE_Y && p.y < surface + DIP_OVER) {
+          this.dip = Math.min(1, this.dip + delta / OCTOPUS_DIP_SECONDS);
+          for (const name of ['Octopus', 'OctopusTips']) {
+            const mesh = root.getObjectByName(name) as Mesh | undefined;
+            if (mesh?.morphTargetInfluences) mesh.morphTargetInfluences[0] = this.dip;
+          }
+          // The dipped ends redden as they curl.
+          const tips = (root.userData.tints as Tint[] | undefined)?.[1];
+          if (tips) tips.material.color.copy(tips.raw).lerp(tips.cooked, this.dip);
+          if (this.dip >= 1) {
+            playDone();
+            console.log('[Range] the octopus\'s legs have curled outward: in it goes');
+          }
+        }
+      }
+    }
+    // The time skipped ahead (its timer's pinch, practice mode): only while it is at the boil.
+    if (range.skip) {
+      if (b.state === 'cooking' && boiling && b.level === 3) {
+        const to = range.skip === 'aim' ? OCTOPUS_SECONDS : OCTOPUS_SECONDS - SKIP_LEAD_SECONDS;
+        if (b.progress < to) {
+          console.log(`[Range] the octopus's time skipped ahead ${((to - b.progress) / CURE_MINUTE_SECONDS).toFixed(1)} min`);
+          b.progress = to;
+        }
+      }
+      range.skip = null;
+    }
+    const timed = b.state === 'cooking' || b.state === 'done';
+    this.timer.visible = timed;
+    this.timerText.visible = timed;
+    if (!timed) return;
+    const key = b.state === 'done' ? -Math.floor(b.over) : Math.ceil(OCTOPUS_SECONDS - b.progress);
+    if (key === this.timerKey) return;
+    this.timerKey = key;
+    const s = Math.abs(key);
+    setSpriteText(this.timerText, `Octopus ${key <= 0 ? '+' : ''}${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
   }
 
   private name(b: Burner): string {
@@ -364,7 +470,8 @@ export class RangeSystem extends createSystem({
         else b.progress += delta;
       }
       done = b.progress >= OCTOPUS_SECONDS;
-      cookedness = b.progress / OCTOPUS_SECONDS;
+      // It reddens in the first minute and a half.
+      cookedness = b.progress / 90;
     } else if (b.id === 'SeaEel') {
       if (b.temp >= EEL_BAND[0] && b.temp <= EEL_BAND[1]) b.progress += delta;
       if (b.temp >= 99.5) b.over += delta;
@@ -388,8 +495,10 @@ export class RangeSystem extends createSystem({
       cookedness = 1 - b.liquid;
     }
     const scorched = b.id === 'Abalone' && b.over > SCORCH_SECONDS;
-    for (const t of b.tints) {
-      t.material.color.copy(t.raw).lerp(t.cooked, scorched ? 1 : Math.min(1, cookedness));
+    for (const [i, t] of b.tints.entries()) {
+      // The octopus's dipped leg ends are red already.
+      const k = b.id === 'Octopus' && i === 1 ? Math.max(this.dip, Math.min(1, cookedness)) : Math.min(1, cookedness);
+      t.material.color.copy(t.raw).lerp(t.cooked, scorched ? 1 : k);
       if (scorched) t.material.color.multiplyScalar(0.55);
     }
     if (done && b.state === 'cooking') {
@@ -402,7 +511,11 @@ export class RangeSystem extends createSystem({
   }
 
   private grade(b: Burner): Grade {
-    if (b.id === 'Octopus') return b.over > OCTOPUS_OVER_BAD ? 'Bad' : b.over > OCTOPUS_OVER_POOR ? 'Poor' : 'Excellent';
+    if (b.id === 'Octopus') {
+      const off = b.over / OCTOPUS_SECONDS;
+      const timed: Grade = off > TIME_POOR ? 'Bad' : off > TIME_GOOD ? 'Poor' : off > TIME_EXCELLENT ? 'Good' : 'Excellent';
+      return this.plunged && timed !== 'Bad' ? 'Poor' : timed;
+    }
     if (b.id === 'SeaEel') return b.over > EEL_BOIL_BAD ? 'Bad' : b.over > EEL_BOIL_POOR ? 'Poor' : b.over > 0.5 ? 'Good' : 'Excellent';
     if (b.id === 'Hamaguri') return b.over > HAMAGURI_OVER_BAD ? 'Bad' : b.over > HAMAGURI_OVER_POOR ? 'Poor' : 'Excellent';
     // Dry on the flame: a moment is nothing, then it catches, then it scorches.
@@ -414,12 +527,15 @@ export class RangeSystem extends createSystem({
     let text = '';
     if (b.state === 'cooking' || b.state === 'done' || (b.state === 'empty' && b.level > 0)) {
       const t = `${Math.round(b.temp)}°C`;
+      if (b.id === 'Octopus' && b.state === 'empty') {
+        text = !(b.level >= 2 && b.temp >= 99.5) ? t : this.dip >= 1 ? 'Curled: in it goes' : this.dip > 0 ? 'The legs are curling' : 'Boiling: dip the leg tips';
+      } else
       if (b.id === 'SeaEel') {
         text = b.temp >= 99.5 ? `${t} boiling!` : b.state === 'done' ? `${t} done` : `${t} eel ${Math.round((100 * b.progress) / EEL_SECONDS)}%`;
       } else if (b.id === 'Hamaguri') {
         text = b.state === 'done' ? (b.level > 0 ? 'Open: flame off' : 'Open') : b.temp >= 99.5 && b.level >= 2 ? `Boiling ${Math.round((100 * b.progress) / HAMAGURI_SECONDS)}%` : `${t}`;
       } else if (b.id === 'Octopus') {
-        text = b.state === 'done' ? (b.level > 0 ? 'Done: flame off' : 'Done') : b.temp >= 99.5 && b.level === 3 ? `Boiling ${Math.round((100 * b.progress) / OCTOPUS_SECONDS)}%` : `${t}`;
+        text = b.state === 'done' ? (b.level > 0 ? 'Done: flame off' : 'Done') : b.temp >= 99.5 && b.level === 3 ? `Boiling: ${Math.ceil((OCTOPUS_SECONDS - b.progress) / CURE_MINUTE_SECONDS)} min` : `${t}`;
       } else {
         text = b.over > SCORCH_SECONDS ? 'Scorched' : b.state === 'done' ? (b.level > 0 ? 'Liquid gone: off!' : 'Done') : `Liquid ${Math.round(100 * b.liquid)}%`;
       }
@@ -439,6 +555,11 @@ export class RangeSystem extends createSystem({
     const g = hand.grasp;
     // A knob (the nearest within reach of the pinch, judged where the fingers were before they closed; the knobs are 13 cm apart): one click along.
     const aimed = hand.pinchPoint(this.pinchAt);
+    if (this.timer.visible && aimed.distanceTo(this.timer.position) < TIMER_REACH) {
+      range.skip = 'near';
+      playPress();
+      return;
+    }
     let near: Burner | null = null;
     let nearest = KNOB_PICK;
     for (const b of this.burners) {
@@ -611,6 +732,7 @@ export class RangeSystem extends createSystem({
     const full = NETA[neta].stock;
     const stock = Math.max(Math.ceil(full / 2), full - PREP_YIELD_LOSS[grade]);
     prepApi.stock(neta, stock);
+    prep.cutGrades[grade]++;
     b.ing!.visible = false;
     b.ing = null;
     this.putAway(b);
@@ -899,10 +1021,13 @@ export class RangeSystem extends createSystem({
       let target = 0;
       let want: BurnerView['want'] = '';
       if (b.state === 'cooking') target = b.id === 'SeaEel' ? (b.temp < EEL_BAND[0] - 1 ? 3 : 1) : 3;
+      // The octopus goes into boiling water: its flame is lit as soon as its pot is on the burner.
+      const octopusWater = b.id === 'Octopus' && b.state === 'empty' && !b.stored && prepApi.potWanted(b.id);
+      if (octopusWater) target = 3;
       if (b.state === 'out' && range.netOn === i && range.belly === 'net' && !range.bellySeared) target = 3;
       if (b.state === 'out' && range.panOn === i) target = range.panTarget;
       if (b.level !== target) want = 'knob';
-      else if (b.state === 'empty') want = 'put';
+      else if (b.state === 'empty') want = octopusWater && b.temp < 99.5 ? '' : 'put';
       // The hamaguri wait in their pot (the flame off) while the board is in use.
       else if (b.state === 'done' && (b.id !== 'Hamaguri' || prepApi.boardFree())) want = 'take';
       const v = b.view;

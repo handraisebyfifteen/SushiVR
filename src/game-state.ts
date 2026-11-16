@@ -390,6 +390,12 @@ export const range = {
   /** The burner the tamago's pan is on (-1: on its hook), and the flame it wants (0 off, 1 low). */
   panOn: -1,
   panTarget: 0,
+  /** The octopus before it goes in: its water not boiling yet, its leg tips to be dipped till they curl, curled and ready ('' otherwise). */
+  octopus: '' as '' | 'wait' | 'dip' | 'in',
+  /** While the octopus is in a hand: from where it is to where its leg tips are in the water (practice mode moves the hand by this). */
+  dipOff: new Vector3(),
+  /** Asked for: the octopus's 45 minutes skipped ahead, to a little before the time (its timer's pinch) or to the time itself (practice mode). */
+  skip: null as 'near' | 'aim' | null,
 };
 
 export type CupboardSide = 'left' | 'right';

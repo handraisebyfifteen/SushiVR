@@ -179,10 +179,16 @@ export const EEL_BAND: readonly [number, number] = [85, 95];
 export const EEL_SECONDS = 30;
 export const EEL_BOIL_POOR = 4;
 export const EEL_BOIL_BAD = 10;
-/** The octopus is cooked (炊く) at a rolling boil on a high flame; boiled on past it, it toughens (seconds for Poor, Bad). */
-export const OCTOPUS_SECONDS = 20;
-export const OCTOPUS_OVER_POOR = 10;
-export const OCTOPUS_OVER_BAD = 25;
+/**
+ * The octopus (the owner, 2026-11-16): dropped straight in it sets in an odd
+ * shape, so first the tips of its legs (a fifth of them) are dipped in the
+ * boiling water till they curl outward (this many seconds); then it goes in
+ * and is cooked (炊く) at a rolling boil on a high flame for 45 minutes of
+ * the shop's real time (CURE_MINUTE_SECONDS; its kitchen timer's pinch skips
+ * ahead). Boiled on past that it toughens, graded like the curing's times.
+ */
+export const OCTOPUS_DIP_SECONDS = 2.5;
+export const OCTOPUS_MINUTES = 45;
 /** The hamaguri: seconds at the boil till the shells open; then boiled on this long they are a little tough (Poor), this long rubbery (Bad). */
 export const HAMAGURI_SECONDS = 12;
 export const HAMAGURI_OVER_POOR = 15;

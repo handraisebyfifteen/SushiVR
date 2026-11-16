@@ -24,9 +24,9 @@ no installation: open the URL and start making sushi.
   1-1 white fish (striped jack, hamachi, flounder), 1-2 tuna, 1-3 kohada and
   saba (salted and vinegared, on kitchen timers), 1-4 tamago, 2-1 aji and
   squid, 2-2 octopus, 2-3 the shari, 2-4 all of it together. The grades of the
-  cuts and of the curing times are averaged the same way, and 65 points clear
-  the stage; a stage with nothing graded (the tamago, the octopus, the shari)
-  is cleared by finishing it.
+  cuts, of the curing times and of what comes off the range (the octopus) are
+  averaged the same way, and 65 points clear the stage; a stage with nothing
+  graded (the tamago, the shari) is cleared by finishing it.
 - **The shop** (the whole day): the morning prep, the service and the closing,
   easy or full, as described below.
 
@@ -252,8 +252,14 @@ and the pots go on first, the fish is cut while they cook.
    master asks for this before the fish
    under them, and the bar does not open with them left (the part-timer's
    cleanup covers them).
-   - Octopus: 炊く, at a rolling boil on a high flame. Boiled on long after it
-     is done, it toughens.
+   - Octopus: its pot's flame is lit first (high). Dropped straight into
+     the water it sets in an odd shape, so at the boil hold it over the pot
+     with the tips of its legs (about a fifth) in the water: they redden and
+     curl outward. Then let it go into the pot and cook it (炊く) at a
+     rolling boil on a high flame for 45 minutes of real time; it turns red.
+     Its kitchen timer hangs over the curing's (a pinch on it skips ahead
+     to 20 seconds before the time). Boiled on past the time it toughens; one
+     that went straight in, uncurled, is a Poor at best.
    - Conger eel: 煮る with the broth held at 90 degrees (the word over the
      pan is its thermometer): bring it up on high, then turn it down to low
      before it boils. Boiling breaks the eel up.
@@ -401,7 +407,7 @@ and the pots go on first, the fish is cut while they cook.
      times are the shop's guide and the master tells them; shops differ, so
      no time costs pieces (`src/cure-system.ts`). A few minutes before a
      fish's time the master calls you over to be ready.
-   - The aji too (full): washed and filleted in three like the jack, belly
+   - The aji too (full; about a third of the jack's weight, so smaller): washed and filleted in three like the jack, belly
      and pin bones out. Its tray comes out when the fillets are ready (where
      the vinegar stands, or where a basket or tray has been put away): salt
      it till white, 3 minutes on its own kitchen timer, rinse the salt off

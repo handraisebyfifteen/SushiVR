@@ -23,7 +23,7 @@ import { fishOrderApi } from './fish-order-system.js';
 import { type Kind, stations } from './station-system.js';
 import { CaseItem, Customer, Held, NigiriStage, Piece, StationKind } from './sushi-components.js';
 import { TurnSystem } from './turn-system.js';
-import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, SHARI_SCOOPS } from './tuning.js';
+import { AWASEZU_SECONDS, CURE_RINSE_SECONDS, OCTOPUS_DIP_SECONDS, SHARI_SCOOPS } from './tuning.js';
 import { chefRiceInService, pantry } from './pantry.js';
 import { phoneBookApi, type PhoneRowId } from './phone-book-system.js';
 import { phoneApi } from './phone-system.js';
@@ -365,6 +365,7 @@ export class PracticeSystem extends createSystem({
     this.clock += delta;
     // The curing runs in the shop's real time: the driver skips each wait to its time.
     if (cure.next === 'wait' || cure.next === 'soon') cure.skip = 'aim';
+    if (range.burners.some((b) => b.id === 'Octopus' && b.state === 'cooking' && b.level === 3 && b.temp >= 99.5)) range.skip = 'aim';
     this.updateShake(delta, device);
     for (const d of this.driver) this.updateHand(d, delta, d.side === 0 ? device.hands.left : device.hands.right);
     this.trackHeading();
@@ -1705,6 +1706,13 @@ export class PracticeSystem extends createSystem({
         // The tamago's scallops go into the suribachi on the work table.
         const tamagoIn = prep.onBoard === 'Tamago';
         if (!this.reachPlace(tamagoIn ? 'table' : 'range', 'back', other)) return;
+        if (prep.onBoard === 'Octopus' && range.octopus === 'wait') return this.say('The water is not boiling yet');
+        if (prep.onBoard === 'Octopus' && range.octopus === 'dip') {
+          // Its leg tips into the boiling water till they curl; the next press lets it go.
+          if (this.driver[held].busy) return this.say('Hands are busy');
+          const to = hands.all[held].grasp.clone().add(range.dipOff);
+          return this.run(held, 'Dipping the leg tips', [move(to, v(0, 0.12, 0), 'grasp', 0.45), move(to, v(0, 0, 0), 'grasp', 0.3), wait(OCTOPUS_DIP_SECONDS + 0.8)]);
+        }
         return this.dropAt(held, prep.slotAt.clone().add(v(0, 0.08, 0)), tamagoIn ? 'Into the suribachi' : 'Into its pot');
       }
       if (range.ingHeld || (range.bellyHeld && range.belly === 'free')) {

@@ -530,7 +530,43 @@ export function wholeSaba(): PrepMaterialLook {
  * into the case (src/cure-system.ts).
  */
 export function wholeAji(): PrepMaterialLook {
-  return roundFish({ name: 'Aji', neta: 'HorseMackerel', skin: ajiSkin, flank: ajiFlank, fins: ['#7C8A72', '#C8CDBE', '#8E9A6E'], cure: true });
+  return shrink(roundFish({ name: 'Aji', neta: 'HorseMackerel', skin: ajiSkin, flank: ajiFlank, fins: ['#7C8A72', '#C8CDBE', '#8E9A6E'], cure: true }), AJI_SCALE);
+}
+
+/**
+ * The aji beside the striped jack (the owner): about a third of its weight
+ * (a jack of 1.2-1.5 kg, an aji of 400-500 g), so about 0.69 of its length.
+ */
+const AJI_SCALE = Math.cbrt(0.33);
+
+/** A look made smaller all through: its meshes, where its parts lie, and every point and line of its steps. */
+function shrink(look: PrepMaterialLook, k: number): PrepMaterialLook {
+  look.root.traverse((o) => {
+    if (o === look.root) return;
+    o.position.multiplyScalar(k);
+    const mesh = o as Mesh;
+    if (mesh.isMesh) mesh.geometry = mesh.geometry.clone().scale(k, k, k);
+  });
+  for (const s of look.steps) {
+    if (s.kind === 'cut') {
+      s.at *= k;
+      s.mid *= k;
+      s.len *= k;
+    } else if (s.kind === 'pull') {
+      s.netaAt.multiplyScalar(k);
+      s.riceAt.multiplyScalar(k);
+    } else if (s.kind === 'turn' || s.kind === 'rinse') s.at.multiplyScalar(k);
+    for (const sh of s.shift ?? []) {
+      sh[1] *= k;
+      sh[2] *= k;
+      if (sh[3] !== undefined) sh[3] *= k;
+    }
+  }
+  look.length *= k;
+  look.halfWidth *= k;
+  look.top *= k;
+  if (look.turnable) look.turnable.thickness *= k;
+  return look;
 }
 
 interface RoundFish {
