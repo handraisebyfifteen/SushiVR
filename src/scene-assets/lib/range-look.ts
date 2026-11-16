@@ -180,8 +180,12 @@ function octopus(): IngredientLook {
   // Boiled it is red; the legs' ends redden first, when they are dipped (its second tint).
   const skin = tint('#7B6A6E', '#A8323A', 0.45);
   const tips = tint('#7B6A6E', '#A8323A', 0.45);
-  /** The legs from the head out to `TIP` of their length with the head, or their ends from there. */
-  const TIP = 5;
+  /** Each leg in STEPS stations; from the head out to `TIP` with the head, its outer fifth (dipped first) on its own. */
+  const STEPS = 10;
+  const TIP = 8;
+  /** Curled, each leg runs out straight to CURL_FROM of its length, then its end rolls up and back over (suckers outside) on a circle this size. */
+  const CURL_FROM = 0.72;
+  const CURL_R = 0.0065;
   const body = (curled: boolean, ends: boolean): BufferGeometry => {
     const rnd = seeded('octopus-legs');
     const parts: Array<[BufferGeometry, Matrix4]> = [];
@@ -189,12 +193,20 @@ function octopus(): IngredientLook {
       const a = (i / 8) * Math.PI * 2 + rnd() * 0.25;
       const path: Vector3[] = [];
       const radii: number[] = [];
-      for (let k = ends ? TIP : 0; k <= (ends ? 8 : TIP); k++) {
-        const u = k / 8;
-        const from = curled ? 0.4 : 0.75;
-        const curl = u > from ? (u - from) * (curled ? 4.2 : 1.2) : 0;
-        const reach = 0.018 + 0.055 * u - (curled ? 0.012 * curl : 0);
-        path.push(new Vector3(Math.cos(a + curl) * reach, 0.012 - 0.006 * u + (curled ? 0.011 : 0.006) * curl * curl, Math.sin(a + curl) * reach));
+      for (let k = ends ? TIP : 0; k <= (ends ? STEPS : TIP); k++) {
+        const u = k / STEPS;
+        let r = 0.018 + 0.055 * u;
+        let y = 0.012 - 0.006 * u;
+        let turn = 0;
+        if (!curled) {
+          // Raw, it lies loose: the ends drift a little to one side.
+          if (u > 0.75) turn = (u - 0.75) * 1.2;
+        } else if (u > CURL_FROM) {
+          const th = ((u - CURL_FROM) * 0.055) / CURL_R;
+          r = 0.018 + 0.055 * CURL_FROM + CURL_R * Math.sin(th);
+          y = 0.012 - 0.006 * CURL_FROM + CURL_R * (1 - Math.cos(th));
+        }
+        path.push(new Vector3(Math.cos(a + turn) * r, y, Math.sin(a + turn) * r));
         radii.push(0.009 * (1 - u) + 0.0018);
       }
       parts.push([taperedTube(path, radii, 8, 0.75), new Matrix4()]);
