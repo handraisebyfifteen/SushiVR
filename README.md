@@ -184,16 +184,16 @@ are kept from day to day (saved in the browser). Day 1 starts with one
 
 - The rice is cooked 1 or 1.5 sho at a time (1 sho = 1.5 kg of raw rice,
   out of the sack), and 1 sho makes about 3.3 kg of shari, some 170
-  nigiri. With too little in the sack the cooker is not lit.
+  nigiri. With too little in the sack no rice goes into the cooker.
 - The bar takes its shari from the ohitsu: 19 g for a nigiri or a gunkan,
   90 g for a roll (the tekka too), 30 g for an inari. An empty ohitsu
   gives nothing.
 - Nori: a gunkan strip is a sixth of a sheet (6切り), a roll a half sheet.
 - More rice during the service, the chef's choice. Either cook it
-  yourself: step to the work table and light the cooker again (1 or 1.5
-  sho), then the morning's steps (the hangiri, the awasezu, the paddle,
+  yourself: step to the work table and put rice into the cooker again (1
+  or 1.5 sho; it soaks, then you light it), then the morning's steps (the hangiri, the awasezu, the paddle,
   the ohitsu); while the ohitsu is at the work table, the bar has no
-  rice. Or call the cook on the phone (1 or 1.5 sho, done in about 80
+  rice. Or call the cook on the phone (1 or 1.5 sho, done in about 95
   s). There is one cooker: while one batch is on, the phone's cook rows
   read "cooking" (the cook's) or "cooker in use" (your own).
 - The rice shop is on the phone: sacks of rice and packs of 10 sheets of
@@ -230,8 +230,10 @@ and the pots go on first, the fish is cut while they cook.
    hand held out like that passes over the neta case without opening its
    doors or taking from it.
 2. The rice: step to the work table, point at the gas rice cooker under it
-   and pinch (on full, one of the two marks beside it: 1 or 1.5 sho). It cooks, goes out by itself and steams (a word over the
-   table counts it down).
+   and pinch (on full, one of the two marks beside it: 1 or 1.5 sho): the
+   rice goes in with its water and soaks (浸水). When it has soaked, point
+   at the cooker and pinch again to light it. It cooks, goes out by itself
+   and steams (a word over the table counts each of these down).
 3. The range: on top in the ice box lie the octopus, the conger eel and the
    abalone, prepared by the fish shop, and the live hamaguri in a net bag
    (the gourd strips are bought ready simmered: no prep). Take each (either
@@ -706,7 +708,7 @@ the next step with the board (lift, wash, stand, lift, put back; T turns
 around between), ] points at the noren and pinches (to open, and again to
 close), ; and ' point at the cook's and the part-timer's call buttons, = at the phone, Shift+= at the difficulty sign, Tab (on the phone, full) orders every case item under half, a full amount, then ends the call, Shift+8 starts the full difficulty's shop again from day 1 (at the next reload), Shift+K changes hands (left- or right-handed; the morning, before the call); O skips the prep and opens the bar. At the back row, A does the
 next step of the shari (in service on full, with the cooker free, it
-lights another batch of 1 sho and goes on through its steps) and Enter the next thing at the range (a knob, an
+puts another batch of 1 sho in to soak and goes on through its steps) and Enter the next thing at the range (a knob, an
 ingredient into its pot or out to the case, the net, the bonito belly),
 each stepping there and turning as needed; / steps to where you look (the
 work table, the range, the sink, or back to the board), and Tab does
