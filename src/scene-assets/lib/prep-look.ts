@@ -31,8 +31,14 @@ export interface PrepEffect {
   scrap?: string[];
   hide?: string[];
   show?: string[];
-  /** The fish rolls over about its length (its turnable group). */
-  flip?: boolean;
+  /**
+   * How the fish lies after the step (its turnable group): as built ('up':
+   * belly +Z, head -X), rolled over on its length ('over': the other side up,
+   * belly -Z), or turned over end over end ('endOver': the other side up,
+   * belly still +Z, head +X). The owner: a fish is worked belly toward the
+   * chef, so its turns are end over end wherever it can be.
+   */
+  lie?: 'up' | 'over' | 'endOver';
   /** Done on the wash board at the sink (水洗い), not on the manaita. */
   sink?: boolean;
 }

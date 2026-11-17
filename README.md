@@ -350,16 +350,19 @@ and the pots go on first, the fish is cut while they cook.
      the scaler on the strip right of the basin and scrape it over the fish
      again and again until the scales are off; pinch the fish and lift it a
      little to turn it over, and scale that side. Grip the deba beside the
-     scaler with a fist and cut off the head (the jack's belly is opened
-     too), pull the guts out with the right hand while the left holds the
+     scaler with a fist and cut off the head (head on your left). Then
+     pinch it and lift it to turn it round, belly toward you (a fish is
+     worked belly toward you), open the jack's belly, pull the guts out with the right hand while the left holds the
      fish, then rub the belly clean under the tap. The head and guts go in
      the trash bin by the sink.
    - Filleting: carry the washed fish back to the board. The jack in three
-     pieces (三枚おろし): belly toward you, cut along the belly and the back
-     to the bone, lift the fillet off; turn it, the same again; the bone is
-     thrown out. The flounder in five (五枚おろし), dark side up: down the
-     middle to the bone and along the fins on both edges, the back and
-     belly fillets lifted; turned, the same on the white side.
+     pieces (三枚おろし): turn it over end over end, head right and belly
+     toward you, cut along the belly and the back to the bone, lift the
+     fillet off; turn it over end over end again (head left now, the belly
+     still toward you), the same again; the bone is thrown out. The flounder
+     in five (五枚おろし), dark side up, belly toward you: down the middle to
+     the bone and along the fins on both edges, the back and belly fillets
+     lifted; turned end over end, the same on the white side.
    - Each fillet: the belly bones shaved off, the pin bones pulled with the
      tweezers (on the board's back row: pinch them, touch a bone with the
      tips and lift), the skin pulled off with the knife (mid-sized fish are

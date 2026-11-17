@@ -1278,11 +1278,10 @@ export class PrepCutSystem extends createSystem({
       // Root-local offsets, in the part's own parent's frame (a part in the fish's group may be rolled over).
       if (p) p.position.add(p.parent === m.root || !p.parent ? this.tmp.set(dx, dy, dz) : this.tmp.set(dx, dy, dz).applyQuaternion(this.quat.copy(p.parent.quaternion).invert()));
     }
-    if (s.flip && m.look.turnable) {
+    if (s.lie && m.look.turnable) {
       const { group, thickness } = m.look.turnable;
-      const over = group.rotation.x === 0;
-      group.rotation.x = over ? Math.PI : 0;
-      group.position.y = over ? thickness : 0;
+      group.rotation.set(s.lie === 'over' ? Math.PI : 0, 0, s.lie === 'endOver' ? Math.PI : 0);
+      group.position.y = s.lie === 'up' ? 0 : thickness;
     }
     for (const name of s.hide ?? []) {
       const p = m.parts.get(name);
