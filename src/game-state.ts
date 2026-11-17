@@ -136,6 +136,11 @@ export const progress = {
   fillings: 0,
   rolled: false,
   squeezed: false,
+  /** The squeezed roll is off the mat, on the bare board (it is cut there); a hand holds it on its way. */
+  rollOnBoard: false,
+  rollHeld: false,
+  /** Where on the board the roll is laid to be cut (world): clear of the mat, on the knife's side. */
+  rollSpot: new Vector3(),
   cutsDone: 0,
   cutsNeeded: 0,
   /** Where the next cut of the roll goes (world), and the middle of the roll or mat. */

@@ -1479,6 +1479,8 @@ export class PracticeSystem extends createSystem({
       case 'toCase':
       case 'clamsBoard':
         return this.rangeKey();
+      case 'rollToBoard':
+        return this.rollToBoard();
       default:
         return this.say(`Tab does not do "${step}": use its own key`);
     }
@@ -2240,10 +2242,33 @@ export class PracticeSystem extends createSystem({
   }
 
   /** X on a roll: the neta hand steadies the roll, the blade is drawn across the next guide line. */
+  /** Tab: the squeezed roll pinched off the mat and laid on the bare board, to be cut there. */
+  private rollToBoard(): void {
+    const neta = chef.netaSide;
+    if (!this.ready(neta, Held.None)) return;
+    const roll = progress.pieceAt.clone();
+    const spot = progress.rollSpot.clone();
+    this.run(neta, 'The roll onto the board', [
+      pinch(0),
+      move(roll, v(0, 0.06, 0), 'grasp', 0.35),
+      move(roll, v(0, 0.012, 0), 'grasp', 0.2),
+      wait(0.2),
+      pinch(1),
+      wait(0.12),
+      move(roll, v(0, 0.08, 0), 'grasp', 0.25),
+      move(spot, v(0, 0.08, 0), 'grasp', 0.4),
+      move(spot, v(0, 0.015, 0), 'grasp', 0.2),
+      pinch(0),
+      wait(0.1),
+      this.rest(neta),
+    ]);
+  }
+
   private cutRoll(): void {
     const rice = chef.riceSide;
     const neta = chef.netaSide;
     if (!progress.squeezed) return this.say('Roll and squeeze it first (I, Space)');
+    if (!progress.rollOnBoard) return this.say('Off the mat onto the board first (Tab)');
     if (progress.cutsDone >= progress.cutsNeeded) return this.say('All cut: put the knife down (W, K), carry it (M)');
     if (this.driver[rice].busy || this.driver[neta].busy) return this.say('Hands are busy');
     const roll = progress.pieceAt.clone();

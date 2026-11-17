@@ -4,7 +4,9 @@ import { knifeApi } from '../cutting-system.js';
 import { COLOR_DONE, COLOR_WARN, feedback } from '../feedback.js';
 import { chef, orderKind, progress, service, wearKnife } from '../game-state.js';
 import type { HandReader } from '../hand-reader.js';
+import { sideX } from '../handedness.js';
 import { hands } from '../hands.js';
+import { MANAITA_TOP } from '../layout.js';
 import { CORE_FROM, MENU, menuFor, NETA, type NetaId, rollCore } from '../menu.js';
 import { caseApi } from '../neta-case-system.js';
 import { canTakeNori, useNori, useShari } from '../pantry.js';
@@ -120,6 +122,10 @@ export class MakiAssembly implements Assembly {
   /** Where the core's slice lies (world); the piece itself stays on the mat. */
   private readonly coreAt = new Vector3();
   private cutStartZ: number | null = null;
+  /** The squeezed roll is off the mat, on the bare board; the hand lifting it there, and where it was taken by. */
+  private onBoard = false;
+  private lifting: 0 | 1 | null = null;
+  private readonly liftOffset = new Vector3();
   private time = 0;
   private matOpen: boolean | null = null;
   private matOpenMesh: Object3D | null = null;
@@ -202,6 +208,7 @@ export class MakiAssembly implements Assembly {
       else this.updateFilling(riceHand);
     } else if (!this.rolled) this.updateRoll(riceHand, netaHand);
     else if (!this.squeezed) this.updateSqueeze(riceHand, netaHand);
+    else if (!this.onBoard) this.updateLift();
     else this.updateCut(netaHand);
   }
 
@@ -456,6 +463,54 @@ export class MakiAssembly implements Assembly {
     console.log(`[Maki] squeezed firm: ${judge}`);
   }
 
+  // ---- 7b: off the mat, onto the board ------------------------------------------------
+
+  /** Where the roll is laid to be cut: on the bare board, the knife's side of the mat, level with it (clear of the wasabi and tezu at the back). */
+  private boardSpot(out: Vector3): Vector3 {
+    const board = stations.get(StationKind.CuttingBoard);
+    return out.set((board?.pos.x ?? 0) + sideX(0.1), MANAITA_TOP + 0.002, (board?.pos.z ?? 0) + 0.08);
+  }
+
+  /**
+   * The squeezed roll is not cut on the makisu: either hand pinches it and
+   * lifts it off the mat; let go over the bare board (not the mat) it lies
+   * there to be cut; let go anywhere else, it goes back onto the mat.
+   */
+  private updateLift(): void {
+    const core = this.core;
+    if (this.lifting === null) {
+      for (const side of [chef.netaSide, chef.riceSide] as const) {
+        const hand = hands.all[side];
+        if (!hand.tracked || !hand.pinchStart || chef.hands[side].holding !== Held.None) continue;
+        const g = hand.grasp;
+        if (Math.hypot(g.x - core.focus.x, g.z - core.focus.z) > 0.1 || Math.abs(g.y - core.focus.y) > 0.08) continue;
+        this.lifting = side;
+        this.liftOffset.copy(core.netaOnBoard).sub(g);
+        chef.hands[side].holding = Held.Sushi;
+        console.log('[Maki] the roll off the mat');
+        return;
+      }
+      return;
+    }
+    const side = this.lifting;
+    const hand = hands.all[side];
+    if (hand.tracked) core.netaOnBoard.copy(hand.grasp).add(this.liftOffset);
+    if (hand.tracked && !hand.pinchEnd) return;
+    this.lifting = null;
+    chef.hands[side].holding = Held.None;
+    const g = hand.grasp;
+    if (overStation(g, StationKind.CuttingBoard) && !overStation(g, StationKind.Makisu)) {
+      core.netaOnBoard.set(g.x + this.liftOffset.x, MANAITA_TOP + 0.002, g.z + this.liftOffset.z);
+      this.onBoard = true;
+      feedback.flash(StationKind.CuttingBoard, COLOR_DONE);
+      coach.done('rollToBoard');
+      console.log('[Maki] the roll on the board, to be cut');
+      return;
+    }
+    this.matCentre(core.netaOnBoard);
+    console.log('[Maki] the roll back on the mat: it is cut on the board');
+  }
+
   // ---- 8: cut -------------------------------------------------------------------
 
   private updateCut(neta: HandReader): void {
@@ -614,8 +669,12 @@ export class MakiAssembly implements Assembly {
         else if (!progress.sakuOnBoard) feedback.hints.add(StationKind.NetaCase);
         else feedback.hints.add(knifeApi.held ? StationKind.CuttingBoard : StationKind.Knife);
       } else feedback.hints.add(this.carriedItem ? StationKind.Makisu : StationKind.NetaCase);
-    } else if (!this.squeezed || knifeApi.held) {
+    } else if (!this.squeezed) {
       feedback.hints.add(StationKind.Makisu);
+    } else if (!this.onBoard) {
+      feedback.hints.add(this.lifting === null ? StationKind.Makisu : StationKind.CuttingBoard);
+    } else if (knifeApi.held) {
+      feedback.hints.add(StationKind.CuttingBoard);
     } else if (this.strokes < strokesFor(this.pieces)) {
       feedback.hints.add(StationKind.Knife);
     }
@@ -635,6 +694,9 @@ export class MakiAssembly implements Assembly {
     this.carriedNeta = null;
     this.rollStartZ = null;
     this.cutStartZ = null;
+    if (this.lifting !== null) chef.hands[this.lifting].holding = Held.None;
+    this.onBoard = false;
+    this.lifting = null;
     this.strokes = 0;
     this.thick = false;
     this.length = ROLL_LENGTH;
@@ -657,6 +719,9 @@ export class MakiAssembly implements Assembly {
     progress.fillings = this.placed.length;
     progress.rolled = this.rolled;
     progress.squeezed = this.squeezed;
+    progress.rollOnBoard = this.onBoard;
+    progress.rollHeld = this.lifting !== null;
+    this.boardSpot(progress.rollSpot);
     progress.cutsDone = this.strokes;
     progress.cutsNeeded = strokesFor(this.pieces);
     progress.coreOnBoard = !!this.coreOnBoard && !this.coreHeld;
@@ -667,6 +732,6 @@ export class MakiAssembly implements Assembly {
   }
 
   describe(): string {
-    return `nori=${this.laid ? 'y' : 'n'}${this.thick ? ' chubuto' : ''} spread=${this.spread.toFixed(2)} core=${this.coreHeld ? 'held' : this.coreOnBoard ? 'board' : '-'} fillings=${this.placed.join('+') || '-'} rolled=${this.rolled ? 'y' : 'n'} squeezed=${this.squeezed ? 'y' : 'n'} cuts=${this.strokes}/${strokesFor(this.pieces)} into ${this.pieces}`;
+    return `nori=${this.laid ? 'y' : 'n'}${this.thick ? ' chubuto' : ''} spread=${this.spread.toFixed(2)} core=${this.coreHeld ? 'held' : this.coreOnBoard ? 'board' : '-'} fillings=${this.placed.join('+') || '-'} rolled=${this.rolled ? 'y' : 'n'} squeezed=${this.squeezed ? 'y' : 'n'} board=${this.onBoard ? 'y' : this.lifting !== null ? 'held' : 'n'} cuts=${this.strokes}/${strokesFor(this.pieces)} into ${this.pieces}`;
   }
 }

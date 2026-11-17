@@ -80,6 +80,7 @@ const STEP_WORDS: Record<StepKey, string> = {
   placeFilling: 'Lay the filling',
   rollMaki: 'Push to roll',
   squeezeRoll: 'Both fists on the beat',
+  rollToBoard: 'Off the mat, onto the board',
   cutRoll: 'Cut on the line',
   callFishShop: 'Call the fish shop',
   phoneOn: 'Point at the phone and pinch',
@@ -991,6 +992,7 @@ export class MasterSystem extends createSystem({
     }
     if (!progress.rolled) return 'rollMaki';
     if (!progress.squeezed) return 'squeezeRoll';
+    if (!progress.rollOnBoard) return 'rollToBoard';
     if (progress.cutsDone < progress.cutsNeeded) return progress.knifeHeld ? 'cutRoll' : 'holdKnife';
     return null;
   }
@@ -1059,8 +1061,10 @@ export class MasterSystem extends createSystem({
       case 'spreadRice':
       case 'rollMaki':
       case 'squeezeRoll':
-      case 'cutRoll':
         return StationKind.Makisu;
+      case 'rollToBoard':
+      case 'cutRoll':
+        return StationKind.CuttingBoard;
       case 'takeNori':
         return StationKind.NoriBox;
       case 'setShari':
@@ -1168,6 +1172,9 @@ export class MasterSystem extends createSystem({
         return;
       case 'cutRoll':
         out.copy(progress.guideAt).add(this.tmp.set(0, 0.15, 0));
+        return;
+      case 'rollToBoard':
+        out.copy(progress.rollHeld ? progress.rollSpot : progress.pieceAt).add(this.tmp.set(0, 0.15, 0));
         return;
       case 'takeMaterial':
         out.copy(prep.boxAt).add(this.tmp.set(0, 0.15, 0));
@@ -1978,6 +1985,20 @@ export class MasterSystem extends createSystem({
         b.copy(prep.pullRice);
         c.copy(prep.pullRice).add(off.set(0.03 * hs, 0.03, 0.12));
         rice.pose(k < 0.25 ? b : this.go(Math.min(1, (k - 0.25) / 0.5), b, c), yaw, 0, k > 0.15 && k < 0.8 ? 1 : 0);
+        return true;
+      }
+      case 'rollToBoard': {
+        // The neta hand pinches the roll on the mat and lays it on the bare board.
+        const k = this.phase(2.2);
+        a.copy(progress.pieceAt).add(off.set(0, 0.012, 0));
+        b.copy(progress.rollSpot).add(off.set(0, 0.012, 0));
+        c.copy(a).lerp(b, 0.5);
+        c.y += 0.08;
+        if (k < 0.2) neta.pose(a, yaw, 0, k > 0.12 ? 1 : 0);
+        else if (k < 0.8) {
+          const kk = (k - 0.2) / 0.6;
+          neta.pose(kk < 0.5 ? this.go(kk * 2, a, c) : this.go((kk - 0.5) * 2, c, b), yaw, 0, 1);
+        } else neta.pose(b, yaw, 0, 0);
         return true;
       }
       case 'cutRoll': {

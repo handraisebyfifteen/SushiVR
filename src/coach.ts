@@ -51,6 +51,7 @@ export type StepKey =
   | 'placeFilling'
   | 'rollMaki'
   | 'squeezeRoll'
+  | 'rollToBoard'
   | 'cutRoll'
   // morning prep
   | 'callFishShop'

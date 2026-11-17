@@ -586,7 +586,9 @@ shiso, plum and cucumber; and the tekka, a medium-thick roll):
    along the middle of the rice with the left hand.
 5. Both hands at the near edge of the mat push it away: rolled. Both fists
    together on the beat: squeezed firm.
-6. Grip the knife and, with the left hand steadying the roll, draw the blade
+6. The roll is not cut on the mat: pinch it, lift it off and let go over the
+   bare board beside the mat (let go anywhere else, it goes back onto the
+   mat). Grip the knife and, with the left hand steadying the roll, draw the blade
    along the white line three times. The first stroke halves the roll and
    the halves lie side by side. The gourd roll is cut into six (cut both
    halves into thirds); the others into eight (halve, lay the four side by
@@ -708,7 +710,8 @@ turning it over, the deba, rinsing, the tweezers). For a gunkan, Space squeezes 
 on a sea urchin or salmon roe order puts the topping on. For an inari, 4
 takes a pouch, H fills it and Space folds it shut on the beat. For a roll,
 Z lays the nori on the mat, U spreads the rice, 4 lays the next filling, I
-rolls, Space squeezes, and X (knife in hand) makes the next cut. A key only
+rolls, Space squeezes, Tab lifts the roll off the mat onto the board, and X
+(knife in hand) makes the next cut. A key only
 moves the emulated hands to a place and makes the gesture there; the game
 judges it exactly as it judges real hands, so mistakes still count. The timed
 gestures happen when you act: hold L to reach into the rice tub and let go on
