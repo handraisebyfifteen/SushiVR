@@ -24,7 +24,7 @@ import { playDone, playPick, playPress, playPut, playRustle } from './sfx.js';
 import { stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
 import { makeTextSprite, setSpriteText } from './text-sprites.js';
-import { AWASEZU_SECONDS, RICE_COOK_SECONDS, RICE_STEAM_SECONDS, SHARI_CUT_DISTANCE, SHARI_SCOOPS } from './tuning.js';
+import { AWASEZU_SECONDS, RICE_COOK_SECONDS, RICE_SOAK_SECONDS, RICE_STEAM_SECONDS, SHARI_CUT_DISTANCE, SHARI_SCOOPS } from './tuning.js';
 import { display } from './display-settings.js';
 import { addShari, chefRiceInService, cookRice, pantry, pantryOn, riceText } from './pantry.js';
 import { SHARI_PER_SHO_GRAMS } from './tuning.js';
@@ -40,7 +40,7 @@ const PADDLE_PITCH = -0.35;
 const SIDES: readonly Side[] = [0, 1];
 
 type Carried = 'shamoji' | 'awasezu' | 'tub';
-/** The cooker, pointed at to light it: on the full mode two amounts stand over it (1 sho, 1.5 sho; src/pantry.ts). */
+/** The cooker, pointed at to put the rice in, to light it and to turn it out: on the full mode, as the rice goes in, two amounts stand over it (1 sho, 1.5 sho; src/pantry.ts). */
 type CookerId = 'cooker' | 'cooker15';
 /** The two amounts stand this far apart (m) to either side of the cooker, far enough apart to point at one. */
 const AMOUNT_APART = 0.15;
@@ -50,7 +50,9 @@ const TUB_FULL_GRAMS = 1.5 * SHARI_PER_SHO_GRAMS;
 /**
  * Shari-kiri in the morning prep, at the back work table (the shop's way):
  *  - point at the gas rice cooker under the table (standing at the table)
- *    and pinch to light it; it cooks, goes out by itself, and steams;
+ *    and pinch to put the rice in with its water: it soaks (浸水) as long
+ *    as it will steam; soaked, point and pinch again to light it; it
+ *    cooks, goes out by itself, and steams;
  *  - point and pinch again to turn the rice out into the hangiri;
  *  - take the bowl of awasezu (rice vinegar, made ahead) and hold it over
  *    the rice to pour it on;
@@ -60,7 +62,7 @@ const TUB_FULL_GRAMS = 1.5 * SHARI_PER_SHO_GRAMS;
  *  - scoop the shari into it with the paddle, a scoop at a time, then carry
  *    it back to its stand. No fanning.
  * The ohitsu starts the day empty; the bar's rice comes from it. On the
- * full mode the rice is measured out of the sack as the cooker is lit: 1
+ * full mode the rice is measured out of the sack as it goes in to soak: 1
  * or 1.5 sho, pointed at over it (src/pantry.ts); the ohitsu's shari then
  * goes down as the bar uses it. In service (full) the chef may cook another
  * batch himself (the cook can be asked instead, src/pantry-system.ts): from
@@ -143,7 +145,7 @@ export class ShariSystem extends createSystem({}) {
     shari.tubTableAt.set(TUB_ON_TABLE_X, SINK_TOP + TUB_DEPTH, TUB_ON_TABLE_Z);
     shari.cookerAt.copy(this.cooker.at);
     debugLines.push(() =>
-      prep.active || this.serviceBatch ? `Shari: ${shari.step}${shari.left > 0 && (shari.step === 'cooking' || shari.step === 'steaming') ? ` ${Math.ceil(shari.left)}s` : ''} | scoops ${shari.scoops} | ohitsu ${shari.tubOnTable ? 'on the table' : shari.tubHeld ? 'in hand' : 'home'} | at ${chef.at}` : '',
+      prep.active || this.serviceBatch ? `Shari: ${shari.step}${shari.left > 0 && (shari.step === 'soaking' || shari.step === 'cooking' || shari.step === 'steaming') ? ` ${Math.ceil(shari.left)}s` : ''} | scoops ${shari.scoops} | ohitsu ${shari.tubOnTable ? 'on the table' : shari.tubHeld ? 'in hand' : 'home'} | at ${chef.at}` : '',
     );
   }
 
@@ -236,10 +238,14 @@ export class ShariSystem extends createSystem({}) {
   // ---- the gas rice cooker -----------------------------------------------------
 
   private updateCooker(delta: number): void {
-    if (shari.step === 'cooking' || shari.step === 'steaming') {
+    if (shari.step === 'soaking' || shari.step === 'cooking' || shari.step === 'steaming') {
       shari.left -= delta;
       if (shari.left <= 0) {
-        if (shari.step === 'cooking') {
+        if (shari.step === 'soaking') {
+          shari.step = 'light';
+          playDone();
+          console.log('[Shari] the rice has soaked: light the cooker');
+        } else if (shari.step === 'cooking') {
           shari.step = 'steaming';
           shari.left = RICE_STEAM_SECONDS;
           this.flame.visible = false;
@@ -254,9 +260,13 @@ export class ShariSystem extends createSystem({}) {
     if (this.flame.visible) this.flame.scale.y = 0.85 + 0.15 * Math.sin(performance.now() * 0.03);
     if (this.short > 0) this.short -= delta;
     this.say(
-      this.short > 0 && shari.step === 'light'
+      this.short > 0 && shari.step === 'soak'
         ? `Rice: ${riceText()} in the sack. Call the rice shop`
-        : shari.step === 'cooking'
+        : shari.step === 'soaking'
+          ? `Soaking: ${Math.ceil(shari.left)} s`
+          : shari.step === 'light'
+            ? 'Soaked: light it'
+            : shari.step === 'cooking'
           ? `Rice cooking: ${Math.ceil(shari.left)} s`
           : shari.step === 'steaming'
             ? `Steaming: ${Math.ceil(shari.left)} s`
@@ -265,12 +275,14 @@ export class ShariSystem extends createSystem({}) {
               : '',
     );
     // Standing at the table, turned to it: point at the cooker (or look) and pinch.
-    // On full, at the lighting, the two amounts: 1 sho to the left of the cooker, 1.5 sho to its right.
-    const atCooker = chef.at === 'table' && chef.facingBack && (shari.step === 'light' || shari.step === 'turnOut');
-    const chosen = this.pickCooker(delta, atCooker, atCooker && shari.step === 'light' && pantryOn());
+    // On full, as the rice goes in, the two amounts: 1 sho to the left of the cooker, 1.5 sho to its right.
+    const atCooker = chef.at === 'table' && chef.facingBack && (shari.step === 'soak' || shari.step === 'light' || shari.step === 'turnOut');
+    const chosen = this.pickCooker(delta, atCooker, atCooker && shari.step === 'soak' && pantryOn());
     if (!chosen) return;
-    if (shari.step === 'light') {
-      this.lightCooker(chosen === 'cooker15' ? 1.5 : 1);
+    if (shari.step === 'soak') {
+      this.soakRice(chosen === 'cooker15' ? 1.5 : 1);
+    } else if (shari.step === 'light') {
+      this.lightCooker();
     } else {
       shari.step = 'vinegar';
       this.rice.geometry = riceGeometry('mound', 1);
@@ -281,7 +293,7 @@ export class ShariSystem extends createSystem({}) {
     }
   }
 
-  /** The cooker's far target (and on full, at the lighting, the two amounts beside it): the one chosen this frame. */
+  /** The cooker's far target (and on full, as the rice goes in, the two amounts beside it): the one chosen this frame. */
   private pickCooker(delta: number, atCooker: boolean, amounts: boolean): CookerId | null {
     this.targets.length = 0;
     this.cooker.at.x = WORKTABLE_X - (amounts ? AMOUNT_APART : 0);
@@ -303,8 +315,8 @@ export class ShariSystem extends createSystem({}) {
     return chosen;
   }
 
-  /** The cooker lit with this much rice; on full it is measured out of the sack (not enough, and it is not lit). */
-  private lightCooker(sho: number): boolean {
+  /** This much rice into the cooker with its water, to soak; on full it is measured out of the sack (not enough, and none goes in). */
+  private soakRice(sho: number): boolean {
     if (!cookRice(sho)) {
       this.short = 4;
       console.log(`[Shari] not enough rice in the sack for ${sho} sho (${riceText()})`);
@@ -313,22 +325,30 @@ export class ShariSystem extends createSystem({}) {
     this.batch = sho;
     this.measured = true;
     this.amount1.visible = this.amount15.visible = false;
+    shari.step = 'soaking';
+    shari.left = RICE_SOAK_SECONDS;
+    coach.done('soakRice');
+    console.log(`[Shari] the rice is in the cooker, soaking${pantryOn() ? `: ${sho} sho (rice left ${riceText()})` : ''}`);
+    return true;
+  }
+
+  /** Soaked: the cooker lit. */
+  private lightCooker(): void {
     shari.step = 'cooking';
     shari.left = RICE_COOK_SECONDS;
     this.flame.visible = true;
     coach.done('lightRice');
-    console.log(`[Shari] the rice cooker is lit${pantryOn() ? `: ${sho} sho (rice left ${riceText()})` : ''}`);
-    return true;
+    console.log('[Shari] the rice cooker is lit');
   }
 
-  /** In service (full), standing at the work table turned to it with the cooker free: the chef may light it again himself, 1 or 1.5 sho. */
+  /** In service (full), standing at the work table turned to it with the cooker free: the chef may put another batch in himself, 1 or 1.5 sho. */
   private offerCooker(delta: number): void {
     if (this.short > 0) this.short -= delta;
     const offer = chefRiceInService() && chef.at === 'table' && chef.facingBack;
     this.say(offer && this.short > 0 ? `Rice: ${riceText()} in the sack. Call the rice shop` : '');
     if (!offer && !this.targets.length) return;
     const chosen = this.pickCooker(delta, offer, offer);
-    if (!chosen || !this.lightCooker(chosen === 'cooker15' ? 1.5 : 1)) return;
+    if (!chosen || !this.soakRice(chosen === 'cooker15' ? 1.5 : 1)) return;
     // The morning's tools come down off the wall again; the ohitsu stays on its stand (and serves) till it is fetched.
     this.finished = false;
     this.serviceBatch = true;
@@ -593,7 +613,7 @@ export class ShariSystem extends createSystem({}) {
   }
 
   private hints(): void {
-    if (shari.step === 'turnOut' || shari.step === 'light') return;
+    if (shari.step === 'turnOut' || shari.step === 'light' || shari.step === 'soak') return;
     if (shari.step === 'scoop' && !shari.tubOnTable && !shari.tubHeld) feedback.hints.add(StationKind.RiceTub);
   }
 }

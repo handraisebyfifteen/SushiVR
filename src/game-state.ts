@@ -275,10 +275,10 @@ export const prep = {
 };
 
 /** The shari of the day (src/shari-system.ts): cooked, vinegared and cut on the work table, then into the ohitsu. */
-export type ShariStep = 'light' | 'cooking' | 'steaming' | 'turnOut' | 'vinegar' | 'cut' | 'scoop' | 'return' | 'done';
+export type ShariStep = 'soak' | 'soaking' | 'light' | 'cooking' | 'steaming' | 'turnOut' | 'vinegar' | 'cut' | 'scoop' | 'return' | 'done';
 export const shari = {
-  step: 'light' as ShariStep,
-  /** Seconds left on the flame or steaming. */
+  step: 'soak' as ShariStep,
+  /** Seconds left soaking, on the flame or steaming. */
   left: 0,
   /** The ohitsu stands on the work table (brought for the scooping); a hand holds it. */
   tubOnTable: false,

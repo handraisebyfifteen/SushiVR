@@ -1438,6 +1438,7 @@ export class PracticeSystem extends createSystem({
         const hand = chef.hands[near].holding === Held.None ? near : ((1 - near) as 0 | 1);
         return this.pointAt(t.at.clone(), STEP_LABEL[step], hand);
       }
+      case 'soakRice':
       case 'lightRice':
       case 'turnOutRice':
       case 'pourAwasezu':
@@ -1584,7 +1585,7 @@ export class PracticeSystem extends createSystem({
       // In service (full) the chef may cook another batch himself: to the work table, then point at the cooker (1 sho).
       if (!chefRiceInService()) return this.say(pantry.cookLeft > 0 ? 'The cook is cooking the rice' : 'The shari is in the ohitsu');
       if (!this.reachPlace('table', 'back')) return;
-      return this.pointAt(shari.cookerAt.clone(), 'Light the rice cooker: 1 sho more');
+      return this.pointAt(shari.cookerAt.clone(), 'Rice into the cooker: 1 sho more');
     }
     const tub = this.handWith(Held.Ohitsu);
     if (tub !== null) {
@@ -1598,10 +1599,15 @@ export class PracticeSystem extends createSystem({
     }
     const side = chef.riceSide;
     switch (shari.step) {
+      case 'soak':
       case 'light':
       case 'turnOut':
         if (!this.reachPlace('table', 'back')) return;
-        return this.pointAt(shari.cookerAt.clone(), shari.step === 'light' ? 'Light the rice cooker' : 'Turn the rice out into the hangiri');
+        return this.pointAt(
+          shari.cookerAt.clone(),
+          shari.step === 'soak' ? 'Rice into the cooker to soak' : shari.step === 'light' ? 'Light the rice cooker' : 'Turn the rice out into the hangiri',
+        );
+      case 'soaking':
       case 'cooking':
       case 'steaming':
         return this.say(`Rice ${shari.step}: ${Math.ceil(shari.left)} s (meanwhile the fish)`);

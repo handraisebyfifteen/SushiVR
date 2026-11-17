@@ -138,9 +138,11 @@ export const GREENGROCER: readonly NetaId[] = ['Cucumber', 'Shiso', 'Takuan', 'U
 export const COOK_SECONDS = 10;
 export const CLEANUP_SECONDS = 8;
 // --- the back row in the morning prep: shari and the range (time runs faster) ---
-/** The gas rice cooker: seconds on the flame (it goes out by itself), then steaming (蒸らし) with the lid on. */
+/** The gas rice cooker: the rice soaks in its water (浸水) first, then seconds on the flame (it goes out by itself), then steaming (蒸らし) with the lid on. */
 export const RICE_COOK_SECONDS = 40;
 export const RICE_STEAM_SECONDS = 15;
+/** The soaking takes as long as the steaming (the user's shop, 2026-11-17). */
+export const RICE_SOAK_SECONDS = RICE_STEAM_SECONDS;
 /** Seconds the awasezu pours while the bowl is held over the hangiri. */
 export const AWASEZU_SECONDS = 1.5;
 /** How far (m) the shamoji travels through the rice to cut the vinegar in. */

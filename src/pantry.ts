@@ -9,6 +9,7 @@ import {
   INARI_SHARI_GRAMS,
   NORI_PER_PACK,
   RICE_COOK_SECONDS,
+  RICE_SOAK_SECONDS,
   RICE_KG_PER_SHO,
   RICE_SACK_KG,
   RICE_STEAM_SECONDS,
@@ -62,8 +63,8 @@ const KEY = 'sushi-vr.pantry';
 
 /** A sack of rice in sho. */
 export const SACK_SHO = RICE_SACK_KG / RICE_KG_PER_SHO;
-/** The cook's job during service: the cooker, the steaming and the shari-kiri (seconds). */
-export const COOK_JOB_SECONDS = RICE_COOK_SECONDS + RICE_STEAM_SECONDS + 25;
+/** The cook's job during service: the soaking, the cooker, the steaming and the shari-kiri (seconds). */
+export const COOK_JOB_SECONDS = RICE_SOAK_SECONDS + RICE_COOK_SECONDS + RICE_STEAM_SECONDS + 25;
 
 const SHARI_FOR: Record<PieceKind, number> = {
   nigiri: SHARI_GRAMS,

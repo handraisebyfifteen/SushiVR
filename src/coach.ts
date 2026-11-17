@@ -112,6 +112,7 @@ export type StepKey =
   | 'stepRange'
   | 'stepSink'
   | 'stepSeat'
+  | 'soakRice'
   | 'lightRice'
   | 'turnOutRice'
   | 'pourAwasezu'

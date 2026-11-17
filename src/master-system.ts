@@ -141,6 +141,7 @@ const STEP_WORDS: Record<StepKey, string> = {
   pullPins: 'Tweezers: pull the pin bones',
   putTool: 'Put it back: let go',
   stepSeat: 'Point at the board, pinch',
+  soakRice: 'Rice in to soak: point, pinch',
   lightRice: 'Light the rice: point, pinch',
   turnOutRice: 'Rice into the hangiri: point, pinch',
   pourAwasezu: 'Awasezu over the rice',
@@ -824,7 +825,9 @@ export class MasterSystem extends createSystem({
     if (tamago.next === 'whisk') return this.goTo('table', 'back', back, 'whiskTamago');
     if (tamago.next === 'eggs') return this.goTo('table', 'back', back, 'eggsTamago');
     if (tamago.next === 'pour') return this.goTo('table', 'back', back, 'pourTamago');
-    if (shari.step === 'light' || shari.step === 'turnOut') return this.goTo('table', 'back', back, shari.step === 'light' ? 'lightRice' : 'turnOutRice');
+    if (shari.step === 'soak' || shari.step === 'light' || shari.step === 'turnOut') {
+      return this.goTo('table', 'back', back, shari.step === 'soak' ? 'soakRice' : shari.step === 'light' ? 'lightRice' : 'turnOutRice');
+    }
     // Its pot comes out of the cupboard under the sink onto its burner before the ingredient is taken.
     if (range.potHeld) return this.goTo('range', 'back', back, 'potFromCupboard');
     if (prep.next === 'take' && prep.takeToPot && prep.takeId !== 'Tamago' && range.burners.find((b) => b.id === prep.takeId)?.stored) {
@@ -861,11 +864,13 @@ export class MasterSystem extends createSystem({
     return null;
   }
 
-  /** A batch of rice the chef cooks himself in service (full): the morning's shari steps; while it cooks and steams, the bar. */
+  /** A batch of rice the chef cooks himself in service (full): the morning's shari steps; while it soaks, cooks and steams, the bar. */
   private serviceShariStep(back: boolean): StepKey | null {
     const held = this.shariHeldStep(back);
     if (held) return held;
     if (holdingAnything()) return null;
+    // Soaked, it is lit; cooked and steamed, it is turned out.
+    if (shari.step === 'light') return this.goTo('table', 'back', back, 'lightRice');
     if (shari.step === 'turnOut') return this.goTo('table', 'back', back, 'turnOutRice');
     const work = this.shariWorkStep(back);
     if (work) return work;
@@ -1290,6 +1295,7 @@ export class MasterSystem extends createSystem({
         }
         break;
       }
+      case 'soakRice':
       case 'lightRice':
       case 'turnOutRice':
         out.copy(shari.cookerAt).setY(SINK_TOP + 0.22);
