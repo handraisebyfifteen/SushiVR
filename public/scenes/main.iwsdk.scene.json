@@ -1548,6 +1548,24 @@
       "framingRole": "support"
     },
     {
+      "id": "customer-room",
+      "name": "Customer Room (walls, floor, ceiling, window, decorations, stools)",
+      "content": {
+        "type": "asset",
+        "asset": "customer-room",
+        "castShadow": false,
+        "receiveShadow": true
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      },
+      "framingRole": "support"
+    },
+    {
       "id": "eaves",
       "name": "Eaves (hisashi, noren, lanterns)",
       "content": {
