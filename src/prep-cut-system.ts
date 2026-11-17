@@ -517,17 +517,12 @@ export class PrepCutSystem extends createSystem({
   }
 
   /**
-   * A whole fish washed at the sink (its head cut off there, head left) is
-   * filleted on the board head right, belly still toward the chef (the
-   * owner): laid over, its look mirrored left to right.
+   * Laid on the board mirrored for a left-handed chef (all of the board's
+   * work is). A fish lies head left, belly toward the chef, as built and as
+   * it was washed (the owner, 2026-11-17: always so).
    */
-  private headRight(m: Material): boolean {
-    return !!m.look.alongX && m.look.steps.some((s) => !!s.sink);
-  }
-
-  /** Laid on the board mirrored: a fish filleted head right, and for a left-handed chef the other way round (all of the board's work is mirrored). */
-  private boardFlip(m: Material): boolean {
-    return this.headRight(m) !== handedness.left;
+  private boardFlip(): boolean {
+    return handedness.left;
   }
 
   /** A point over the material's footprint (plus a margin), between its bottom and a little over its top. */
@@ -836,8 +831,8 @@ export class PrepCutSystem extends createSystem({
       console.log(`[Prep] the ${PREP[m.id].name.toLowerCase()} is washed at the sink first`);
     } else if (!washing && board && overStation(at, StationKind.CuttingBoard) && !this.boardMaterial() && !prep.boardBusy) {
       const [bx, bz] = m.look.boardAt ?? [0, 0];
-      const flip = this.boardFlip(m);
-      m.root.position.set(board.pos.x + (flip ? -bx : bx), board.pos.y, board.pos.z + bz);
+      const flip = this.boardFlip();
+      m.root.position.set(board.pos.x + sideX(bx), board.pos.y, board.pos.z + bz);
       m.root.rotation.y = 0;
       m.root.scale.x = flip ? -1 : 1;
       m.baseY = board.pos.y;
@@ -1143,7 +1138,7 @@ export class PrepCutSystem extends createSystem({
     out.copy(dir);
     if (!p.parent) return out;
     out.applyQuaternion(p.parent.getWorldQuaternion(this.quat).invert());
-    // A mirrored fish (head right on the board): its X runs the other way.
+    // A mirrored fish (a left-handed chef's board): its X runs the other way.
     p.parent.updateWorldMatrix(true, false);
     if (p.parent.matrixWorld.determinant() < 0) out.x = -out.x;
     return out;
@@ -1693,7 +1688,7 @@ export class PrepCutSystem extends createSystem({
     else {
       const board = stations.get(StationKind.CuttingBoard);
       const [bx, bz] = x.look.boardAt ?? [0, 0];
-      if (board) prep.slotAt.copy(board.pos).add(this.tmp.set(bx, 0, bz));
+      if (board) prep.slotAt.copy(board.pos).add(this.tmp.set(sideX(bx), 0, bz));
     }
     // Where the chef stands for it: the sink to take from the fish box or the wash board, or to lay a fish on the wash board.
     const atSinkNow = x.state === 'held' ? prep.takeTo === 'wash' : prep.takeFrom !== 'ice';

@@ -392,7 +392,7 @@ export function kohadaRow(size = 1): PrepMaterialLook {
     halfWidth: 0.12,
     top: T,
     alongX: true,
-    boardAt: [0.06, 0.02],
+    boardAt: [-0.06, 0.02],
     pileAt: [0.32, 0.14],
     // Taken from the wash board by the bowl (the fish on its ice).
     takeAt: [BOWL_X, 0],

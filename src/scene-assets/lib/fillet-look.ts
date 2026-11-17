@@ -436,19 +436,19 @@ function roundFish(o: RoundFish): PrepMaterialLook {
   fish.children[fish.children.length - 1].position.set(-0.075, gs.t, gs.w * 0.82);
   fish.add(named(new Mesh(shell(body, 0, Math.PI, 14, 0.0012), scalesMaterial()), 'ScalesTop'));
   fish.add(named(new Mesh(shell(body, Math.PI, Math.PI * 2, 14, 0.0012), scalesMaterial()), 'ScalesBottom'));
-  // The two fillets as they will lie, flesh up, left of the fish.
+  // The two fillets as they will lie, flesh up, right of the fish (it lies head left, on the board's left).
   const materials: Partial<Record<NetaId, Material>> = { [o.neta]: mat };
   const skinOf = (sign: 1 | -1) => (u: number, out: Color) => o.skin(sign * u, out);
   const W = 0.026;
   const A: FilletSpec = {
-    id: 'A', cx: -0.27, cz: -0.035, L: 0.22, tail: 0.5, skin: skinOf(-1), pins: 4, bones: { side: -1, L: 0.075, W: 0.009 },
+    id: 'A', cx: 0.27, cz: -0.035, L: 0.22, tail: 0.5, skin: skinOf(-1), pins: 4, bones: { side: -1, L: 0.075, W: 0.009 },
     saku: [
       { name: 'A1', neta: o.neta, W, H: 0.017, side: 1, skinOut: true },
       { name: 'A2', neta: o.neta, W, H: 0.015, side: -1, skinOut: true },
     ],
   };
   const B: FilletSpec = {
-    id: 'B', cx: -0.27, cz: 0.045, L: 0.22, tail: 0.5, skin: skinOf(1), pins: 4, bones: { side: 1, L: 0.075, W: 0.009 },
+    id: 'B', cx: 0.27, cz: 0.045, L: 0.22, tail: 0.5, skin: skinOf(1), pins: 4, bones: { side: 1, L: 0.075, W: 0.009 },
     saku: [
       { name: 'B1', neta: o.neta, W, H: 0.017, side: -1, skinOut: true },
       { name: 'B2', neta: o.neta, W, H: 0.015, side: 1, skinOut: true },
@@ -460,32 +460,30 @@ function roundFish(o: RoundFish): PrepMaterialLook {
   const steps: PrepStep[] = [
     // At the sink (水洗い): head on the chef's left, belly toward the chef.
     { kind: 'scale', part: 'ScalesTop', say: 'Scaler: scrape tail to head', sink: true },
-    // Rolled over on its length (the head stays left for its cut; the belly is away a moment).
-    { kind: 'turn', at: new Vector3(0.07, T, 0), lie: 'over', say: 'Turn it over', sink: true },
+    // The owner: a fish is worked belly toward you, the head cut too. Turned over end over end for the other side's scales, then back.
+    { kind: 'turn', at: new Vector3(0.07, T, 0), lie: 'endOver', say: 'Turn it over: belly toward you', sink: true },
     { kind: 'scale', part: 'ScalesBottom', say: 'And the other side', sink: true },
+    { kind: 'turn', at: new Vector3(0.03, T, 0), lie: 'up', say: 'Turn it back: head left, belly toward you', sink: true },
     { kind: 'cut', axis: 'z', at: JACK_GILL, mid: 0, len: 0.13, shift: [['Head', -0.03, 0]], scrap: ['Head'], say: 'Off with the head', sink: true },
-    // Turned round, the belly toward the chef again (the owner: a fish is worked belly toward you): the gill end at +X.
-    { kind: 'turn', at: new Vector3(0.03, T, 0), lie: 'endOver', say: 'Turn it round: belly toward you', sink: true },
-    { kind: 'cut', axis: 'x', at: 0.045, mid: 0.07, len: 0.08, show: ['Guts'], say: 'Open the belly', sink: true },
+    { kind: 'cut', axis: 'x', at: 0.045, mid: -0.07, len: 0.08, show: ['Guts'], say: 'Open the belly', sink: true },
     {
-      kind: 'pull', netaAt: new Vector3(-0.05, T, 0), riceAt: new Vector3(0.075, gs.t, 0.05), parts: ['Guts'],
+      kind: 'pull', netaAt: new Vector3(0.05, T, 0), riceAt: new Vector3(-0.075, gs.t, 0.05), parts: ['Guts'],
       shift: [['Guts', 0, 0.025]], scrap: ['Guts'], say: 'Pull the guts out', sink: true,
     },
-    { kind: 'rinse', at: new Vector3(0.075, gs.t, 0.045), say: 'Wash it under the tap', sink: true },
-    // On the board (三枚おろし): turned over end over end, head right (the board mirrors it), belly toward the chef.
-    { kind: 'turn', at: new Vector3(0.03, T, 0), lie: 'up', say: 'Turn it over: belly toward you' },
+    { kind: 'rinse', at: new Vector3(-0.075, gs.t, 0.045), say: 'Wash it under the tap', sink: true },
+    // On the board (三枚おろし) it lies as it was washed: head left, belly toward the chef (the owner: always so).
     { kind: 'cut', axis: 'x', at: 0.036, mid: 0.005, len: 0.2, say: 'Along the belly, to the bone' },
     { kind: 'cut', axis: 'x', at: -0.036, mid: 0.005, len: 0.21, say: 'Along the back, to the bone' },
     {
       kind: 'pull', netaAt: new Vector3(0.09, 0.03, 0), riceAt: new Vector3(-0.05, T, 0.012), parts: ['FilletTop'],
       hide: ['FilletTop'], show: filletNames(A), say: 'Lift the fillet off',
     },
-    // End over end: head left now, the belly still toward the chef.
-    { kind: 'turn', at: new Vector3(0.03, 0.03, 0), lie: 'endOver', say: 'Turn it over: belly toward you' },
-    { kind: 'cut', axis: 'x', at: 0.036, mid: -0.005, len: 0.2, say: 'Along the belly, to the bone' },
-    { kind: 'cut', axis: 'x', at: -0.036, mid: -0.005, len: 0.21, say: 'Along the back, to the bone' },
+    // Turned over on its length, the head stays left: the back toward the chef now.
+    { kind: 'turn', at: new Vector3(0.07, 0.03, 0), lie: 'over', say: 'Turn it over: head left' },
+    { kind: 'cut', axis: 'x', at: 0.036, mid: 0.005, len: 0.21, say: 'Along the back, to the bone' },
+    { kind: 'cut', axis: 'x', at: -0.036, mid: 0.005, len: 0.2, say: 'Along the belly, to the bone' },
     {
-      kind: 'pull', netaAt: new Vector3(-0.09, 0.02, 0), riceAt: new Vector3(0.05, T, 0.012), parts: ['FilletBottom'],
+      kind: 'pull', netaAt: new Vector3(0.09, 0.02, 0), riceAt: new Vector3(-0.05, T, -0.012), parts: ['FilletBottom'],
       hide: ['FilletBottom'], show: filletNames(B), scrap: ['Bone'], say: 'Lift it off the bone',
     },
     // Each fillet: belly bones, pin bones; then skin, back and belly (cured whole, the skin stays on).
@@ -501,7 +499,7 @@ function roundFish(o: RoundFish): PrepMaterialLook {
     halfWidth: 0.07,
     top: T,
     alongX: true,
-    boardAt: [0.14, 0.065],
+    boardAt: [-0.14, 0.065],
     pileAt: [0.3, 0.15],
     turnable: { group: fish, thickness: T },
     steps,
@@ -762,7 +760,7 @@ export function flounder(): PrepMaterialLook {
   fish.add(guts);
   fish.add(named(new Mesh(shell(body, 0, Math.PI, 14, 0.001), scalesMaterial()), 'ScalesTop'));
   fish.add(named(new Mesh(shell(body, Math.PI, Math.PI * 2, 14, 0.001), scalesMaterial()), 'ScalesBottom'));
-  // The four fillets as they will lie, flesh up, left of the fish: each a saku and its engawa over the skin.
+  // The four fillets as they will lie, flesh up, right of the fish (it lies head left, on the board's left): each a saku and its engawa over the skin.
   const materials: Partial<Record<NetaId, Material>> = { Flounder: mat, Engawa: engawa };
   const darkSkin = (u: number, out: Color) => flounderTop(tmpA.set(u * 0.3, 0, u * 0.05), out);
   const whiteSkin = (_u: number, out: Color) => out.copy(flatWhite);
@@ -774,25 +772,23 @@ export function flounder(): PrepMaterialLook {
       { name: `E${id.slice(1)}`, neta: 'Engawa', W: 0.011, H: 0.0075, side: near ? 1 : -1, skinOut: true },
     ],
   });
-  const F = [spec('F1', -0.5, false, darkSkin, false), spec('F2', -0.5, true, darkSkin, true), spec('F3', -0.27, false, whiteSkin, false), spec('F4', -0.27, true, whiteSkin, true)];
+  const F = [spec('F1', 0.5, false, darkSkin, false), spec('F2', 0.5, true, darkSkin, true), spec('F3', 0.27, false, whiteSkin, false), spec('F4', 0.27, true, whiteSkin, true)];
   for (const f of F) filletParts(root, f, materials);
   const T = 2 * 0.0155;
   const steps: PrepStep[] = [
     // At the sink (水洗い).
     { kind: 'scale', part: 'ScalesTop', say: 'Scaler: scrape tail to head', sink: true },
-    // Rolled over on its length (the head stays left for its cut; the belly is away a moment).
-    { kind: 'turn', at: new Vector3(0.08, T, 0), lie: 'over', say: 'Turn it over', sink: true },
+    // Belly toward you throughout, the head cut too: turned over end over end for the white side's scales, then back.
+    { kind: 'turn', at: new Vector3(0.08, T, 0), lie: 'endOver', say: 'Turn it over: belly toward you', sink: true },
     { kind: 'scale', part: 'ScalesBottom', say: 'And the white side', sink: true },
+    { kind: 'turn', at: new Vector3(0.03, T, 0), lie: 'up', say: 'Turn it back: head left, belly toward you', sink: true },
     { kind: 'cut', axis: 'z', at: FLAT_GILL, mid: 0, len: 0.16, shift: [['Head', -0.03, 0]], scrap: ['Head'], show: ['Guts'], say: 'Off with the head', sink: true },
-    // Turned round, the belly toward the chef again: the gill end at +X.
-    { kind: 'turn', at: new Vector3(0.03, T, 0), lie: 'endOver', say: 'Turn it round: belly toward you', sink: true },
     {
-      kind: 'pull', netaAt: new Vector3(-0.05, T, 0), riceAt: new Vector3(0.114, gs.t, 0.03), parts: ['Guts'],
-      shift: [['Guts', 0.02, 0]], scrap: ['Guts'], say: 'Pull the guts out', sink: true,
+      kind: 'pull', netaAt: new Vector3(0.05, T, 0), riceAt: new Vector3(-0.114, gs.t, 0.03), parts: ['Guts'],
+      shift: [['Guts', -0.02, 0]], scrap: ['Guts'], say: 'Pull the guts out', sink: true,
     },
-    { kind: 'rinse', at: new Vector3(0.11, gs.t, 0.02), say: 'Wash it under the tap', sink: true },
-    // On the board (五枚おろし): end over end, dark side up, head right (the board mirrors it), belly toward the chef.
-    { kind: 'turn', at: new Vector3(0.03, T, 0), lie: 'up', say: 'Dark side up: belly toward you' },
+    { kind: 'rinse', at: new Vector3(-0.11, gs.t, 0.02), say: 'Wash it under the tap', sink: true },
+    // On the board (五枚おろし) it lies as it was washed: dark side up, head left, belly toward the chef.
     { kind: 'cut', axis: 'x', at: 0, mid: 0.005, len: 0.24, say: 'Down the middle, to the bone' },
     { kind: 'cut', axis: 'x', at: -0.066, mid: 0, len: 0.22, say: 'Along the fins' },
     { kind: 'cut', axis: 'x', at: 0.064, mid: 0.01, len: 0.2, say: 'Along the fins' },
@@ -804,17 +800,17 @@ export function flounder(): PrepMaterialLook {
       kind: 'pull', netaAt: new Vector3(0.08, 0.016, -0.02), riceAt: new Vector3(-0.03, T, 0.035), parts: ['TopBelly'],
       hide: ['TopBelly'], show: filletNames(F[1]), say: 'And the belly fillet',
     },
-    // End over end: white side up, head left now, the belly still toward the chef (the back at -Z).
-    { kind: 'turn', at: new Vector3(0.03, 0.016, 0), lie: 'endOver', say: 'Turn it over: belly toward you' },
-    { kind: 'cut', axis: 'x', at: 0, mid: -0.005, len: 0.24, say: 'Down the middle, to the bone' },
-    { kind: 'cut', axis: 'x', at: -0.066, mid: 0, len: 0.22, say: 'Along the fins' },
-    { kind: 'cut', axis: 'x', at: 0.064, mid: -0.01, len: 0.2, say: 'Along the fins' },
+    // Turned over on its length, white side up, the head stays left: the back at +Z, toward the chef.
+    { kind: 'turn', at: new Vector3(0.08, 0.016, 0), lie: 'over', say: 'Turn it over: head left' },
+    { kind: 'cut', axis: 'x', at: 0, mid: 0.005, len: 0.24, say: 'Down the middle, to the bone' },
+    { kind: 'cut', axis: 'x', at: -0.064, mid: 0.01, len: 0.2, say: 'Along the fins' },
+    { kind: 'cut', axis: 'x', at: 0.066, mid: 0, len: 0.22, say: 'Along the fins' },
     {
-      kind: 'pull', netaAt: new Vector3(-0.07, 0.016, 0.035), riceAt: new Vector3(0.03, T, -0.035), parts: ['BotBack'],
+      kind: 'pull', netaAt: new Vector3(0.08, 0.016, -0.02), riceAt: new Vector3(-0.03, T, 0.035), parts: ['BotBack'],
       hide: ['BotBack'], show: filletNames(F[2]), say: 'Lift the back fillet off',
     },
     {
-      kind: 'pull', netaAt: new Vector3(-0.08, 0.012, -0.02), riceAt: new Vector3(0.03, T, 0.035), parts: ['BotBelly'],
+      kind: 'pull', netaAt: new Vector3(0.1, 0.012, 0), riceAt: new Vector3(-0.03, T, -0.035), parts: ['BotBelly'],
       hide: ['BotBelly'], show: filletNames(F[3]), scrap: ['Bone'], say: 'And the belly fillet: off the bone',
     },
     bonesStep(F[1]),
@@ -829,7 +825,7 @@ export function flounder(): PrepMaterialLook {
     halfWidth: 0.1,
     top: T,
     alongX: true,
-    boardAt: [0.14, 0.065],
+    boardAt: [-0.14, 0.065],
     pileAt: [0.3, 0.15],
     turnable: { group: fish, thickness: T },
     steps,

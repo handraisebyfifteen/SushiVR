@@ -349,20 +349,20 @@ and the pots go on first, the fish is cut while they cook.
    - Washing (水洗い): lay a fish on the wash board across the basin. Pinch
      the scaler on the strip right of the basin and scrape it over the fish
      again and again until the scales are off; pinch the fish and lift it a
-     little to turn it over, and scale that side. Grip the deba beside the
-     scaler with a fist and cut off the head (head on your left). Then
-     pinch it and lift it to turn it round, belly toward you (a fish is
-     worked belly toward you), open the jack's belly, pull the guts out with the right hand while the left holds the
+     little to turn it over (end over end: a fish is worked belly toward
+     you), scale that side, and turn it back, head left and belly toward you.
+     Grip the deba beside the scaler with a fist and cut off the head, open
+     the jack's belly, pull the guts out with the right hand while the left holds the
      fish, then rub the belly clean under the tap. The head and guts go in
      the trash bin by the sink.
    - Filleting: carry the washed fish back to the board. The jack in three
-     pieces (三枚おろし): turn it over end over end, head right and belly
-     toward you, cut along the belly and the back to the bone, lift the
-     fillet off; turn it over end over end again (head left now, the belly
-     still toward you), the same again; the bone is thrown out. The flounder
-     in five (五枚おろし), dark side up, belly toward you: down the middle to
-     the bone and along the fins on both edges, the back and belly fillets
-     lifted; turned end over end, the same on the white side.
+     pieces (三枚おろし): it lies head left, belly toward you; cut along the
+     belly and the back to the bone, lift the fillet off; turn it over (the
+     head stays left, the back toward you now), the same again; the bone is
+     thrown out. The flounder in five (五枚おろし), dark side up, head left,
+     belly toward you: down the middle to the bone and along the fins on
+     both edges, the back and belly fillets lifted; turned over (head left),
+     the same on the white side.
    - Each fillet: the belly bones shaved off, the pin bones pulled with the
      tweezers (on the board's back row: pinch them, touch a bone with the
      tips and lift), the skin pulled off with the knife (mid-sized fish are
@@ -382,10 +382,10 @@ and the pots go on first, the fish is cut while they cook.
      dorsal fin cut off along the back, its belly cut off, then the guts
      out with the knife's tip (a kohada is not slit); all washed and back on the ice. On the
      board, every fish opened from the belly first, then every backbone
-     shaved out, laid in a row, overlapping. Fish lie head left for the head
-     to come off, then head right (belly still toward you) to be filleted
-     on the board, for every whole fish (a left-handed chef's the other
-     way). The
+     shaved out, laid in a row, overlapping. Every whole fish lies head
+     left, belly toward you, at the sink and on the board (a left-handed
+     chef's the other way); only scaling and cutting off fins don't mind
+     which way it lies. The
      saba is washed and filleted like the jack, belly and pin bones out, its
      skin kept (it is peeled when served).
      The salt, both sides: the kohada on the round bamboo basket (平ざる) on
