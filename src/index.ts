@@ -1,4 +1,5 @@
 import { VisibilityState, World } from '@iwsdk/core';
+import { mountEntryOverlay } from './entry-overlay.js';
 import { MAX_STEP, pause } from './pause.js';
 import { makeTextSprite } from './text-sprites.js';
 import projectOptions from 'virtual:iwsdk-project';
@@ -107,4 +108,7 @@ World.create(
   if (import.meta.env.DEV) {
     void import('./practice-system.js').then(({ PracticeSystem }) => world.registerSystem(PracticeSystem));
   }
+  // The way in (src/entry-overlay.ts): an Enter VR button, or where VR cannot start, a card that sends
+  // the visitor to the Meta Quest browser.
+  void mountEntryOverlay(world);
 });
