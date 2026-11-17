@@ -16,6 +16,8 @@ import { type Kind, overStation, stations } from './station-system.js';
 import { Held, StationKind } from './sushi-components.js';
 import { display } from './display-settings.js';
 
+/** The ohitsu's hint ring over its rice surface: just over the closed lid (src/scene-assets/counter.scene-asset.ts). */
+const RICE_TUB_RING_Y = 0.072;
 export const COLOR_HINT = new Color('#8fd3ff');
 export const COLOR_READY = new Color('#ffffff');
 export const COLOR_DONE = new Color('#7CFC8C');
@@ -132,7 +134,8 @@ export class FeedbackSystem extends createSystem({}) {
         continue;
       }
       if (mark.group.children.length === 0) this.build(kind);
-      mark.group.position.set(info.pos.x, info.pos.y + 0.004, info.pos.z);
+      // The ohitsu's station is its rice, under the lid: its ring goes on the lid's rim, where it is seen.
+      mark.group.position.set(info.pos.x, info.pos.y + (kind === StationKind.RiceTub ? RICE_TUB_RING_Y : 0.004), info.pos.z);
       const flashing = feedback.flashKind === kind && feedback.flashTime > 0;
       if (flashing) {
         mark.group.visible = true;
