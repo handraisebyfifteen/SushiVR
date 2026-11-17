@@ -5,6 +5,7 @@ import {
   Group,
   Mesh,
   MeshStandardMaterial,
+  type Object3D,
   SphereGeometry,
   type Sprite,
   Vector3,
@@ -18,6 +19,7 @@ import { customerLeft, stage, stageMenu } from './stage.js';
 import { stations } from './station-system.js';
 import { Bar, Customer, CustomerState, StationKind } from './sushi-components.js';
 import { makeOrderCard, redrawOrderCard } from './order-card.js';
+import { playDoor } from './sfx.js';
 import { type IconKind, makeIconSprite, makeTextSprite, setSpriteText } from './text-sprites.js';
 import { CUSTOMER_SEAT_Z, ENTRANCE_X, ENTRANCE_Z, STEP_HEIGHT } from './layout.js';
 import {
@@ -42,6 +44,21 @@ const DOOR = new Vector3(ENTRANCE_X + 0.25, -STEP_HEIGHT, ENTRANCE_Z + 0.35);
 const TURN = new Vector3(SEAT.x - 0.45, -STEP_HEIGHT, SEAT.z - 0.4);
 const FIRST_LEG = DOOR.distanceTo(TURN);
 const WAY_LENGTH = FIRST_LEG + TURN.distanceTo(SEAT);
+/**
+ * Outside the entrance, out of sight behind the front wall but for the
+ * doorway: where a customer comes from (on the right), the spot before the
+ * door, and where they go (on the left).
+ */
+const FROM = new Vector3(ENTRANCE_X + 1.0, -STEP_HEIGHT, ENTRANCE_Z - 0.55);
+const BEFORE_DOOR = new Vector3(ENTRANCE_X + 0.1, -STEP_HEIGHT, ENTRANCE_Z - 0.45);
+const AWAY = new Vector3(ENTRANCE_X - 1.0, -STEP_HEIGHT, ENTRANCE_Z - 0.55);
+/**
+ * The entrance's lattice door ('LatticeDoor' in the entrance asset) slides
+ * this far to the left (m), into the wall beside the doorway (0.65 wide),
+ * leaving the doorway's right part open; and takes this long (s).
+ */
+const DOOR_SLIDE = 0.65;
+const DOOR_SECONDS = 0.8;
 const HAND_REST_X = 0.17;
 const ALL_ICONS: IconKind[] = ['rhythm', 'fish', 'wasabi', 'tsume', 'boil', 'orientation', 'hand', 'fresh', 'hygiene', 'board', 'soap', 'knife'];
 
@@ -74,7 +91,8 @@ function pickOrder(): MenuId {
 
 /**
  * One customer at a time, as an abstract figure (sphere head, box body, two
- * hand cubes) across the counter. They come in at the shop's entrance and
+ * hand cubes) across the counter. They come to the shop's entrance from
+ * outside, slide its lattice door open, step in and shut it behind them, and
  * walk to the seat (shown in by the part-timer when called in). The order
  * shows above the head as a card: fish color plus a wasabi mark. When a
  * piece is served the customer reaches with the dominant hand (revealing
@@ -83,8 +101,9 @@ function pickOrder(): MenuId {
  * order one more, a Poor one one fewer, after a Bad one they order no more.
  * A piece that is not what they ordered is sent back and made again. Now
  * and then they ask for tea (src/tea-system.ts); left waiting too long, they
- * order one fewer. When done they say "Thank you!" and walk out: there is
- * no money in the game, the check is the cashier's, off-screen. Then the
+ * order one fewer. When done they say "Thank you!" and walk out through the
+ * door the same way: there is no money in the game, the check is the
+ * cashier's, off-screen. Then the
  * next customer comes, sometimes left-handed. Once the noren is taken in,
  * the seated customer's order is the last; when they have left, the day is
  * over.
@@ -108,10 +127,31 @@ export class CustomerSystem extends createSystem({}) {
   private resultGroup!: Group;
   private resultTime = 0;
   /** 'closed' until the bar opens (the morning prep): nobody is seated. */
-  private phase: 'closed' | 'door' | 'entering' | 'waiting' | 'reaching' | 'returning' | 'leaving' = 'waiting';
+  private phase:
+    | 'closed'
+    | 'arriving'
+    | 'door'
+    | 'entering'
+    | 'waiting'
+    | 'reaching'
+    | 'returning'
+    | 'leaving'
+    | 'exiting' = 'waiting';
   private t = 0;
   /** How far along the way in they are (0 at the door). */
   private walkS = WAY_LENGTH;
+  /** Through the entrance ('arriving', 'exiting'): which part of it, and the straight leg being walked. */
+  private step = 0;
+  private readonly legFrom = new Vector3();
+  private readonly legTo = new Vector3();
+  private legS = 0;
+  private legLen = 0;
+  /** The one going out now had been seated (not turned away at the door with the noren in). */
+  private outSeated = true;
+  /** The entrance's lattice door (found once the scene is loaded); how far open it is and is wanted (0 shut, 1 open). */
+  private door: Object3D | null = null;
+  private doorOpen = 0;
+  private doorWanted = 0;
   /** This customer will ask for tea after the first piece; has asked; how long they have waited. */
   private teaPlanned = false;
   private teaAsked = false;
@@ -207,13 +247,16 @@ export class CustomerSystem extends createSystem({}) {
     if (first) {
       this.phase = 'waiting';
       this.walkS = WAY_LENGTH;
+      this.placeOnWay(this.walkS, 0);
     } else {
-      // In at the entrance: they wait there to be shown in.
-      this.phase = 'door';
+      // From outside: to the door, in through it, and they wait just inside to be shown in.
+      this.phase = 'arriving';
+      this.step = 0;
       this.t = 0;
       this.walkS = 0;
+      this.startLeg(FROM, BEFORE_DOOR);
+      this.walkLeg(0);
     }
-    this.placeOnWay(this.walkS, 0);
     console.log(`[Customer] new customer, ${e.getValue(Customer, 'leftHanded') ? 'left' : 'right'}-handed`);
   }
 
@@ -335,6 +378,54 @@ export class CustomerSystem extends createSystem({}) {
     }
   }
 
+  private startLeg(from: Vector3, to: Vector3): void {
+    this.legFrom.copy(from);
+    this.legTo.copy(to);
+    this.legS = 0;
+    this.legLen = from.distanceTo(to);
+  }
+
+  /** Along the leg being walked outside or through the door, facing the way they walk; true at its end. */
+  private walkLeg(delta: number): boolean {
+    this.legS = Math.min(this.legLen, this.legS + WALK_PACE * delta);
+    const k = this.legLen > 0 ? this.legS / this.legLen : 1;
+    this.figure.position.lerpVectors(this.legFrom, this.legTo, k);
+    this.tmp.subVectors(this.legTo, this.legFrom);
+    if (this.tmp.lengthSq() > 0) this.figure.rotation.y = Math.atan2(this.tmp.x, this.tmp.z);
+    return this.legS >= this.legLen;
+  }
+
+  /** Has the door slid open (or shut), starting it (with its rattle) if it is not on its way; true once it is there. */
+  private setDoor(open: boolean): boolean {
+    const want = open ? 1 : 0;
+    if (this.doorWanted !== want) {
+      this.doorWanted = want;
+      playDoor();
+      console.log(`[Customer] the door ${open ? 'opens' : 'shuts'}`);
+    }
+    return this.doorOpen === want;
+  }
+
+  /** Slides the door toward where it is wanted, eased at both ends. */
+  private updateDoor(delta: number): void {
+    if (this.doorOpen === this.doorWanted) return;
+    this.door ??= this.world.scene.getObjectByName('LatticeDoor') ?? null;
+    const dir = this.doorWanted > this.doorOpen ? 1 : -1;
+    this.doorOpen = Math.min(1, Math.max(0, this.doorOpen + (dir * delta) / DOOR_SECONDS));
+    if (this.door) {
+      const k = this.doorOpen;
+      this.door.position.x = -DOOR_SLIDE * k * k * (3 - 2 * k);
+    }
+  }
+
+  /** From just inside the door: out through it (it opens and shuts), and away to the left. */
+  private goOut(seated: boolean): void {
+    this.phase = 'exiting';
+    this.step = 0;
+    this.outSeated = seated;
+    staff.guestAtDoor = false;
+  }
+
   /** Done: a thank-you, and they go (the check is the cashier's, off-screen). */
   private finish(): void {
     tea.wanted = false;
@@ -395,6 +486,7 @@ export class CustomerSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    this.updateDoor(delta);
     if (this.phase === 'closed') {
       service.order = null;
       staff.guestAtDoor = false;
@@ -412,10 +504,34 @@ export class CustomerSystem extends createSystem({}) {
     this.t += delta;
     this.updateTea(delta);
     switch (this.phase) {
+      case 'arriving': {
+        if (day.closing && this.step < 2) {
+          // The noren is in before they are through the door: nobody more is seated today.
+          this.setDoor(false);
+          this.closeDay('nobody seated');
+          break;
+        }
+        if (this.step === 0) {
+          if (this.walkLeg(delta)) this.step = 1;
+        } else if (this.step === 1) {
+          // Before the door, facing it, until it is open.
+          this.figure.rotation.y = 0;
+          if (this.setDoor(true)) {
+            this.startLeg(BEFORE_DOOR, DOOR);
+            this.step = 2;
+          }
+        } else if (this.walkLeg(delta)) {
+          // In, and the door shut behind them.
+          this.setDoor(false);
+          this.placeOnWay(0, 0);
+          this.phase = 'door';
+        }
+        break;
+      }
       case 'door': {
         if (day.closing) {
-          // The noren is in: nobody more is seated today.
-          this.closeDay('nobody seated');
+          // The noren is in: nobody more is seated today, and they go out again.
+          this.goOut(false);
           break;
         }
         // Shown in by the part-timer when called in; otherwise they walk in on their own.
@@ -492,9 +608,28 @@ export class CustomerSystem extends createSystem({}) {
         if (this.walkS <= 0) {
           this.resultGroup.visible = false;
           tea.clear = true;
-          // A nigiri stage ends with its last customer.
-          if (stage.on && customerLeft()) day.closing = true;
-          if (day.closing) this.closeDay('the last customer has left');
+          this.goOut(true);
+        }
+        break;
+      }
+      case 'exiting': {
+        if (this.step === 0) {
+          // At the door, facing it, until it is open.
+          this.figure.rotation.y = Math.PI;
+          if (this.setDoor(true)) {
+            this.startLeg(DOOR, BEFORE_DOOR);
+            this.step = 1;
+          }
+        } else if (this.step === 1) {
+          if (this.walkLeg(delta)) {
+            this.setDoor(false);
+            this.startLeg(BEFORE_DOOR, AWAY);
+            this.step = 2;
+          }
+        } else if (this.walkLeg(delta)) {
+          // Out of sight behind the front wall. A nigiri stage ends with its last customer.
+          if (this.outSeated && stage.on && customerLeft()) day.closing = true;
+          if (day.closing) this.closeDay(this.outSeated ? 'the last customer has left' : 'nobody seated');
           else this.newCustomer(false);
         }
         break;

@@ -28,6 +28,42 @@ function noise(ac: AudioContext): AudioBuffer {
   return noiseBuffer;
 }
 
+/**
+ * The entrance's lattice door sliding in its groove (ガラガラ): a low
+ * rattle, its wheels knocking about 14 times a second, quiet across the room.
+ */
+export function playDoor(): void {
+  const ac = context();
+  if (!ac) return;
+  const t = ac.currentTime;
+  const src = ac.createBufferSource();
+  src.buffer = noise(ac);
+  src.loop = true;
+  const filter = ac.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 650;
+  filter.Q.value = 1.2;
+  // The knocks: a square wave swings the rattle's gain between 0 and 1.
+  const rattle = ac.createGain();
+  rattle.gain.value = 0.5;
+  const knock = ac.createOscillator();
+  knock.type = 'square';
+  knock.frequency.value = 14;
+  const depth = ac.createGain();
+  depth.gain.value = 0.5;
+  knock.connect(depth).connect(rattle.gain);
+  const env = ac.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(0.14, t + 0.06);
+  env.gain.setValueAtTime(0.14, t + 0.6);
+  env.gain.linearRampToValueAtTime(0, t + 0.8);
+  src.connect(filter).connect(rattle).connect(env).connect(ac.destination);
+  src.start(t);
+  src.stop(t + 0.85);
+  knock.start(t);
+  knock.stop(t + 0.85);
+}
+
 /** Rustle of a hand digging into the rice tub: filtered noise with a wobble. */
 export function playRustle(): void {
   const ac = context();

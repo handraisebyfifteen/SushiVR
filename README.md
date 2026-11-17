@@ -647,7 +647,9 @@ boiled and raw by turns.
 **No money**: this is a simulator, not a management game. There are no
 prices, bills or wages, and the check (お勘定) is done by a cashier,
 off-screen: when the customer has had the last piece they say "Thank you!"
-and walk out by the entrance, and the next customer comes in there.
+and walk out by the entrance, and the next customer comes in there. Each
+one slides the entrance's lattice door open, steps through and shuts it
+behind them, with its rattle.
 
 **Tea** (お茶): now and then a customer asks for tea after the first piece.
 It is powdered green tea from the hot-water urn on the low cabinet under
