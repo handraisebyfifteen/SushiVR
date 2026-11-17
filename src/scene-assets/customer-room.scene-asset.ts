@@ -27,8 +27,8 @@ import { type BoxPart, boxBatch, instances, mergeGeometries } from './lib/batch.
  * entrance wall and the chef's room, a stone-tiled floor, a board ceiling
  * with two paper ceiling lamps, a shoji window beside the entrance, a
  * hanging scroll (bamboo in ink, no lettering) with a flower shelf on the
- * left wall, a pendulum wall clock on the right wall, an umbrella stand by
- * the door and three stools at the counter.
+ * left wall, a pendulum wall clock on the right wall and three stools at
+ * the counter.
  *
  * Decoration only (no stations). Nothing here is a light source: the paper
  * of the window and the lamps is unlit, so it only looks bright.
@@ -50,8 +50,6 @@ const celadon = new MeshStandardMaterial({ color: '#8FA89A', roughness: 0.35 });
 const camellia = new MeshStandardMaterial({ color: '#B5302E', roughness: 0.7 });
 const leaf = new MeshStandardMaterial({ color: '#3F5B36', roughness: 0.8 });
 const brass = new MeshStandardMaterial({ color: '#A88A4A', roughness: 0.4, metalness: 0.6 });
-const glaze = new MeshStandardMaterial({ color: '#34435C', roughness: 0.4 });
-const umbrellaCloth = new MeshStandardMaterial({ color: '#2B2726', roughness: 0.9 });
 
 /** The room's inner faces: left wall, right wall, the entrance wall's face, the bar's line. */
 const Y0 = -STEP_HEIGHT;
@@ -257,28 +255,8 @@ function clock(root: Group): void {
   ]));
 }
 
-/** By the door: a glazed umbrella stand with two umbrellas; at the counter: three stools. */
-function standAndStools(root: Group): void {
-  const ux = ENTRANCE_X + 0.86;
-  const uz = ZF + 0.17;
-  const at = (g: CylinderGeometry, x: number, y: number, z: number, rx = 0, rz = 0): [CylinderGeometry, Matrix4] => [
-    g,
-    new Matrix4().makeRotationX(rx).multiply(new Matrix4().makeRotationZ(rz)).setPosition(x, y, z),
-  ];
-  const stand = new Mesh(mergeGeometries([at(new CylinderGeometry(0.105, 0.09, 0.4, 20), ux, Y0 + 0.2, uz)]), glaze);
-  stand.name = 'UmbrellaStand';
-  const closed = new CylinderGeometry(0.024, 0.01, 0.6, 10);
-  const umbrellas = new Mesh(
-    mergeGeometries([at(closed, ux - 0.03, Y0 + 0.5, uz + 0.01, 0.06, 0.1), at(closed, ux + 0.035, Y0 + 0.5, uz - 0.015, -0.08, -0.1)]),
-    umbrellaCloth,
-  );
-  umbrellas.name = 'Umbrellas';
-  root.add(stand, umbrellas);
-  root.add(boxBatch('UmbrellaHandles', paleWood, [
-    { w: 0.014, h: 0.14, d: 0.014, x: ux - 0.062, y: Y0 + 0.86, z: uz + 0.03, rx: 0.06, rz: 0.1 },
-    { w: 0.014, h: 0.14, d: 0.014, x: ux + 0.068, y: Y0 + 0.86, z: uz - 0.042, rx: -0.08, rz: -0.1 },
-  ]));
-
+/** At the counter: three stools. */
+function stools(root: Group): void {
   const seatY = Y0 + 0.45;
   const sz = CUSTOMER_SEAT_Z - 0.04;
   const xs = [-0.62, 0, 0.62];
@@ -301,6 +279,6 @@ export function createCustomerRoom(): Group {
   windowAndLamps(root);
   scrollAndFlower(root);
   clock(root);
-  standAndStools(root);
+  stools(root);
   return root;
 }
